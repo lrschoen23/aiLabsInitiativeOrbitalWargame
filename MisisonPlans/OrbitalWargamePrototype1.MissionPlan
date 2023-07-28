@@ -383,7 +383,7 @@ radiusLongitudeR3.LineWidth = 2;
 Call AddVerticalLine(
 	pwRadiusLongitude,
 	pwRadiusLongitude.XAxis.MinimumValue + (pwRadiusLongitude.XAxis.MaximumValue - pwRadiusLongitude.XAxis.MinimumValue) * 0.88,
-	{pwRadiusLongitude.YAxis.MinimumValue + (pwRadiusLongitude.YAxis.MaximumValue - pwRadiusLongitude.YAxis.MinimumValue) * 0.17, pwRadiusLongitude.YAxis.MinimumValue},
+	{pwRadiusLongitude.YAxis.MinimumValue + (pwRadiusLongitude.YAxis.MaximumValue - pwRadiusLongitude.YAxis.MinimumValue) * 0.17, pwRadiusLongitude.YAxis.MinimumValue + 10},
 	2,
 	ColorTools.Green,
 	0,
@@ -400,7 +400,7 @@ Call AddFloatingLabelToPlot(
 Call AddSinglePointToPlot(
 	pwRadiusLongitude,
 	pwRadiusLongitude.XAxis.MinimumValue + (pwRadiusLongitude.XAxis.MaximumValue - pwRadiusLongitude.XAxis.MinimumValue) * 0.88,
-	pwRadiusLongitude.YAxis.MinimumValue + 3,
+	pwRadiusLongitude.YAxis.MinimumValue + 10,
 	5,
 	3,
 	ColorTools.Green,
@@ -1240,7 +1240,7 @@ radiusLongitudeR3.LineWidth = 2;
 Call AddVerticalLine(
 	pwRadiusLongitude,
 	pwRadiusLongitude.XAxis.MinimumValue + (pwRadiusLongitude.XAxis.MaximumValue - pwRadiusLongitude.XAxis.MinimumValue) * 0.88,
-	{pwRadiusLongitude.YAxis.MinimumValue + (pwRadiusLongitude.YAxis.MaximumValue - pwRadiusLongitude.YAxis.MinimumValue) * 0.17, pwRadiusLongitude.YAxis.MinimumValue},
+	{pwRadiusLongitude.YAxis.MinimumValue + (pwRadiusLongitude.YAxis.MaximumValue - pwRadiusLongitude.YAxis.MinimumValue) * 0.17, pwRadiusLongitude.YAxis.MinimumValue + 10},
 	2,
 	ColorTools.Green,
 	0,
@@ -1257,7 +1257,7 @@ Call AddFloatingLabelToPlot(
 Call AddSinglePointToPlot(
 	pwRadiusLongitude,
 	pwRadiusLongitude.XAxis.MinimumValue + (pwRadiusLongitude.XAxis.MaximumValue - pwRadiusLongitude.XAxis.MinimumValue) * 0.88,
-	pwRadiusLongitude.YAxis.MinimumValue + 3,
+	pwRadiusLongitude.YAxis.MinimumValue + 10,
 	5,
 	3,
 	ColorTools.Green,
