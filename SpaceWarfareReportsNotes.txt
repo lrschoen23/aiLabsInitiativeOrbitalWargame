@@ -1,0 +1,51 @@
+Space Threat Assessment
+
+Optical dazzling:
+- Must come from within sensor FOV.
+- Temporarily or permanantly blind optical sensors
+- Difficult for attacker to tell if they've been successful
+- Can be done from ground with powerful lazer, or from orbit with less powerful lazer
+- Both US and China reportedly working on the tech needded to do this from orbit
+
+HPM (high powered microwave):
+- Corrupt stored data
+- Force on-board processor restart
+- Circuit cooking
+- Difficult for attacker to tell if they've been successful
+
+Jamming:
+- Fill EM frequency with noise
+- Uplink/downlink variants
+
+Spoofing:
+- Can be done easily and cheaply, even to encrypted signals by rebroadcasting a time delayed copy
+
+Cyber:
+- 
+
+
+China:
+ - SJ12/GSSAP cat mouse episode early 2022
+ - stole the X37b
+ 
+ 
+ Russia
+ - you bad so sad, all bark no bite
+ - widespread jamming attempts in ukraine
+ - 36 oneweb sats siezed on launchpad after refusing to give assurances that sats would not be used to support military activities, march 2022
+ - keeps testing asat weapons. 2021 test created debris cloud that forced ISS to maneuver 3 times in 2022
+ - Inspector sat maneuvered to loiter near 3 different commercial comms sats (long history of this behavior)
+ - Newly launched sat conducted LEO flyby of NRO spy sat after only 3 days in orbit before maneuvering into same orbit plane
+ - Very active in the cyber arena (hacking into sats)
+ - One hour before invasion in Feb 2022 conducted cyberattack on Ukraine's ground station by downlinking disabling code from a satellite. This action also disabled wind turbines and internet access across central europe. ViaSat is not a defense contractor/paramilitary provider.
+ 
+ 
+
+
+Webinar:
+
+RF jamming of phased arrays (which have a narrow signal footprint) can be difficult unless you are near or inside the footprint
+ 
+ 
+ 
+ 
