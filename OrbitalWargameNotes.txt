@@ -1,11 +1,10 @@
 Mission Plan Notes;
 
 - add station keeping box to longitude plot
-- add keep out distance to radius plot
 
 
 - more jamming info/visualizations to react to
-- close approach distance/time until
+- add predict to longitude radius plot?
 
 
 
