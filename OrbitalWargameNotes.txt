@@ -1,13 +1,9 @@
 Mission Plan Notes;
 
-- add station keeping box to longitude plot
 
 
 - more jamming info/visualizations to react to
-- add invisible sc at blue1 location for camera (so that blue1 can slew without messing up body fixed view)
-- live barchart of game objectives
 - add time based plots behind lower left
-- remove status text and add time/date readout
 
 
 
@@ -28,8 +24,12 @@ EM/RF people: Billy Gonzolez, scott donel
 - Execute East/West Stationkeeping Maneuver (what about manuevering outside the box to create more separation)
   - manuevering outside is fine
   
-- add predict to longitude radius plot
-- try making overlay predict similar to plots
+
+
+Later/maybe:
 - add markers at maneuver points
+- live barchart of game objectives
+- add station keeping box to longitude plot
+- sensor view for payload with keep out lines
 
 

@@ -99,7 +99,8 @@ Global TimeSpan aheadPredictTime = TimeSpan.FromHours(18);
 Global TimeSpan aheadPredictUpdateInterval = TimeSpan.FromSeconds(300);
 Global Constant Variable aheadPredictRangeUpdateLimit = 300;
 
-Global TimeSpan simStartEpoch = TimeTools.ParseCalendarDate("Jun 09 2025 15:00:00.000", "TAI", "TAI", "MJD GSFC");
+Global TimeSpan simStartEpoch = TimeTools.ParseCalendarDate("Jun 09 2025 15:00:00.000", "UTC", "UTC", "MJD GSFC");
+simStartEpoch -= TimeSpan.FromSeconds(4*60 + 23);
 
 Global Variable colorRed1 = ColorTools.InterpolateColorHSV({ColorTools.White, ColorTools.Red, ColorTools.Black}, 0.5);
 Global Variable colorRed2 = ColorTools.InterpolateColorHSV({ColorTools.White, ColorTools.Red, ColorTools.Black}, 0.75);
@@ -110,6 +111,8 @@ Global Variable colorBlue1 = ColorTools.DodgerBlue;
 Global Variable radialViewTailLength = 3e2 * 300 / simStepSize.ToSeconds();
 
 Global Variable doOptimizationAndSaveValues = 0;
+
+Global Spacecraft cameraSc;
 
 Formation red;
 Formation blue;
@@ -122,18 +125,35 @@ blue.ViewAsGroup = 0;
 
 Global Array sensativePayloadUnitVectorBCS = {0, 0, 1};
 
+Variable overlayPredictLineWidth = 1;
 
 Global GraphicsOverlay overlayRed1Future;
 overlayRed1Future.SetReferenceObject(blue[0].ObjectId);
-overlayRed1Future.DefaultColor = ColorTools.LightGray;
+overlayRed1Future.DefaultColor = colorRed1;
 
 Global GraphicsOverlay overlayRed2Future;
 overlayRed2Future.SetReferenceObject(blue[0].ObjectId);
-overlayRed2Future.DefaultColor = ColorTools.LightGray;
+overlayRed2Future.DefaultColor = colorRed2;
 
 Global GraphicsOverlay overlayRed3Future;
 overlayRed3Future.SetReferenceObject(blue[0].ObjectId);
-overlayRed3Future.DefaultColor = ColorTools.LightGray;
+overlayRed3Future.DefaultColor = colorRed3;
+
+overlayRed1Future.ShapeType = "Points";
+overlayRed2Future.ShapeType = "Points";
+overlayRed3Future.ShapeType = "Points";
+
+overlayRed1Future.ShapeTickType = "Up Triangle";
+overlayRed2Future.ShapeTickType = "Up Triangle";
+overlayRed3Future.ShapeTickType = "Up Triangle";
+
+overlayRed1Future.ShapeTickWidth = 5;
+overlayRed2Future.ShapeTickWidth = 5;
+overlayRed3Future.ShapeTickWidth = 5;
+
+
+Global WindowOverlay overlayDateTime;
+overlayDateTime.Shapes[0].SetPosition(1, 10, 10);
 
 
 Global ViewWindow radialView;
@@ -145,9 +165,14 @@ radialView.AddObject(blue);
 radialView.AddObject(overlayRed1Future);
 radialView.AddObject(overlayRed2Future);
 radialView.AddObject(overlayRed3Future);
-radialView.CurrentViewpoint.ThreeDView.Source = blue[0].ObjectId;
-radialView.CurrentViewpoint.ThreeDView.Target = blue[0].ObjectId;
+radialView.AddObject(cameraSc);
+radialView.AddObject(overlayDateTime);
+radialView.CurrentViewpoint.ThreeDView.Source = cameraSc.ObjectId;
+radialView.CurrentViewpoint.ThreeDView.Target = cameraSc.ObjectId;
 radialView.SetShowName(0, TypeOf(CelestialObject), 0);
+radialView.SetShowObject(cameraSc.ObjectId, 0);
+radialView.ShowStatusText = 0;
+radialView.WindowTitle = "3D View";
 
 Global ImpulsiveBurn burn;
 burn.AttitudeSystem = 6;
@@ -192,6 +217,9 @@ blue[0].EulerAngles[1] = 90;
 blue[0].TailLength = radialViewTailLength;
 radialView.SetShowName(blue[0].ObjectId, 1);
 radialView.SetObjectLabelFont(blue[0].ObjectId, vf);
+radialView.SetLineWidth(blue[0].ObjectId, 0, 2);
+
+cameraSc.EulerAngles[1] = 90;
 
 
 Variable red1AngularSeparation = 2;
@@ -228,16 +256,124 @@ For i = 0 to red.Count - 1;
 	red[i].TailLength = radialViewTailLength;
 	radialView.SetShowName(red[i].ObjectId, 1);
 	radialView.SetObjectLabelFont(red[i].ObjectId, vf);
+	radialView.SetLineWidth(red[i].ObjectId, 0, 2);
 End;
 
 
 Global Array initialKepStateRed1 = red[0].GetKeplerianState();
 Global TimeSpan simEpoch;
 
+Define Procedure InitializePlotPredictSeries(PlotScatterSeries series, String label, Variable color);
+	series.Label = label;
+	series.MarkersColor = color;
+
+	series.LineVisible = 0;
+	series.MarkersVisible = 1;
+	series.MarkersStyle = 2;
+EndProcedure;
+
+Define Procedure InitializePlotCurrentLocationSeries(PlotScatterSeries series, Variable color);
+	series.MarkersColor = color;
+	
+	series.MarkersStyle = 1;
+	series.MarkersSize = 2;
+	series.MarkersVisible = 1;
+	series.LineVisible = 0;
+	series.ShowInLegend = 0;
+	series.AddPoints(0, 0);
+EndProcedure;
+
+Define Procedure InitializePlotMainSeries(PlotScatterSeries series, String label, Variable color);
+	series.Label = label;
+	series.LineColor = color;
+
+	series.LineStyle = 0;
+	series.LineWidth = 2;
+EndProcedure;
+
+Define Procedure InitializePlot(PlotWindow plot, String title, String xLabel, String yLabel, String windowHandle);
+	plot.SetBackgroundColorPalette("DarkGray");
+	plot.PlotTitle.Text = title;
+	plot.XAxis.Title.Text = xLabel;
+	plot.YAxis.Title.Text = yLabel;
+	plot.WindowTitle = windowHandle;
+	plot.PlotSubTitle.Visible = 0;
+	plot.HighQualityRendering = 1;
+EndProcedure;
+
+Define Procedure InitializePlotAxisRanges(PlotWindow plot, Array x, Array y);
+	plot.XAxis.MinimumValue = x[0];
+	plot.XAxis.MaximumValue = x[1];
+	plot.YAxis.MinimumValue = y[0];
+	plot.YAxis.MaximumValue = y[1];
+EndProcedure;
+
+Constant Variable maxRangeForPlots = 600;
+
+// set up time vs range plot
 Global Variable rangeB1_R1;
 Global Variable rangeB1_R2;
 Global Variable rangeB1_R3;
 
+Global PlotScatterSeries rangeR1;
+Global PlotScatterSeries rangeR2;
+Global PlotScatterSeries rangeR3;
+
+Global PlotScatterSeries rangeR1CurrentLocation;
+Global PlotScatterSeries rangeR2CurrentLocation;
+Global PlotScatterSeries rangeR3CurrentLocation;
+
+Global PlotScatterSeries rangeR1Predict;
+Global PlotScatterSeries rangeR2Predict;
+Global PlotScatterSeries rangeR3Predict;
+
+PlotScatterSeries rangeKeepOutArea_TimeRangePlot;
+
+Global PlotWindow pwRange;
+Call InitializePlot(pwRange, "Elapsed Time vs Range", "Elapsed Time (hrs)", "Range (km)", "Time vs Range");
+pwRange.AddSeries(rangeKeepOutArea_TimeRangePlot);
+pwRange.AddSeries(rangeR1);
+pwRange.AddSeries(rangeR2);
+pwRange.AddSeries(rangeR3);
+pwRange.AddSeries(rangeR1Predict);
+pwRange.AddSeries(rangeR2Predict);
+pwRange.AddSeries(rangeR3Predict);
+pwRange.AddSeries(rangeR1CurrentLocation);
+pwRange.AddSeries(rangeR2CurrentLocation);
+pwRange.AddSeries(rangeR3CurrentLocation);
+Call InitializePlotAxisRanges(pwRange, {-24, aheadPredictTime.ToHours()}, {0, maxRangeForPlots});
+pwRange.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
+pwRange.MaxPoints = 3e2 * 300 / simStepSize.ToSeconds();
+pwRange.UseMonitorMode = 1;
+pwRange.Legend.Location = 1;
+
+// rangeAngleFromPayloadXX
+Call InitializePlotMainSeries(rangeR1, "Red1", colorRed1);
+Call InitializePlotMainSeries(rangeR2, "Red2", colorRed2);
+Call InitializePlotMainSeries(rangeR3, "Red3", colorRed3);
+
+// rangeAngleFromPayloadXXCurrentLocation
+Call InitializePlotCurrentLocationSeries(rangeR1CurrentLocation, colorRed1);
+Call InitializePlotCurrentLocationSeries(rangeR2CurrentLocation, colorRed2);
+Call InitializePlotCurrentLocationSeries(rangeR3CurrentLocation, colorRed3);
+
+// rangeAngleFromPayloadXXPredict
+Call InitializePlotPredictSeries(rangeR1Predict, "Red1 Predict", colorRed1);
+Call InitializePlotPredictSeries(rangeR2Predict, "Red2 Predict", colorRed2);
+Call InitializePlotPredictSeries(rangeR3Predict, "Red3 Predict", colorRed3);
+
+// rangeKeepOutArea_TimeRangePlot
+rangeKeepOutArea_TimeRangePlot.LineColor = ColorTools.Orange;
+rangeKeepOutArea_TimeRangePlot.LineWidth = 3;
+rangeKeepOutArea_TimeRangePlot.LineStyle = 0;
+rangeKeepOutArea_TimeRangePlot.Label = "Range Keep Out Zone";
+rangeKeepOutArea_TimeRangePlot.AddPoints(
+	{pwRange.XAxis.MinimumValue, pwRange.XAxis.MinimumValue, pwRange.XAxis.MaximumValue, pwRange.XAxis.MaximumValue},
+	{0, 30, 30, 0});
+rangeKeepOutArea_TimeRangePlot.AddPoints(rangeKeepOutArea_TimeRangePlot.Data[0,:]);
+
+
+// set up angle to sensitive payload vs range plot
 Global PlotScatterSeries rangeAngleFromPayloadR1;
 Global PlotScatterSeries rangeAngleFromPayloadR2;
 Global PlotScatterSeries rangeAngleFromPayloadR3;
@@ -251,99 +387,41 @@ Global PlotScatterSeries rangeAngleFromPayloadR2Predict;
 Global PlotScatterSeries rangeAngleFromPayloadR3Predict;
 
 PlotScatterSeries rangeAngleKeepOutArea;
-PlotScatterSeries rangeKeepOutArea;
+PlotScatterSeries rangeKeepOutArea_AngleRangePlot;
 
-
-// set up angle to sensitive payload vs range plot
-Global PlotWindow pwRange;
-pwRange.SetBackgroundColorPalette("DarkGray");
-pwRange.PlotTitle.Text = "Angle from Sensitive Payload vs Range";
-pwRange.PlotSubTitle.Visible = 0;
-pwRange.HighQualityRendering = 1;
-pwRange.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
-pwRange.MaxPoints = 3e2 * 300 / simStepSize.ToSeconds();
-pwRange.UseMonitorMode = 1;
-pwRange.AddSeries(rangeKeepOutArea);
-pwRange.AddSeries(rangeAngleKeepOutArea);
-pwRange.AddSeries(rangeAngleFromPayloadR1);
-pwRange.AddSeries(rangeAngleFromPayloadR2);
-pwRange.AddSeries(rangeAngleFromPayloadR3);
-pwRange.AddSeries(rangeAngleFromPayloadR1CurrentLocation);
-pwRange.AddSeries(rangeAngleFromPayloadR2CurrentLocation);
-pwRange.AddSeries(rangeAngleFromPayloadR3CurrentLocation);
-pwRange.AddSeries(rangeAngleFromPayloadR1Predict);
-pwRange.AddSeries(rangeAngleFromPayloadR2Predict);
-pwRange.AddSeries(rangeAngleFromPayloadR3Predict);
-pwRange.XAxis.MaximumValue = 180;
-pwRange.XAxis.MinimumValue = 0;
-pwRange.XAxis.Title.Text = "Angle from Sensitive Payload (deg)";
-pwRange.YAxis.MaximumValue = 600;
-pwRange.YAxis.MinimumValue = 0;
-pwRange.YAxis.Title.Text = "Range (km)";
-pwRange.Legend.Location = 1;
+Global PlotWindow pwAngleRange;
+Call InitializePlot(pwAngleRange, "Angle from Sensitive Payload vs Range", "Angle from Sensitive Payload (deg)", "Range (km)", "Angle vs Range");
+pwAngleRange.AddSeries(rangeKeepOutArea_AngleRangePlot);
+pwAngleRange.AddSeries(rangeAngleKeepOutArea);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR1);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR2);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR3);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR1Predict);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR2Predict);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR3Predict);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR1CurrentLocation);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR2CurrentLocation);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR3CurrentLocation);
+Call InitializePlotAxisRanges(pwAngleRange, {0, 180}, {0, maxRangeForPlots});
+pwAngleRange.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
+pwAngleRange.MaxPoints = 3e2 * 300 / simStepSize.ToSeconds();
+pwAngleRange.UseMonitorMode = 1;
+pwAngleRange.Legend.Location = 1;
 
 // rangeAngleFromPayloadXX
-rangeAngleFromPayloadR1.Label = "Red1";
-rangeAngleFromPayloadR2.Label = "Red2";
-rangeAngleFromPayloadR3.Label = "Red3";
-
-rangeAngleFromPayloadR1.LineColor = colorRed1;
-rangeAngleFromPayloadR2.LineColor = colorRed2;
-rangeAngleFromPayloadR3.LineColor = colorRed3;
-
-rangeAngleFromPayloadR1.LineStyle = 0;
-rangeAngleFromPayloadR2.LineStyle = 0;
-rangeAngleFromPayloadR3.LineStyle = 0;
-
-rangeAngleFromPayloadR1.LineWidth = 2;
-rangeAngleFromPayloadR2.LineWidth = 2;
-rangeAngleFromPayloadR3.LineWidth = 2;
+Call InitializePlotMainSeries(rangeAngleFromPayloadR1, "Red1", colorRed1);
+Call InitializePlotMainSeries(rangeAngleFromPayloadR2, "Red2", colorRed2);
+Call InitializePlotMainSeries(rangeAngleFromPayloadR3, "Red3", colorRed3);
 
 // rangeAngleFromPayloadXXCurrentLocation
-rangeAngleFromPayloadR1CurrentLocation.MarkersColor = colorRed1;
-rangeAngleFromPayloadR2CurrentLocation.MarkersColor = colorRed2;
-rangeAngleFromPayloadR3CurrentLocation.MarkersColor = colorRed3;
-
-rangeAngleFromPayloadR1CurrentLocation.MarkersStyle = 1;
-rangeAngleFromPayloadR2CurrentLocation.MarkersStyle = 1;
-rangeAngleFromPayloadR3CurrentLocation.MarkersStyle = 1;
-
-rangeAngleFromPayloadR1CurrentLocation.MarkersSize = 2;
-rangeAngleFromPayloadR2CurrentLocation.MarkersSize = 2;
-rangeAngleFromPayloadR3CurrentLocation.MarkersSize = 2;
-
-rangeAngleFromPayloadR1CurrentLocation.MarkersVisible = 1;
-rangeAngleFromPayloadR2CurrentLocation.MarkersVisible = 1;
-rangeAngleFromPayloadR3CurrentLocation.MarkersVisible = 1;
-
-rangeAngleFromPayloadR1CurrentLocation.LineVisible = 0;
-rangeAngleFromPayloadR2CurrentLocation.LineVisible = 0;
-rangeAngleFromPayloadR3CurrentLocation.LineVisible = 0;
-
-rangeAngleFromPayloadR1CurrentLocation.ShowInLegend = 0;
-rangeAngleFromPayloadR2CurrentLocation.ShowInLegend = 0;
-rangeAngleFromPayloadR3CurrentLocation.ShowInLegend = 0;
-
-rangeAngleFromPayloadR1CurrentLocation.AddPoints(0, 0);
-rangeAngleFromPayloadR2CurrentLocation.AddPoints(0, 0);
-rangeAngleFromPayloadR3CurrentLocation.AddPoints(0, 0);
+Call InitializePlotCurrentLocationSeries(rangeAngleFromPayloadR1CurrentLocation, colorRed1);
+Call InitializePlotCurrentLocationSeries(rangeAngleFromPayloadR2CurrentLocation, colorRed2);
+Call InitializePlotCurrentLocationSeries(rangeAngleFromPayloadR3CurrentLocation, colorRed3);
 
 // rangeAngleFromPayloadXXPredict
-rangeAngleFromPayloadR1Predict.Label = "Red1 Predict";
-rangeAngleFromPayloadR2Predict.Label = "Red2 Predict";
-rangeAngleFromPayloadR3Predict.Label = "Red3 Predict";
-
-rangeAngleFromPayloadR1Predict.LineColor = colorRed1;
-rangeAngleFromPayloadR2Predict.LineColor = colorRed2;
-rangeAngleFromPayloadR3Predict.LineColor = colorRed3;
-
-rangeAngleFromPayloadR1Predict.LineStyle = 2;
-rangeAngleFromPayloadR2Predict.LineStyle = 2;
-rangeAngleFromPayloadR3Predict.LineStyle = 2;
-
-rangeAngleFromPayloadR1Predict.LineWidth = 1;
-rangeAngleFromPayloadR2Predict.LineWidth = 1;
-rangeAngleFromPayloadR3Predict.LineWidth = 1;
+Call InitializePlotPredictSeries(rangeAngleFromPayloadR1Predict, "Red1 Predict", colorRed1);
+Call InitializePlotPredictSeries(rangeAngleFromPayloadR2Predict, "Red2 Predict", colorRed2);
+Call InitializePlotPredictSeries(rangeAngleFromPayloadR3Predict, "Red3 Predict", colorRed3);
 
 // rangeAngleKeepOutArea
 rangeAngleKeepOutArea.LineColor = ColorTools.Yellow;
@@ -353,17 +431,16 @@ rangeAngleKeepOutArea.Label = "Payload Keep Out Zone";
 rangeAngleKeepOutArea.AddPoints({0, 0, 45, 90}, {0, 80, 80, 0});
 rangeAngleKeepOutArea.AddPoints(rangeAngleKeepOutArea.Data[0,:]);
 
-// rangeKeepOutArea
-rangeKeepOutArea.LineColor = ColorTools.Orange;
-rangeKeepOutArea.LineWidth = 3;
-rangeKeepOutArea.LineStyle = 0;
-rangeKeepOutArea.Label = "Range Keep Out Zone";
-rangeKeepOutArea.AddPoints({0, 0, 180, 180}, {0, 30, 30, 0});
-rangeKeepOutArea.AddPoints(rangeKeepOutArea.Data[0,:]);
+// rangeKeepOutArea_AngleRangePlot
+rangeKeepOutArea_AngleRangePlot.LineColor = ColorTools.Orange;
+rangeKeepOutArea_AngleRangePlot.LineWidth = 3;
+rangeKeepOutArea_AngleRangePlot.LineStyle = 0;
+rangeKeepOutArea_AngleRangePlot.Label = "Range Keep Out Zone";
+rangeKeepOutArea_AngleRangePlot.AddPoints({0, 0, 180, 180}, {0, 30, 30, 0});
+rangeKeepOutArea_AngleRangePlot.AddPoints(rangeKeepOutArea_AngleRangePlot.Data[0,:]);
 
 
 // Set up longitude radius plot
-
 Global PlotScatterSeries radiusLongitudeB1;
 Global PlotScatterSeries radiusLongitudeR1;
 Global PlotScatterSeries radiusLongitudeR2;
@@ -374,87 +451,45 @@ Global PlotScatterSeries radiusLongitudeR1CurrentLocation;
 Global PlotScatterSeries radiusLongitudeR2CurrentLocation;
 Global PlotScatterSeries radiusLongitudeR3CurrentLocation;
 
+Global PlotScatterSeries radiusLongitudeR1Predict;
+Global PlotScatterSeries radiusLongitudeR2Predict;
+Global PlotScatterSeries radiusLongitudeR3Predict;
 
 Global PlotWindow pwRadiusLongitude;
-pwRadiusLongitude.SetBackgroundColorPalette("DarkGray");
-pwRadiusLongitude.PlotTitle.Text = "Longitude vs Radius";
-pwRadiusLongitude.PlotSubTitle.Visible = 0;
-pwRadiusLongitude.HighQualityRendering = 1;
-pwRadiusLongitude.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
-//pwRadiusLongitude.MaxPoints = 1e3 * 300 / simStepSize.ToSeconds();
-pwRadiusLongitude.MaxPoints = 1e3 * 300 / simStepSize.ToSeconds();
-pwRadiusLongitude.UseMonitorMode = 1;
+Call InitializePlot(pwRadiusLongitude, "Longitude vs Radius", "Longitude (deg)", "Radius (km)", "Radius vs Longitude");
 pwRadiusLongitude.AddSeries(radiusLongitudeB1);
 pwRadiusLongitude.AddSeries(radiusLongitudeR1);
 pwRadiusLongitude.AddSeries(radiusLongitudeR2);
 pwRadiusLongitude.AddSeries(radiusLongitudeR3);
+pwRadiusLongitude.AddSeries(radiusLongitudeR1Predict);
+pwRadiusLongitude.AddSeries(radiusLongitudeR2Predict);
+pwRadiusLongitude.AddSeries(radiusLongitudeR3Predict);
 pwRadiusLongitude.AddSeries(radiusLongitudeB1CurrentLocation);
 pwRadiusLongitude.AddSeries(radiusLongitudeR1CurrentLocation);
 pwRadiusLongitude.AddSeries(radiusLongitudeR2CurrentLocation);
 pwRadiusLongitude.AddSeries(radiusLongitudeR3CurrentLocation);
-pwRadiusLongitude.XAxis.MaximumValue = blue[0].Longitude + 3;
-pwRadiusLongitude.XAxis.MinimumValue = blue[0].Longitude - 3;
-pwRadiusLongitude.XAxis.Title.Text = "Longitude (deg)";
-pwRadiusLongitude.YAxis.MaximumValue = 42250;
-pwRadiusLongitude.YAxis.MinimumValue = 42050;
-pwRadiusLongitude.YAxis.Title.Text = "Radius (km)";
-
-// radiusLongitudeXXCurrentLocation
-radiusLongitudeB1CurrentLocation.MarkersColor = colorBlue1;
-radiusLongitudeR1CurrentLocation.MarkersColor = colorRed1;
-radiusLongitudeR2CurrentLocation.MarkersColor = colorRed2;
-radiusLongitudeR3CurrentLocation.MarkersColor = colorRed3;
-
-radiusLongitudeB1CurrentLocation.MarkersStyle = 1;
-radiusLongitudeR1CurrentLocation.MarkersStyle = 1;
-radiusLongitudeR2CurrentLocation.MarkersStyle = 1;
-radiusLongitudeR3CurrentLocation.MarkersStyle = 1;
-
-radiusLongitudeB1CurrentLocation.MarkersSize = 2;
-radiusLongitudeR1CurrentLocation.MarkersSize = 2;
-radiusLongitudeR2CurrentLocation.MarkersSize = 2;
-radiusLongitudeR3CurrentLocation.MarkersSize = 2;
-
-radiusLongitudeB1CurrentLocation.MarkersVisible = 1;
-radiusLongitudeR1CurrentLocation.MarkersVisible = 1;
-radiusLongitudeR2CurrentLocation.MarkersVisible = 1;
-radiusLongitudeR3CurrentLocation.MarkersVisible = 1;
-
-radiusLongitudeB1CurrentLocation.LineVisible = 0;
-radiusLongitudeR1CurrentLocation.LineVisible = 0;
-radiusLongitudeR2CurrentLocation.LineVisible = 0;
-radiusLongitudeR3CurrentLocation.LineVisible = 0;
-
-radiusLongitudeB1CurrentLocation.ShowInLegend = 0;
-radiusLongitudeR1CurrentLocation.ShowInLegend = 0;
-radiusLongitudeR2CurrentLocation.ShowInLegend = 0;
-radiusLongitudeR3CurrentLocation.ShowInLegend = 0;
-
-radiusLongitudeB1CurrentLocation.AddPoints(0, 0);
-radiusLongitudeR1CurrentLocation.AddPoints(0, 0);
-radiusLongitudeR2CurrentLocation.AddPoints(0, 0);
-radiusLongitudeR3CurrentLocation.AddPoints(0, 0);
+Call InitializePlotAxisRanges(pwRadiusLongitude, {blue[0].Longitude - 3, blue[0].Longitude + 3}, {42050, 42250});
+pwRadiusLongitude.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
+pwRadiusLongitude.MaxPoints = 1e3 * 300 / simStepSize.ToSeconds();
+pwRadiusLongitude.UseMonitorMode = 1;
 
 // radiusLongitude
-radiusLongitudeB1.Label = "BlueSat";
-radiusLongitudeR1.Label = "Red1";
-radiusLongitudeR2.Label = "Red2";
-radiusLongitudeR3.Label = "Red3";
+Call InitializePlotMainSeries(radiusLongitudeB1, "BlueSat", colorBlue1);
+Call InitializePlotMainSeries(radiusLongitudeR1, "Red1", colorRed1);
+Call InitializePlotMainSeries(radiusLongitudeR2, "Red2", colorRed2);
+Call InitializePlotMainSeries(radiusLongitudeR3, "Red3", colorRed3);
 
-radiusLongitudeB1.LineColor = colorBlue1;
-radiusLongitudeR1.LineColor = colorRed1;
-radiusLongitudeR2.LineColor = colorRed2;
-radiusLongitudeR3.LineColor = colorRed3;
+// radiusLongitudeXXCurrentLocation
+Call InitializePlotCurrentLocationSeries(radiusLongitudeB1CurrentLocation, colorBlue1);
+Call InitializePlotCurrentLocationSeries(radiusLongitudeR1CurrentLocation, colorRed1);
+Call InitializePlotCurrentLocationSeries(radiusLongitudeR2CurrentLocation, colorRed2);
+Call InitializePlotCurrentLocationSeries(radiusLongitudeR3CurrentLocation, colorRed3);
 
-radiusLongitudeB1.LineStyle = 0;
-radiusLongitudeR1.LineStyle = 0;
-radiusLongitudeR2.LineStyle = 0;
-radiusLongitudeR3.LineStyle = 0;
+// radiusLongitudeXXPredict
+Call InitializePlotPredictSeries(radiusLongitudeR1Predict, "Red1 Predict", colorRed1);
+Call InitializePlotPredictSeries(radiusLongitudeR2Predict, "Red2 Predict", colorRed2);
+Call InitializePlotPredictSeries(radiusLongitudeR3Predict, "Red3 Predict", colorRed3);
 
-radiusLongitudeB1.LineWidth = 2;
-radiusLongitudeR1.LineWidth = 2;
-radiusLongitudeR2.LineWidth = 2;
-radiusLongitudeR3.LineWidth = 2;
 
 Call AddVerticalLine(
 	pwRadiusLongitude,
@@ -485,15 +520,24 @@ Call AddSinglePointToPlot(
 
 
 
+Variable screenSpaceRatio = 0.5;
 
 
-OutputLayout.SetWindowFrameVisibility({radialView.ID, pwRadiusLongitude.ID, pwRange.ID}, 0);
+OutputLayout.SetWindowFrameVisibility({radialView.ID, pwRadiusLongitude.ID, pwAngleRange.ID, pwRange.ID}, 0);
+
 OutputLayout.SetWindowPosition(pwRadiusLongitude.ID, 1, 0, 1, 0);
-OutputLayout.SetWindowSize(pwRadiusLongitude.ID, 1, 0.4, 1, 0.5);
+OutputLayout.SetWindowSize(pwRadiusLongitude.ID, 1, screenSpaceRatio, 1, 0.5);
+
+OutputLayout.SetWindowPosition(pwAngleRange.ID, 1, 0, 1, 0.5);
+OutputLayout.SetWindowSize(pwAngleRange.ID, 1, screenSpaceRatio, 1, 0.5);
+
 OutputLayout.SetWindowPosition(pwRange.ID, 1, 0, 1, 0.5);
-OutputLayout.SetWindowSize(pwRange.ID, 1, 0.4, 1, 0.5);
-OutputLayout.SetWindowPosition(radialView.ID, 1, 0.4, 1, 0);
-OutputLayout.SetWindowSize(radialView.ID, 1, 0.6, 1, 1);
+OutputLayout.SetWindowSize(pwRange.ID, 1, screenSpaceRatio, 1, 0.5);
+OutputLayout.SendWindowToBack(pwRange.ID);
+
+OutputLayout.SetWindowPosition(radialView.ID, 1, screenSpaceRatio, 1, 0);
+OutputLayout.SetWindowSize(radialView.ID, 1, 1 - screenSpaceRatio, 1, 1);
+
 OutputLayout.ApplyUpdates();]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
@@ -502,43 +546,64 @@ OutputLayout.ApplyUpdates();]]></FreeFormScript>
         <Breakpoints />
         <FreeFormScript><![CDATA[
 
-Define Procedure ComputePredict(Spacecraft primarySC, Spacecraft secondarySC, TimeSpan predictionDuration, GraphicsOverlay go, PlotScatterSeries angleRangeSeries, Variable justEraseOverlay);
+Define Procedure ComputePredict(
+		Spacecraft blueSC,
+		Spacecraft redSC,
+		TimeSpan predictionDuration,
+		GraphicsOverlay go,
+		PlotScatterSeries angleRangeSeries,
+		PlotScatterSeries rangeSeries,
+		PlotScatterSeries radiusLongitudeSeriesRed,
+		Variable justEraseOverlay);
 	Array positionBCS;
 	Variable i;
-	
 	
 	Matrix futureStateMJ2000 = Matrix.Empty;
 	futureStateMJ2000.ColumnCount = 3;
 	
-	TimeSpan currentStep = TimeSpan.Zero();
-	
 	// Reset the GraphicsOverlay
 	go.ClearOverlayElements();
 	angleRangeSeries.ClearPoints();
+	rangeSeries.ClearPoints();
+	radiusLongitudeSeriesRed.ClearPoints();
 	
 	If (justEraseOverlay);
 		ExitProcedure;
 	End;
 	
-	Save primarySC;
-	Save secondarySC;
-	primarySC.Propagator.StepSize = TimeSpan.FromSeconds(300);
+	Save blueSC;
+	Save redSC;
+	blueSC.Propagator.StepSize = TimeSpan.FromSeconds(2000);
+	redSC.Propagator.StepSize = TimeSpan.FromSeconds(2000);
+	
+	Variable radiusLongitudePredictDataThinning = 3;
+	Variable dataPointsSinceLastRadiusLongitudePoint = 0;
 	
     // Compute the future path of the secondary with respect to the primary
-	TimeSpan epochToStepTo = primarySC.Epoch + predictionDuration;
-	WhileStepping primarySC to (primarySC.Epoch == epochToStepTo);
-		secondarySC.StepToEpoch(primarySC.Epoch);
+	TimeSpan initialEpoch = blueSC.Epoch;
+	TimeSpan epochToStepTo = initialEpoch + predictionDuration;
+	Variable range;
+	WhileStepping blueSC to (blueSC.Epoch == epochToStepTo);
+		redSC.StepToEpoch(blueSC.Epoch);
 		
-		positionBCS = AttitudeConvert(0, 3, primarySC, secondarySC.Position - primarySC.Position);
+		positionBCS = AttitudeConvert(0, 3, blueSC, redSC.Position - blueSC.Position);
 		
 		go.AddOverlayElement(positionBCS[0], positionBCS[1], positionBCS[2]);
 		
-		angleRangeSeries.AddPoints(deg(acos(positionBCS.Normalized.DotProduct(sensativePayloadUnitVectorBCS.Normalized))), positionBCS.Norm);
+		range = positionBCS.Norm;
+		angleRangeSeries.AddPoints(deg(acos(positionBCS.Normalized.DotProduct(sensativePayloadUnitVectorBCS.Normalized))), range);
+		rangeSeries.AddPoints((blueSC.Epoch - initialEpoch).ToHours(), range);
+		
+		dataPointsSinceLastRadiusLongitudePoint += 1;
+		If (dataPointsSinceLastRadiusLongitudePoint == radiusLongitudePredictDataThinning);
+			radiusLongitudeSeriesRed.AddPoints(redSC.Longitude, redSC.Radius);
+			dataPointsSinceLastRadiusLongitudePoint = 0;
+		End;
+		
 	End;
 
-	
-	Restore primarySC;
-	Restore secondarySC;
+	Restore blueSC;
+	Restore redSC;
 	
 EndProcedure;
 
@@ -587,24 +652,52 @@ Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan
 	TimeSpan timeSinceAheadPredictUpdate = TimeSpan.Zero();
 	
 	Variable angle;
+	Variable i;
 	
 	WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+		pwAngleRange.BeginBatchUpdate();
+		pwRadiusLongitude.BeginBatchUpdate();
 		pwRange.BeginBatchUpdate();
+		radialView.BeginBatchUpdate();
+		
 		red.StepToEpoch(blue[0].Epoch);
 		simEpoch = blue[0].Epoch;
+		
+		cameraSc.Epoch = blue[0].Epoch;
+		cameraSc.SetCartesianState(blue[0].GetCartesianState());
+		
+		overlayDateTime.Shapes[0].TextOptions.Text = blue[0].Epoch.ConvertToCalendarDate();
 	
-		// update angle vs range data
+		// update angle/range data
 		Call ComputeRangeAndAngleFromPayload(blue[0], red[0], rangeB1_R1, angle);
 		rangeAngleFromPayloadR1.AddPoints(angle, rangeB1_R1);
 		rangeAngleFromPayloadR1CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR1.Data[rangeAngleFromPayloadR1.Data.RowCount - 1, 0:1];
+		
+		rangeR1.AddPoints(0, rangeB1_R1);
+		For i = 0 to rangeR1.Data.RowCount - 1;
+			rangeR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR1CurrentLocation.Data[0, 0:1] = rangeR1.Data[rangeR1.Data.RowCount - 1, 0:1];
 		
 		Call ComputeRangeAndAngleFromPayload(blue[0], red[1], rangeB1_R2, angle);
 		rangeAngleFromPayloadR2.AddPoints(angle, rangeB1_R2);
 		rangeAngleFromPayloadR2CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR2.Data[rangeAngleFromPayloadR2.Data.RowCount - 1, 0:1];
 		
+		rangeR2.AddPoints(0, rangeB1_R2);
+		For i = 0 to rangeR2.Data.RowCount - 1;
+			rangeR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR2CurrentLocation.Data[0, 0:1] = rangeR2.Data[rangeR2.Data.RowCount - 1, 0:1];
+		
 		Call ComputeRangeAndAngleFromPayload(blue[0], red[2], rangeB1_R3, angle);
 		rangeAngleFromPayloadR3.AddPoints(angle, rangeB1_R3);
 		rangeAngleFromPayloadR3CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR3.Data[rangeAngleFromPayloadR3.Data.RowCount - 1, 0:1];
+		
+		rangeR3.AddPoints(0, rangeB1_R3);
+		For i = 0 to rangeR3.Data.RowCount - 1;
+			rangeR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR3CurrentLocation.Data[0, 0:1] = rangeR3.Data[rangeR3.Data.RowCount - 1, 0:1];
 
 		// update longitude vs radius data
 		radiusLongitudeB1.AddPoints(blue[0].Longitude, blue[0].Radius);
@@ -619,16 +712,42 @@ Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan
 		// update predict data
 		timeSinceAheadPredictUpdate += blue[0].Propagator.StepSize;
 		If (timeSinceAheadPredictUpdate > aheadPredictUpdateInterval);
-			Call ComputePredict(blue[0], red[0], aheadPredictTime, overlayRed1Future, rangeAngleFromPayloadR1Predict, rangeB1_R1 > aheadPredictRangeUpdateLimit);
-			Call ComputePredict(blue[0], red[1], aheadPredictTime, overlayRed2Future, rangeAngleFromPayloadR2Predict, rangeB1_R2 > aheadPredictRangeUpdateLimit);
-			Call ComputePredict(blue[0], red[2], aheadPredictTime, overlayRed3Future, rangeAngleFromPayloadR3Predict, rangeB1_R3 > aheadPredictRangeUpdateLimit);
+			Call ComputePredict(
+				blue[0],
+				red[0],
+				aheadPredictTime,
+				overlayRed1Future,
+				rangeAngleFromPayloadR1Predict,
+				rangeR1Predict,
+				radiusLongitudeR1Predict,
+				rangeB1_R1 > aheadPredictRangeUpdateLimit);
+			Call ComputePredict(
+				blue[0],
+				red[1],
+				aheadPredictTime,
+				overlayRed2Future,
+				rangeAngleFromPayloadR2Predict,
+				rangeR2Predict,
+				radiusLongitudeR2Predict,
+				rangeB1_R2 > aheadPredictRangeUpdateLimit);
+			Call ComputePredict(
+				blue[0],
+				red[2],
+				aheadPredictTime,
+				overlayRed1Future,
+				rangeAngleFromPayloadR3Predict,
+				rangeR3Predict,
+				radiusLongitudeR3Predict,
+				rangeB1_R3 > aheadPredictRangeUpdateLimit);
 			timeSinceAheadPredictUpdate = TimeSpan.Zero;
 		End;
 		
-		
-		pwRange.EndBatchUpdate();
-		pwRadiusLongitude.Update();
 		radialView.Update();
+		
+		pwAngleRange.EndBatchUpdate();
+		pwRange.EndBatchUpdate();
+		pwRadiusLongitude.EndBatchUpdate();
+		radialView.EndBatchUpdate();
 	End;
 EndProcedure;
 
@@ -1324,7 +1443,8 @@ Global TimeSpan aheadPredictTime = TimeSpan.FromHours(18);
 Global TimeSpan aheadPredictUpdateInterval = TimeSpan.FromSeconds(300);
 Global Constant Variable aheadPredictRangeUpdateLimit = 300;
 
-Global TimeSpan simStartEpoch = TimeTools.ParseCalendarDate("Jun 09 2025 15:00:00.000", "TAI", "TAI", "MJD GSFC");
+Global TimeSpan simStartEpoch = TimeTools.ParseCalendarDate("Jun 09 2025 15:00:00.000", "UTC", "UTC", "MJD GSFC");
+simStartEpoch -= TimeSpan.FromSeconds(4*60 + 23);
 
 Global Variable colorRed1 = ColorTools.InterpolateColorHSV({ColorTools.White, ColorTools.Red, ColorTools.Black}, 0.5);
 Global Variable colorRed2 = ColorTools.InterpolateColorHSV({ColorTools.White, ColorTools.Red, ColorTools.Black}, 0.75);
@@ -1335,6 +1455,8 @@ Global Variable colorBlue1 = ColorTools.DodgerBlue;
 Global Variable radialViewTailLength = 3e2 * 300 / simStepSize.ToSeconds();
 
 Global Variable doOptimizationAndSaveValues = 0;
+
+Global Spacecraft cameraSc;
 
 Formation red;
 Formation blue;
@@ -1347,18 +1469,35 @@ blue.ViewAsGroup = 0;
 
 Global Array sensativePayloadUnitVectorBCS = {0, 0, 1};
 
+Variable overlayPredictLineWidth = 1;
 
 Global GraphicsOverlay overlayRed1Future;
 overlayRed1Future.SetReferenceObject(blue[0].ObjectId);
-overlayRed1Future.DefaultColor = ColorTools.LightGray;
+overlayRed1Future.DefaultColor = colorRed1;
 
 Global GraphicsOverlay overlayRed2Future;
 overlayRed2Future.SetReferenceObject(blue[0].ObjectId);
-overlayRed2Future.DefaultColor = ColorTools.LightGray;
+overlayRed2Future.DefaultColor = colorRed2;
 
 Global GraphicsOverlay overlayRed3Future;
 overlayRed3Future.SetReferenceObject(blue[0].ObjectId);
-overlayRed3Future.DefaultColor = ColorTools.LightGray;
+overlayRed3Future.DefaultColor = colorRed3;
+
+overlayRed1Future.ShapeType = "Points";
+overlayRed2Future.ShapeType = "Points";
+overlayRed3Future.ShapeType = "Points";
+
+overlayRed1Future.ShapeTickType = "Up Triangle";
+overlayRed2Future.ShapeTickType = "Up Triangle";
+overlayRed3Future.ShapeTickType = "Up Triangle";
+
+overlayRed1Future.ShapeTickWidth = 5;
+overlayRed2Future.ShapeTickWidth = 5;
+overlayRed3Future.ShapeTickWidth = 5;
+
+
+Global WindowOverlay overlayDateTime;
+overlayDateTime.Shapes[0].SetPosition(1, 10, 10);
 
 
 Global ViewWindow radialView;
@@ -1370,9 +1509,14 @@ radialView.AddObject(blue);
 radialView.AddObject(overlayRed1Future);
 radialView.AddObject(overlayRed2Future);
 radialView.AddObject(overlayRed3Future);
-radialView.CurrentViewpoint.ThreeDView.Source = blue[0].ObjectId;
-radialView.CurrentViewpoint.ThreeDView.Target = blue[0].ObjectId;
+radialView.AddObject(cameraSc);
+radialView.AddObject(overlayDateTime);
+radialView.CurrentViewpoint.ThreeDView.Source = cameraSc.ObjectId;
+radialView.CurrentViewpoint.ThreeDView.Target = cameraSc.ObjectId;
 radialView.SetShowName(0, TypeOf(CelestialObject), 0);
+radialView.SetShowObject(cameraSc.ObjectId, 0);
+radialView.ShowStatusText = 0;
+radialView.WindowTitle = "3D View";
 
 Global ImpulsiveBurn burn;
 burn.AttitudeSystem = 6;
@@ -1417,6 +1561,9 @@ blue[0].EulerAngles[1] = 90;
 blue[0].TailLength = radialViewTailLength;
 radialView.SetShowName(blue[0].ObjectId, 1);
 radialView.SetObjectLabelFont(blue[0].ObjectId, vf);
+radialView.SetLineWidth(blue[0].ObjectId, 0, 2);
+
+cameraSc.EulerAngles[1] = 90;
 
 
 Variable red1AngularSeparation = 2;
@@ -1453,16 +1600,124 @@ For i = 0 to red.Count - 1;
 	red[i].TailLength = radialViewTailLength;
 	radialView.SetShowName(red[i].ObjectId, 1);
 	radialView.SetObjectLabelFont(red[i].ObjectId, vf);
+	radialView.SetLineWidth(red[i].ObjectId, 0, 2);
 End;
 
 
 Global Array initialKepStateRed1 = red[0].GetKeplerianState();
 Global TimeSpan simEpoch;
 
+Define Procedure InitializePlotPredictSeries(PlotScatterSeries series, String label, Variable color);
+	series.Label = label;
+	series.MarkersColor = color;
+
+	series.LineVisible = 0;
+	series.MarkersVisible = 1;
+	series.MarkersStyle = 2;
+EndProcedure;
+
+Define Procedure InitializePlotCurrentLocationSeries(PlotScatterSeries series, Variable color);
+	series.MarkersColor = color;
+	
+	series.MarkersStyle = 1;
+	series.MarkersSize = 2;
+	series.MarkersVisible = 1;
+	series.LineVisible = 0;
+	series.ShowInLegend = 0;
+	series.AddPoints(0, 0);
+EndProcedure;
+
+Define Procedure InitializePlotMainSeries(PlotScatterSeries series, String label, Variable color);
+	series.Label = label;
+	series.LineColor = color;
+
+	series.LineStyle = 0;
+	series.LineWidth = 2;
+EndProcedure;
+
+Define Procedure InitializePlot(PlotWindow plot, String title, String xLabel, String yLabel, String windowHandle);
+	plot.SetBackgroundColorPalette("DarkGray");
+	plot.PlotTitle.Text = title;
+	plot.XAxis.Title.Text = xLabel;
+	plot.YAxis.Title.Text = yLabel;
+	plot.WindowTitle = windowHandle;
+	plot.PlotSubTitle.Visible = 0;
+	plot.HighQualityRendering = 1;
+EndProcedure;
+
+Define Procedure InitializePlotAxisRanges(PlotWindow plot, Array x, Array y);
+	plot.XAxis.MinimumValue = x[0];
+	plot.XAxis.MaximumValue = x[1];
+	plot.YAxis.MinimumValue = y[0];
+	plot.YAxis.MaximumValue = y[1];
+EndProcedure;
+
+Constant Variable maxRangeForPlots = 600;
+
+// set up time vs range plot
 Global Variable rangeB1_R1;
 Global Variable rangeB1_R2;
 Global Variable rangeB1_R3;
 
+Global PlotScatterSeries rangeR1;
+Global PlotScatterSeries rangeR2;
+Global PlotScatterSeries rangeR3;
+
+Global PlotScatterSeries rangeR1CurrentLocation;
+Global PlotScatterSeries rangeR2CurrentLocation;
+Global PlotScatterSeries rangeR3CurrentLocation;
+
+Global PlotScatterSeries rangeR1Predict;
+Global PlotScatterSeries rangeR2Predict;
+Global PlotScatterSeries rangeR3Predict;
+
+PlotScatterSeries rangeKeepOutArea_TimeRangePlot;
+
+Global PlotWindow pwRange;
+Call InitializePlot(pwRange, "Elapsed Time vs Range", "Elapsed Time (hrs)", "Range (km)", "Time vs Range");
+pwRange.AddSeries(rangeKeepOutArea_TimeRangePlot);
+pwRange.AddSeries(rangeR1);
+pwRange.AddSeries(rangeR2);
+pwRange.AddSeries(rangeR3);
+pwRange.AddSeries(rangeR1Predict);
+pwRange.AddSeries(rangeR2Predict);
+pwRange.AddSeries(rangeR3Predict);
+pwRange.AddSeries(rangeR1CurrentLocation);
+pwRange.AddSeries(rangeR2CurrentLocation);
+pwRange.AddSeries(rangeR3CurrentLocation);
+Call InitializePlotAxisRanges(pwRange, {-24, aheadPredictTime.ToHours()}, {0, maxRangeForPlots});
+pwRange.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
+pwRange.MaxPoints = 3e2 * 300 / simStepSize.ToSeconds();
+pwRange.UseMonitorMode = 1;
+pwRange.Legend.Location = 1;
+
+// rangeAngleFromPayloadXX
+Call InitializePlotMainSeries(rangeR1, "Red1", colorRed1);
+Call InitializePlotMainSeries(rangeR2, "Red2", colorRed2);
+Call InitializePlotMainSeries(rangeR3, "Red3", colorRed3);
+
+// rangeAngleFromPayloadXXCurrentLocation
+Call InitializePlotCurrentLocationSeries(rangeR1CurrentLocation, colorRed1);
+Call InitializePlotCurrentLocationSeries(rangeR2CurrentLocation, colorRed2);
+Call InitializePlotCurrentLocationSeries(rangeR3CurrentLocation, colorRed3);
+
+// rangeAngleFromPayloadXXPredict
+Call InitializePlotPredictSeries(rangeR1Predict, "Red1 Predict", colorRed1);
+Call InitializePlotPredictSeries(rangeR2Predict, "Red2 Predict", colorRed2);
+Call InitializePlotPredictSeries(rangeR3Predict, "Red3 Predict", colorRed3);
+
+// rangeKeepOutArea_TimeRangePlot
+rangeKeepOutArea_TimeRangePlot.LineColor = ColorTools.Orange;
+rangeKeepOutArea_TimeRangePlot.LineWidth = 3;
+rangeKeepOutArea_TimeRangePlot.LineStyle = 0;
+rangeKeepOutArea_TimeRangePlot.Label = "Range Keep Out Zone";
+rangeKeepOutArea_TimeRangePlot.AddPoints(
+	{pwRange.XAxis.MinimumValue, pwRange.XAxis.MinimumValue, pwRange.XAxis.MaximumValue, pwRange.XAxis.MaximumValue},
+	{0, 30, 30, 0});
+rangeKeepOutArea_TimeRangePlot.AddPoints(rangeKeepOutArea_TimeRangePlot.Data[0,:]);
+
+
+// set up angle to sensitive payload vs range plot
 Global PlotScatterSeries rangeAngleFromPayloadR1;
 Global PlotScatterSeries rangeAngleFromPayloadR2;
 Global PlotScatterSeries rangeAngleFromPayloadR3;
@@ -1476,99 +1731,41 @@ Global PlotScatterSeries rangeAngleFromPayloadR2Predict;
 Global PlotScatterSeries rangeAngleFromPayloadR3Predict;
 
 PlotScatterSeries rangeAngleKeepOutArea;
-PlotScatterSeries rangeKeepOutArea;
+PlotScatterSeries rangeKeepOutArea_AngleRangePlot;
 
-
-// set up angle to sensitive payload vs range plot
-Global PlotWindow pwRange;
-pwRange.SetBackgroundColorPalette("DarkGray");
-pwRange.PlotTitle.Text = "Angle from Sensitive Payload vs Range";
-pwRange.PlotSubTitle.Visible = 0;
-pwRange.HighQualityRendering = 1;
-pwRange.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
-pwRange.MaxPoints = 3e2 * 300 / simStepSize.ToSeconds();
-pwRange.UseMonitorMode = 1;
-pwRange.AddSeries(rangeKeepOutArea);
-pwRange.AddSeries(rangeAngleKeepOutArea);
-pwRange.AddSeries(rangeAngleFromPayloadR1);
-pwRange.AddSeries(rangeAngleFromPayloadR2);
-pwRange.AddSeries(rangeAngleFromPayloadR3);
-pwRange.AddSeries(rangeAngleFromPayloadR1CurrentLocation);
-pwRange.AddSeries(rangeAngleFromPayloadR2CurrentLocation);
-pwRange.AddSeries(rangeAngleFromPayloadR3CurrentLocation);
-pwRange.AddSeries(rangeAngleFromPayloadR1Predict);
-pwRange.AddSeries(rangeAngleFromPayloadR2Predict);
-pwRange.AddSeries(rangeAngleFromPayloadR3Predict);
-pwRange.XAxis.MaximumValue = 180;
-pwRange.XAxis.MinimumValue = 0;
-pwRange.XAxis.Title.Text = "Angle from Sensitive Payload (deg)";
-pwRange.YAxis.MaximumValue = 600;
-pwRange.YAxis.MinimumValue = 0;
-pwRange.YAxis.Title.Text = "Range (km)";
-pwRange.Legend.Location = 1;
+Global PlotWindow pwAngleRange;
+Call InitializePlot(pwAngleRange, "Angle from Sensitive Payload vs Range", "Angle from Sensitive Payload (deg)", "Range (km)", "Angle vs Range");
+pwAngleRange.AddSeries(rangeKeepOutArea_AngleRangePlot);
+pwAngleRange.AddSeries(rangeAngleKeepOutArea);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR1);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR2);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR3);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR1Predict);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR2Predict);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR3Predict);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR1CurrentLocation);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR2CurrentLocation);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR3CurrentLocation);
+Call InitializePlotAxisRanges(pwAngleRange, {0, 180}, {0, maxRangeForPlots});
+pwAngleRange.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
+pwAngleRange.MaxPoints = 3e2 * 300 / simStepSize.ToSeconds();
+pwAngleRange.UseMonitorMode = 1;
+pwAngleRange.Legend.Location = 1;
 
 // rangeAngleFromPayloadXX
-rangeAngleFromPayloadR1.Label = "Red1";
-rangeAngleFromPayloadR2.Label = "Red2";
-rangeAngleFromPayloadR3.Label = "Red3";
-
-rangeAngleFromPayloadR1.LineColor = colorRed1;
-rangeAngleFromPayloadR2.LineColor = colorRed2;
-rangeAngleFromPayloadR3.LineColor = colorRed3;
-
-rangeAngleFromPayloadR1.LineStyle = 0;
-rangeAngleFromPayloadR2.LineStyle = 0;
-rangeAngleFromPayloadR3.LineStyle = 0;
-
-rangeAngleFromPayloadR1.LineWidth = 2;
-rangeAngleFromPayloadR2.LineWidth = 2;
-rangeAngleFromPayloadR3.LineWidth = 2;
+Call InitializePlotMainSeries(rangeAngleFromPayloadR1, "Red1", colorRed1);
+Call InitializePlotMainSeries(rangeAngleFromPayloadR2, "Red2", colorRed2);
+Call InitializePlotMainSeries(rangeAngleFromPayloadR3, "Red3", colorRed3);
 
 // rangeAngleFromPayloadXXCurrentLocation
-rangeAngleFromPayloadR1CurrentLocation.MarkersColor = colorRed1;
-rangeAngleFromPayloadR2CurrentLocation.MarkersColor = colorRed2;
-rangeAngleFromPayloadR3CurrentLocation.MarkersColor = colorRed3;
-
-rangeAngleFromPayloadR1CurrentLocation.MarkersStyle = 1;
-rangeAngleFromPayloadR2CurrentLocation.MarkersStyle = 1;
-rangeAngleFromPayloadR3CurrentLocation.MarkersStyle = 1;
-
-rangeAngleFromPayloadR1CurrentLocation.MarkersSize = 2;
-rangeAngleFromPayloadR2CurrentLocation.MarkersSize = 2;
-rangeAngleFromPayloadR3CurrentLocation.MarkersSize = 2;
-
-rangeAngleFromPayloadR1CurrentLocation.MarkersVisible = 1;
-rangeAngleFromPayloadR2CurrentLocation.MarkersVisible = 1;
-rangeAngleFromPayloadR3CurrentLocation.MarkersVisible = 1;
-
-rangeAngleFromPayloadR1CurrentLocation.LineVisible = 0;
-rangeAngleFromPayloadR2CurrentLocation.LineVisible = 0;
-rangeAngleFromPayloadR3CurrentLocation.LineVisible = 0;
-
-rangeAngleFromPayloadR1CurrentLocation.ShowInLegend = 0;
-rangeAngleFromPayloadR2CurrentLocation.ShowInLegend = 0;
-rangeAngleFromPayloadR3CurrentLocation.ShowInLegend = 0;
-
-rangeAngleFromPayloadR1CurrentLocation.AddPoints(0, 0);
-rangeAngleFromPayloadR2CurrentLocation.AddPoints(0, 0);
-rangeAngleFromPayloadR3CurrentLocation.AddPoints(0, 0);
+Call InitializePlotCurrentLocationSeries(rangeAngleFromPayloadR1CurrentLocation, colorRed1);
+Call InitializePlotCurrentLocationSeries(rangeAngleFromPayloadR2CurrentLocation, colorRed2);
+Call InitializePlotCurrentLocationSeries(rangeAngleFromPayloadR3CurrentLocation, colorRed3);
 
 // rangeAngleFromPayloadXXPredict
-rangeAngleFromPayloadR1Predict.Label = "Red1 Predict";
-rangeAngleFromPayloadR2Predict.Label = "Red2 Predict";
-rangeAngleFromPayloadR3Predict.Label = "Red3 Predict";
-
-rangeAngleFromPayloadR1Predict.LineColor = colorRed1;
-rangeAngleFromPayloadR2Predict.LineColor = colorRed2;
-rangeAngleFromPayloadR3Predict.LineColor = colorRed3;
-
-rangeAngleFromPayloadR1Predict.LineStyle = 2;
-rangeAngleFromPayloadR2Predict.LineStyle = 2;
-rangeAngleFromPayloadR3Predict.LineStyle = 2;
-
-rangeAngleFromPayloadR1Predict.LineWidth = 1;
-rangeAngleFromPayloadR2Predict.LineWidth = 1;
-rangeAngleFromPayloadR3Predict.LineWidth = 1;
+Call InitializePlotPredictSeries(rangeAngleFromPayloadR1Predict, "Red1 Predict", colorRed1);
+Call InitializePlotPredictSeries(rangeAngleFromPayloadR2Predict, "Red2 Predict", colorRed2);
+Call InitializePlotPredictSeries(rangeAngleFromPayloadR3Predict, "Red3 Predict", colorRed3);
 
 // rangeAngleKeepOutArea
 rangeAngleKeepOutArea.LineColor = ColorTools.Yellow;
@@ -1578,17 +1775,16 @@ rangeAngleKeepOutArea.Label = "Payload Keep Out Zone";
 rangeAngleKeepOutArea.AddPoints({0, 0, 45, 90}, {0, 80, 80, 0});
 rangeAngleKeepOutArea.AddPoints(rangeAngleKeepOutArea.Data[0,:]);
 
-// rangeKeepOutArea
-rangeKeepOutArea.LineColor = ColorTools.Orange;
-rangeKeepOutArea.LineWidth = 3;
-rangeKeepOutArea.LineStyle = 0;
-rangeKeepOutArea.Label = "Range Keep Out Zone";
-rangeKeepOutArea.AddPoints({0, 0, 180, 180}, {0, 30, 30, 0});
-rangeKeepOutArea.AddPoints(rangeKeepOutArea.Data[0,:]);
+// rangeKeepOutArea_AngleRangePlot
+rangeKeepOutArea_AngleRangePlot.LineColor = ColorTools.Orange;
+rangeKeepOutArea_AngleRangePlot.LineWidth = 3;
+rangeKeepOutArea_AngleRangePlot.LineStyle = 0;
+rangeKeepOutArea_AngleRangePlot.Label = "Range Keep Out Zone";
+rangeKeepOutArea_AngleRangePlot.AddPoints({0, 0, 180, 180}, {0, 30, 30, 0});
+rangeKeepOutArea_AngleRangePlot.AddPoints(rangeKeepOutArea_AngleRangePlot.Data[0,:]);
 
 
 // Set up longitude radius plot
-
 Global PlotScatterSeries radiusLongitudeB1;
 Global PlotScatterSeries radiusLongitudeR1;
 Global PlotScatterSeries radiusLongitudeR2;
@@ -1599,87 +1795,45 @@ Global PlotScatterSeries radiusLongitudeR1CurrentLocation;
 Global PlotScatterSeries radiusLongitudeR2CurrentLocation;
 Global PlotScatterSeries radiusLongitudeR3CurrentLocation;
 
+Global PlotScatterSeries radiusLongitudeR1Predict;
+Global PlotScatterSeries radiusLongitudeR2Predict;
+Global PlotScatterSeries radiusLongitudeR3Predict;
 
 Global PlotWindow pwRadiusLongitude;
-pwRadiusLongitude.SetBackgroundColorPalette("DarkGray");
-pwRadiusLongitude.PlotTitle.Text = "Longitude vs Radius";
-pwRadiusLongitude.PlotSubTitle.Visible = 0;
-pwRadiusLongitude.HighQualityRendering = 1;
-pwRadiusLongitude.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
-//pwRadiusLongitude.MaxPoints = 1e3 * 300 / simStepSize.ToSeconds();
-pwRadiusLongitude.MaxPoints = 1e3 * 300 / simStepSize.ToSeconds();
-pwRadiusLongitude.UseMonitorMode = 1;
+Call InitializePlot(pwRadiusLongitude, "Longitude vs Radius", "Longitude (deg)", "Radius (km)", "Radius vs Longitude");
 pwRadiusLongitude.AddSeries(radiusLongitudeB1);
 pwRadiusLongitude.AddSeries(radiusLongitudeR1);
 pwRadiusLongitude.AddSeries(radiusLongitudeR2);
 pwRadiusLongitude.AddSeries(radiusLongitudeR3);
+pwRadiusLongitude.AddSeries(radiusLongitudeR1Predict);
+pwRadiusLongitude.AddSeries(radiusLongitudeR2Predict);
+pwRadiusLongitude.AddSeries(radiusLongitudeR3Predict);
 pwRadiusLongitude.AddSeries(radiusLongitudeB1CurrentLocation);
 pwRadiusLongitude.AddSeries(radiusLongitudeR1CurrentLocation);
 pwRadiusLongitude.AddSeries(radiusLongitudeR2CurrentLocation);
 pwRadiusLongitude.AddSeries(radiusLongitudeR3CurrentLocation);
-pwRadiusLongitude.XAxis.MaximumValue = blue[0].Longitude + 3;
-pwRadiusLongitude.XAxis.MinimumValue = blue[0].Longitude - 3;
-pwRadiusLongitude.XAxis.Title.Text = "Longitude (deg)";
-pwRadiusLongitude.YAxis.MaximumValue = 42250;
-pwRadiusLongitude.YAxis.MinimumValue = 42050;
-pwRadiusLongitude.YAxis.Title.Text = "Radius (km)";
-
-// radiusLongitudeXXCurrentLocation
-radiusLongitudeB1CurrentLocation.MarkersColor = colorBlue1;
-radiusLongitudeR1CurrentLocation.MarkersColor = colorRed1;
-radiusLongitudeR2CurrentLocation.MarkersColor = colorRed2;
-radiusLongitudeR3CurrentLocation.MarkersColor = colorRed3;
-
-radiusLongitudeB1CurrentLocation.MarkersStyle = 1;
-radiusLongitudeR1CurrentLocation.MarkersStyle = 1;
-radiusLongitudeR2CurrentLocation.MarkersStyle = 1;
-radiusLongitudeR3CurrentLocation.MarkersStyle = 1;
-
-radiusLongitudeB1CurrentLocation.MarkersSize = 2;
-radiusLongitudeR1CurrentLocation.MarkersSize = 2;
-radiusLongitudeR2CurrentLocation.MarkersSize = 2;
-radiusLongitudeR3CurrentLocation.MarkersSize = 2;
-
-radiusLongitudeB1CurrentLocation.MarkersVisible = 1;
-radiusLongitudeR1CurrentLocation.MarkersVisible = 1;
-radiusLongitudeR2CurrentLocation.MarkersVisible = 1;
-radiusLongitudeR3CurrentLocation.MarkersVisible = 1;
-
-radiusLongitudeB1CurrentLocation.LineVisible = 0;
-radiusLongitudeR1CurrentLocation.LineVisible = 0;
-radiusLongitudeR2CurrentLocation.LineVisible = 0;
-radiusLongitudeR3CurrentLocation.LineVisible = 0;
-
-radiusLongitudeB1CurrentLocation.ShowInLegend = 0;
-radiusLongitudeR1CurrentLocation.ShowInLegend = 0;
-radiusLongitudeR2CurrentLocation.ShowInLegend = 0;
-radiusLongitudeR3CurrentLocation.ShowInLegend = 0;
-
-radiusLongitudeB1CurrentLocation.AddPoints(0, 0);
-radiusLongitudeR1CurrentLocation.AddPoints(0, 0);
-radiusLongitudeR2CurrentLocation.AddPoints(0, 0);
-radiusLongitudeR3CurrentLocation.AddPoints(0, 0);
+Call InitializePlotAxisRanges(pwRadiusLongitude, {blue[0].Longitude - 3, blue[0].Longitude + 3}, {42050, 42250});
+pwRadiusLongitude.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
+pwRadiusLongitude.MaxPoints = 1e3 * 300 / simStepSize.ToSeconds();
+pwRadiusLongitude.UseMonitorMode = 1;
 
 // radiusLongitude
-radiusLongitudeB1.Label = "BlueSat";
-radiusLongitudeR1.Label = "Red1";
-radiusLongitudeR2.Label = "Red2";
-radiusLongitudeR3.Label = "Red3";
+Call InitializePlotMainSeries(radiusLongitudeB1, "BlueSat", colorBlue1);
+Call InitializePlotMainSeries(radiusLongitudeR1, "Red1", colorRed1);
+Call InitializePlotMainSeries(radiusLongitudeR2, "Red2", colorRed2);
+Call InitializePlotMainSeries(radiusLongitudeR3, "Red3", colorRed3);
 
-radiusLongitudeB1.LineColor = colorBlue1;
-radiusLongitudeR1.LineColor = colorRed1;
-radiusLongitudeR2.LineColor = colorRed2;
-radiusLongitudeR3.LineColor = colorRed3;
+// radiusLongitudeXXCurrentLocation
+Call InitializePlotCurrentLocationSeries(radiusLongitudeB1CurrentLocation, colorBlue1);
+Call InitializePlotCurrentLocationSeries(radiusLongitudeR1CurrentLocation, colorRed1);
+Call InitializePlotCurrentLocationSeries(radiusLongitudeR2CurrentLocation, colorRed2);
+Call InitializePlotCurrentLocationSeries(radiusLongitudeR3CurrentLocation, colorRed3);
 
-radiusLongitudeB1.LineStyle = 0;
-radiusLongitudeR1.LineStyle = 0;
-radiusLongitudeR2.LineStyle = 0;
-radiusLongitudeR3.LineStyle = 0;
+// radiusLongitudeXXPredict
+Call InitializePlotPredictSeries(radiusLongitudeR1Predict, "Red1 Predict", colorRed1);
+Call InitializePlotPredictSeries(radiusLongitudeR2Predict, "Red2 Predict", colorRed2);
+Call InitializePlotPredictSeries(radiusLongitudeR3Predict, "Red3 Predict", colorRed3);
 
-radiusLongitudeB1.LineWidth = 2;
-radiusLongitudeR1.LineWidth = 2;
-radiusLongitudeR2.LineWidth = 2;
-radiusLongitudeR3.LineWidth = 2;
 
 Call AddVerticalLine(
 	pwRadiusLongitude,
@@ -1710,55 +1864,85 @@ Call AddSinglePointToPlot(
 
 
 
+Variable screenSpaceRatio = 0.5;
 
 
-OutputLayout.SetWindowFrameVisibility({radialView.ID, pwRadiusLongitude.ID, pwRange.ID}, 0);
+OutputLayout.SetWindowFrameVisibility({radialView.ID, pwRadiusLongitude.ID, pwAngleRange.ID, pwRange.ID}, 0);
+
 OutputLayout.SetWindowPosition(pwRadiusLongitude.ID, 1, 0, 1, 0);
-OutputLayout.SetWindowSize(pwRadiusLongitude.ID, 1, 0.4, 1, 0.5);
+OutputLayout.SetWindowSize(pwRadiusLongitude.ID, 1, screenSpaceRatio, 1, 0.5);
+
+OutputLayout.SetWindowPosition(pwAngleRange.ID, 1, 0, 1, 0.5);
+OutputLayout.SetWindowSize(pwAngleRange.ID, 1, screenSpaceRatio, 1, 0.5);
+
 OutputLayout.SetWindowPosition(pwRange.ID, 1, 0, 1, 0.5);
-OutputLayout.SetWindowSize(pwRange.ID, 1, 0.4, 1, 0.5);
-OutputLayout.SetWindowPosition(radialView.ID, 1, 0.4, 1, 0);
-OutputLayout.SetWindowSize(radialView.ID, 1, 0.6, 1, 1);
+OutputLayout.SetWindowSize(pwRange.ID, 1, screenSpaceRatio, 1, 0.5);
+OutputLayout.SendWindowToBack(pwRange.ID);
+
+OutputLayout.SetWindowPosition(radialView.ID, 1, screenSpaceRatio, 1, 0);
+OutputLayout.SetWindowSize(radialView.ID, 1, 1 - screenSpaceRatio, 1, 1);
+
 OutputLayout.ApplyUpdates();
 
 
-Define Procedure ComputePredict(Spacecraft primarySC, Spacecraft secondarySC, TimeSpan predictionDuration, GraphicsOverlay go, PlotScatterSeries angleRangeSeries, Variable justEraseOverlay);
+Define Procedure ComputePredict(
+		Spacecraft blueSC,
+		Spacecraft redSC,
+		TimeSpan predictionDuration,
+		GraphicsOverlay go,
+		PlotScatterSeries angleRangeSeries,
+		PlotScatterSeries rangeSeries,
+		PlotScatterSeries radiusLongitudeSeriesRed,
+		Variable justEraseOverlay);
 	Array positionBCS;
 	Variable i;
-	
 	
 	Matrix futureStateMJ2000 = Matrix.Empty;
 	futureStateMJ2000.ColumnCount = 3;
 	
-	TimeSpan currentStep = TimeSpan.Zero();
-	
 	// Reset the GraphicsOverlay
 	go.ClearOverlayElements();
 	angleRangeSeries.ClearPoints();
+	rangeSeries.ClearPoints();
+	radiusLongitudeSeriesRed.ClearPoints();
 	
 	If (justEraseOverlay);
 		ExitProcedure;
 	End;
 	
-	Save primarySC;
-	Save secondarySC;
-	primarySC.Propagator.StepSize = TimeSpan.FromSeconds(300);
+	Save blueSC;
+	Save redSC;
+	blueSC.Propagator.StepSize = TimeSpan.FromSeconds(2000);
+	redSC.Propagator.StepSize = TimeSpan.FromSeconds(2000);
+	
+	Variable radiusLongitudePredictDataThinning = 3;
+	Variable dataPointsSinceLastRadiusLongitudePoint = 0;
 	
     // Compute the future path of the secondary with respect to the primary
-	TimeSpan epochToStepTo = primarySC.Epoch + predictionDuration;
-	WhileStepping primarySC to (primarySC.Epoch == epochToStepTo);
-		secondarySC.StepToEpoch(primarySC.Epoch);
+	TimeSpan initialEpoch = blueSC.Epoch;
+	TimeSpan epochToStepTo = initialEpoch + predictionDuration;
+	Variable range;
+	WhileStepping blueSC to (blueSC.Epoch == epochToStepTo);
+		redSC.StepToEpoch(blueSC.Epoch);
 		
-		positionBCS = AttitudeConvert(0, 3, primarySC, secondarySC.Position - primarySC.Position);
+		positionBCS = AttitudeConvert(0, 3, blueSC, redSC.Position - blueSC.Position);
 		
 		go.AddOverlayElement(positionBCS[0], positionBCS[1], positionBCS[2]);
 		
-		angleRangeSeries.AddPoints(deg(acos(positionBCS.Normalized.DotProduct(sensativePayloadUnitVectorBCS.Normalized))), positionBCS.Norm);
+		range = positionBCS.Norm;
+		angleRangeSeries.AddPoints(deg(acos(positionBCS.Normalized.DotProduct(sensativePayloadUnitVectorBCS.Normalized))), range);
+		rangeSeries.AddPoints((blueSC.Epoch - initialEpoch).ToHours(), range);
+		
+		dataPointsSinceLastRadiusLongitudePoint += 1;
+		If (dataPointsSinceLastRadiusLongitudePoint == radiusLongitudePredictDataThinning);
+			radiusLongitudeSeriesRed.AddPoints(redSC.Longitude, redSC.Radius);
+			dataPointsSinceLastRadiusLongitudePoint = 0;
+		End;
+		
 	End;
 
-	
-	Restore primarySC;
-	Restore secondarySC;
+	Restore blueSC;
+	Restore redSC;
 	
 EndProcedure;
 
@@ -1807,24 +1991,52 @@ Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan
 	TimeSpan timeSinceAheadPredictUpdate = TimeSpan.Zero();
 	
 	Variable angle;
+	Variable i;
 	
 	WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+		pwAngleRange.BeginBatchUpdate();
+		pwRadiusLongitude.BeginBatchUpdate();
 		pwRange.BeginBatchUpdate();
+		radialView.BeginBatchUpdate();
+		
 		red.StepToEpoch(blue[0].Epoch);
 		simEpoch = blue[0].Epoch;
+		
+		cameraSc.Epoch = blue[0].Epoch;
+		cameraSc.SetCartesianState(blue[0].GetCartesianState());
+		
+		overlayDateTime.Shapes[0].TextOptions.Text = blue[0].Epoch.ConvertToCalendarDate();
 	
-		// update angle vs range data
+		// update angle/range data
 		Call ComputeRangeAndAngleFromPayload(blue[0], red[0], rangeB1_R1, angle);
 		rangeAngleFromPayloadR1.AddPoints(angle, rangeB1_R1);
 		rangeAngleFromPayloadR1CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR1.Data[rangeAngleFromPayloadR1.Data.RowCount - 1, 0:1];
+		
+		rangeR1.AddPoints(0, rangeB1_R1);
+		For i = 0 to rangeR1.Data.RowCount - 1;
+			rangeR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR1CurrentLocation.Data[0, 0:1] = rangeR1.Data[rangeR1.Data.RowCount - 1, 0:1];
 		
 		Call ComputeRangeAndAngleFromPayload(blue[0], red[1], rangeB1_R2, angle);
 		rangeAngleFromPayloadR2.AddPoints(angle, rangeB1_R2);
 		rangeAngleFromPayloadR2CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR2.Data[rangeAngleFromPayloadR2.Data.RowCount - 1, 0:1];
 		
+		rangeR2.AddPoints(0, rangeB1_R2);
+		For i = 0 to rangeR2.Data.RowCount - 1;
+			rangeR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR2CurrentLocation.Data[0, 0:1] = rangeR2.Data[rangeR2.Data.RowCount - 1, 0:1];
+		
 		Call ComputeRangeAndAngleFromPayload(blue[0], red[2], rangeB1_R3, angle);
 		rangeAngleFromPayloadR3.AddPoints(angle, rangeB1_R3);
 		rangeAngleFromPayloadR3CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR3.Data[rangeAngleFromPayloadR3.Data.RowCount - 1, 0:1];
+		
+		rangeR3.AddPoints(0, rangeB1_R3);
+		For i = 0 to rangeR3.Data.RowCount - 1;
+			rangeR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR3CurrentLocation.Data[0, 0:1] = rangeR3.Data[rangeR3.Data.RowCount - 1, 0:1];
 
 		// update longitude vs radius data
 		radiusLongitudeB1.AddPoints(blue[0].Longitude, blue[0].Radius);
@@ -1839,16 +2051,42 @@ Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan
 		// update predict data
 		timeSinceAheadPredictUpdate += blue[0].Propagator.StepSize;
 		If (timeSinceAheadPredictUpdate > aheadPredictUpdateInterval);
-			Call ComputePredict(blue[0], red[0], aheadPredictTime, overlayRed1Future, rangeAngleFromPayloadR1Predict, rangeB1_R1 > aheadPredictRangeUpdateLimit);
-			Call ComputePredict(blue[0], red[1], aheadPredictTime, overlayRed2Future, rangeAngleFromPayloadR2Predict, rangeB1_R2 > aheadPredictRangeUpdateLimit);
-			Call ComputePredict(blue[0], red[2], aheadPredictTime, overlayRed3Future, rangeAngleFromPayloadR3Predict, rangeB1_R3 > aheadPredictRangeUpdateLimit);
+			Call ComputePredict(
+				blue[0],
+				red[0],
+				aheadPredictTime,
+				overlayRed1Future,
+				rangeAngleFromPayloadR1Predict,
+				rangeR1Predict,
+				radiusLongitudeR1Predict,
+				rangeB1_R1 > aheadPredictRangeUpdateLimit);
+			Call ComputePredict(
+				blue[0],
+				red[1],
+				aheadPredictTime,
+				overlayRed2Future,
+				rangeAngleFromPayloadR2Predict,
+				rangeR2Predict,
+				radiusLongitudeR2Predict,
+				rangeB1_R2 > aheadPredictRangeUpdateLimit);
+			Call ComputePredict(
+				blue[0],
+				red[2],
+				aheadPredictTime,
+				overlayRed1Future,
+				rangeAngleFromPayloadR3Predict,
+				rangeR3Predict,
+				radiusLongitudeR3Predict,
+				rangeB1_R3 > aheadPredictRangeUpdateLimit);
 			timeSinceAheadPredictUpdate = TimeSpan.Zero;
 		End;
 		
-		
-		pwRange.EndBatchUpdate();
-		pwRadiusLongitude.Update();
 		radialView.Update();
+		
+		pwAngleRange.EndBatchUpdate();
+		pwRange.EndBatchUpdate();
+		pwRadiusLongitude.EndBatchUpdate();
+		radialView.EndBatchUpdate();
 	End;
 EndProcedure;
 
