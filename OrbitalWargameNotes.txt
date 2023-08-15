@@ -4,8 +4,32 @@ Mission Plan Notes;
 
 
 - more jamming info/visualizations to react to
-- add predict to longitude radius plot?
+- add invisible sc at blue1 location for camera (so that blue1 can slew without messing up body fixed view)
+- live barchart of game objectives
+- add time based plots behind lower left
+- remove status text and add time/date readout
 
 
 
 EM/RF people: Billy Gonzolez, scott donel
+
+
+
+
+- sat to sat jamming (is this a realistic modern day concern from an onboard systems standpoint)
+  - Yes
+- disrupting observations (what's the mechanic behind this)
+  - optical observations matter because ground based obs will be slower/more heavily tasked
+- Use Backup Communication and Observation Path (this seems like something an operator would not have to do manually)
+  - inlcude even though it's probably not realistic
+- Disrupt Red Observation via Electronic Warfare. 
+  B1 interferes with the red assets in its proximity such that they can no longer properly observe B1
+  (what physical mechanic is beind this)
+- Execute East/West Stationkeeping Maneuver (what about manuevering outside the box to create more separation)
+  - manuevering outside is fine
+  
+- add predict to longitude radius plot
+- try making overlay predict similar to plots
+- add markers at maneuver points
+
+

@@ -254,10 +254,10 @@ PlotScatterSeries rangeAngleKeepOutArea;
 PlotScatterSeries rangeKeepOutArea;
 
 
-// set up angle to sensative payload vs range plot
+// set up angle to sensitive payload vs range plot
 Global PlotWindow pwRange;
 pwRange.SetBackgroundColorPalette("DarkGray");
-pwRange.PlotTitle.Text = "Angle from Sensative Payload vs Range";
+pwRange.PlotTitle.Text = "Angle from Sensitive Payload vs Range";
 pwRange.PlotSubTitle.Visible = 0;
 pwRange.HighQualityRendering = 1;
 pwRange.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
@@ -276,11 +276,11 @@ pwRange.AddSeries(rangeAngleFromPayloadR2Predict);
 pwRange.AddSeries(rangeAngleFromPayloadR3Predict);
 pwRange.XAxis.MaximumValue = 180;
 pwRange.XAxis.MinimumValue = 0;
-pwRange.XAxis.Title.Text = "Angle from Sensative Payload (deg)";
+pwRange.XAxis.Title.Text = "Angle from Sensitive Payload (deg)";
 pwRange.YAxis.MaximumValue = 600;
 pwRange.YAxis.MinimumValue = 0;
 pwRange.YAxis.Title.Text = "Range (km)";
-pwRange.Legend.Location = 3;
+pwRange.Legend.Location = 1;
 
 // rangeAngleFromPayloadXX
 rangeAngleFromPayloadR1.Label = "Red1";
@@ -1091,7 +1091,7 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	red.Count += 1;
 	Alias deployableSat = red[red.Count - 1];
 	deployableSat.BodyScale = 200;
-	deployableSat.DisplayName = "RedSat" + red.Count.ToString();
+	deployableSat.DisplayName = "Red" + red.Count.ToString();
 	deployableSat.Color = colorRed4;
 	deployableSat.TailLength = radialViewTailLength/4;
 	radialView.SetShowName(deployableSat.ObjectId, 1);
@@ -1312,8 +1312,8 @@ EndProcedure;
         <Breakpoints />
         <FreeFormScript><![CDATA[
 //Call BenignScript(red, blue);
-Call ObservationScript(red, blue);
-//Call DisableScript(red, blue);]]></FreeFormScript>
+//Call ObservationScript(red, blue);
+Call DisableScript(red, blue);]]></FreeFormScript>
       </FreeForm>
     </ProjectCommands>
   </ProjectMissionSequence>
@@ -1479,10 +1479,10 @@ PlotScatterSeries rangeAngleKeepOutArea;
 PlotScatterSeries rangeKeepOutArea;
 
 
-// set up angle to sensative payload vs range plot
+// set up angle to sensitive payload vs range plot
 Global PlotWindow pwRange;
 pwRange.SetBackgroundColorPalette("DarkGray");
-pwRange.PlotTitle.Text = "Angle from Sensative Payload vs Range";
+pwRange.PlotTitle.Text = "Angle from Sensitive Payload vs Range";
 pwRange.PlotSubTitle.Visible = 0;
 pwRange.HighQualityRendering = 1;
 pwRange.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
@@ -1501,11 +1501,11 @@ pwRange.AddSeries(rangeAngleFromPayloadR2Predict);
 pwRange.AddSeries(rangeAngleFromPayloadR3Predict);
 pwRange.XAxis.MaximumValue = 180;
 pwRange.XAxis.MinimumValue = 0;
-pwRange.XAxis.Title.Text = "Angle from Sensative Payload (deg)";
+pwRange.XAxis.Title.Text = "Angle from Sensitive Payload (deg)";
 pwRange.YAxis.MaximumValue = 600;
 pwRange.YAxis.MinimumValue = 0;
 pwRange.YAxis.Title.Text = "Range (km)";
-pwRange.Legend.Location = 3;
+pwRange.Legend.Location = 1;
 
 // rangeAngleFromPayloadXX
 rangeAngleFromPayloadR1.Label = "Red1";
@@ -2311,7 +2311,7 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	red.Count += 1;
 	Alias deployableSat = red[red.Count - 1];
 	deployableSat.BodyScale = 200;
-	deployableSat.DisplayName = "RedSat" + red.Count.ToString();
+	deployableSat.DisplayName = "Red" + red.Count.ToString();
 	deployableSat.Color = colorRed4;
 	deployableSat.TailLength = radialViewTailLength/4;
 	radialView.SetShowName(deployableSat.ObjectId, 1);
@@ -2527,7 +2527,7 @@ EndProcedure;
 
 
 //Call BenignScript(red, blue);
-Call ObservationScript(red, blue);
-//Call DisableScript(red, blue);]]></ProjectScript>
+//Call ObservationScript(red, blue);
+Call DisableScript(red, blue);]]></ProjectScript>
   <ProjectNotes></ProjectNotes>
 </FreeFlyerProjectFile>
