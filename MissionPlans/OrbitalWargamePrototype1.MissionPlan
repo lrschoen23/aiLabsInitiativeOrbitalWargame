@@ -123,8 +123,25 @@ blue.Count = 1;
 red.ViewAsGroup = 0;
 blue.ViewAsGroup = 0;
 
-Global Array sensativePayloadUnitVectorBCS = {0, 0, 1};
+Global Constant Variable sensorIndexUplink = 0;
+Global Constant Variable sensorIndexPayload = 1;
 
+blue[0].AddSensor("uplink");
+blue[0].Sensors[sensorIndexUplink].BoresightUnitVector = {0, 1, 0};
+blue[0].Sensors[sensorIndexUplink].ConeHalfAngle = 15;
+blue[0].Sensors[sensorIndexUplink].ProjectionHeight = 30000;
+blue[0].Sensors[sensorIndexUplink].Color = ColorTools.Purple;
+blue[0].Sensors[sensorIndexUplink].Opacity = 0.1;
+
+blue[0].AddSensor("payload");
+blue[0].Sensors[sensorIndexPayload].BoresightUnitVector = {0, 0, 1};
+blue[0].Sensors[sensorIndexPayload].ConeHalfAngle = 10;
+blue[0].Sensors[sensorIndexPayload].ProjectionHeight = 50;
+blue[0].Sensors[sensorIndexPayload].Color = ColorTools.Lime;
+blue[0].Sensors[sensorIndexPayload].Opacity = 0.1;
+
+
+// Set up overlays
 Variable overlayPredictLineWidth = 1;
 
 Global GraphicsOverlay overlayRed1Future;
@@ -155,7 +172,7 @@ overlayRed3Future.ShapeTickWidth = 5;
 Global WindowOverlay overlayDateTime;
 overlayDateTime.Shapes[0].SetPosition(1, 10, 10);
 
-
+// Set up 3D view
 Global ViewWindow radialView;
 radialView.CurrentViewpoint.ThreeDView.Radius = 2147.54485002776;
 radialView.CurrentViewpoint.ThreeDView.RightAscension = 270;
@@ -233,13 +250,13 @@ red[0].SetKeplerianState({42164,
                           1});
 red[1].SetKeplerianState({42164 - red2and3RadialSeparation,
                           1e-6,
-                          baseI * 0.3,
+                          baseI * 0.1,
                           baseRAAN - red2AngularSeparation * 1.7,
                           1,
                           1});
 red[2].SetKeplerianState({42164 + red2and3RadialSeparation,
                           1e-6,
-                          baseI * 0.3,
+                          baseI * 0.1,
                           baseRAAN + red2AngularSeparation,
                           1,
                           1});
@@ -309,6 +326,69 @@ Define Procedure InitializePlotAxisRanges(PlotWindow plot, Array x, Array y);
 EndProcedure;
 
 Constant Variable maxRangeForPlots = 600;
+
+// set up time vs angle plot
+Global Variable angleFromPayloadB1_R1;
+Global Variable angleFromPayloadB1_R2;
+Global Variable angleFromPayloadB1_R3;
+
+Global PlotScatterSeries angleFromPayloadR1;
+Global PlotScatterSeries angleFromPayloadR2;
+Global PlotScatterSeries angleFromPayloadR3;
+
+Global PlotScatterSeries angleFromPayloadR1CurrentLocation;
+Global PlotScatterSeries angleFromPayloadR2CurrentLocation;
+Global PlotScatterSeries angleFromPayloadR3CurrentLocation;
+
+Global PlotScatterSeries angleFromPayloadR1Predict;
+Global PlotScatterSeries angleFromPayloadR2Predict;
+Global PlotScatterSeries angleFromPayloadR3Predict;
+
+PlotScatterSeries angleFromPayloadWarningArea;
+
+Global PlotWindow pwAngleFromPayload;
+Call InitializePlot(pwAngleFromPayload, "Elapsed Time vs Angle from Sensitive Payload", "Elapsed Time (hrs)", "Angle from Sensitive Payload (deg)", "Time vs Angle");
+pwAngleFromPayload.AddSeries(angleFromPayloadWarningArea);
+pwAngleFromPayload.AddSeries(angleFromPayloadR1);
+pwAngleFromPayload.AddSeries(angleFromPayloadR2);
+pwAngleFromPayload.AddSeries(angleFromPayloadR3);
+pwAngleFromPayload.AddSeries(angleFromPayloadR1Predict);
+pwAngleFromPayload.AddSeries(angleFromPayloadR2Predict);
+pwAngleFromPayload.AddSeries(angleFromPayloadR3Predict);
+pwAngleFromPayload.AddSeries(angleFromPayloadR1CurrentLocation);
+pwAngleFromPayload.AddSeries(angleFromPayloadR2CurrentLocation);
+pwAngleFromPayload.AddSeries(angleFromPayloadR3CurrentLocation);
+Call InitializePlotAxisRanges(pwAngleFromPayload, {-24, aheadPredictTime.ToHours()}, {0, 180});
+pwAngleFromPayload.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
+pwAngleFromPayload.MaxPoints = 3e2 * 300 / simStepSize.ToSeconds();
+pwAngleFromPayload.UseMonitorMode = 1;
+pwAngleFromPayload.Legend.Location = 1;
+
+// rangeAngleFromPayloadXX
+Call InitializePlotMainSeries(angleFromPayloadR1, "Red1", colorRed1);
+Call InitializePlotMainSeries(angleFromPayloadR2, "Red2", colorRed2);
+Call InitializePlotMainSeries(angleFromPayloadR3, "Red3", colorRed3);
+
+// rangeAngleFromPayloadXXCurrentLocation
+Call InitializePlotCurrentLocationSeries(angleFromPayloadR1CurrentLocation, colorRed1);
+Call InitializePlotCurrentLocationSeries(angleFromPayloadR2CurrentLocation, colorRed2);
+Call InitializePlotCurrentLocationSeries(angleFromPayloadR3CurrentLocation, colorRed3);
+
+// rangeAngleFromPayloadXXPredict
+Call InitializePlotPredictSeries(angleFromPayloadR1Predict, "Red1 Predict", colorRed1);
+Call InitializePlotPredictSeries(angleFromPayloadR2Predict, "Red2 Predict", colorRed2);
+Call InitializePlotPredictSeries(angleFromPayloadR3Predict, "Red3 Predict", colorRed3);
+
+// angleFromPayloadWarningArea
+angleFromPayloadWarningArea.LineColor = ColorTools.Orange;
+angleFromPayloadWarningArea.LineWidth = 3;
+angleFromPayloadWarningArea.LineStyle = 0;
+angleFromPayloadWarningArea.Label = "Payload Warning Zone";
+angleFromPayloadWarningArea.AddPoints(
+	{pwAngleFromPayload.XAxis.MinimumValue, pwAngleFromPayload.XAxis.MinimumValue, pwAngleFromPayload.XAxis.MaximumValue, pwAngleFromPayload.XAxis.MaximumValue},
+	{0, 70, 70, 0});
+angleFromPayloadWarningArea.AddPoints(angleFromPayloadWarningArea.Data[0,:]);
+
 
 // set up time vs range plot
 Global Variable rangeB1_R1;
@@ -523,7 +603,7 @@ Call AddSinglePointToPlot(
 Variable screenSpaceRatio = 0.5;
 
 
-OutputLayout.SetWindowFrameVisibility({radialView.ID, pwRadiusLongitude.ID, pwAngleRange.ID, pwRange.ID}, 0);
+OutputLayout.SetWindowFrameVisibility({radialView.ID, pwRadiusLongitude.ID, pwAngleRange.ID, pwRange.ID, pwAngleFromPayload.ID}, 0);
 
 OutputLayout.SetWindowPosition(pwRadiusLongitude.ID, 1, 0, 1, 0);
 OutputLayout.SetWindowSize(pwRadiusLongitude.ID, 1, screenSpaceRatio, 1, 0.5);
@@ -534,6 +614,10 @@ OutputLayout.SetWindowSize(pwAngleRange.ID, 1, screenSpaceRatio, 1, 0.5);
 OutputLayout.SetWindowPosition(pwRange.ID, 1, 0, 1, 0.5);
 OutputLayout.SetWindowSize(pwRange.ID, 1, screenSpaceRatio, 1, 0.5);
 OutputLayout.SendWindowToBack(pwRange.ID);
+
+OutputLayout.SetWindowPosition(pwAngleFromPayload.ID, 1, 0, 1, 0.5);
+OutputLayout.SetWindowSize(pwAngleFromPayload.ID, 1, screenSpaceRatio, 1, 0.5);
+OutputLayout.SendWindowToBack(pwAngleFromPayload.ID);
 
 OutputLayout.SetWindowPosition(radialView.ID, 1, screenSpaceRatio, 1, 0);
 OutputLayout.SetWindowSize(radialView.ID, 1, 1 - screenSpaceRatio, 1, 1);
@@ -553,6 +637,7 @@ Define Procedure ComputePredict(
 		GraphicsOverlay go,
 		PlotScatterSeries angleRangeSeries,
 		PlotScatterSeries rangeSeries,
+		PlotScatterSeries angleSeries,
 		PlotScatterSeries radiusLongitudeSeriesRed,
 		Variable justEraseOverlay);
 	Array positionBCS;
@@ -565,6 +650,7 @@ Define Procedure ComputePredict(
 	go.ClearOverlayElements();
 	angleRangeSeries.ClearPoints();
 	rangeSeries.ClearPoints();
+	angleSeries.ClearPoints();
 	radiusLongitudeSeriesRed.ClearPoints();
 	
 	If (justEraseOverlay);
@@ -583,6 +669,7 @@ Define Procedure ComputePredict(
 	TimeSpan initialEpoch = blueSC.Epoch;
 	TimeSpan epochToStepTo = initialEpoch + predictionDuration;
 	Variable range;
+	Variable angle;
 	WhileStepping blueSC to (blueSC.Epoch == epochToStepTo);
 		redSC.StepToEpoch(blueSC.Epoch);
 		
@@ -591,8 +678,10 @@ Define Procedure ComputePredict(
 		go.AddOverlayElement(positionBCS[0], positionBCS[1], positionBCS[2]);
 		
 		range = positionBCS.Norm;
-		angleRangeSeries.AddPoints(deg(acos(positionBCS.Normalized.DotProduct(sensativePayloadUnitVectorBCS.Normalized))), range);
+		angle = deg(acos(positionBCS.Normalized.DotProduct(blueSC.Sensors[sensorIndexPayload].BoresightUnitVector.Normalized)));
+		angleRangeSeries.AddPoints(angle, range);
 		rangeSeries.AddPoints((blueSC.Epoch - initialEpoch).ToHours(), range);
+		angleSeries.AddPoints((blueSC.Epoch - initialEpoch).ToHours(), angle);
 		
 		dataPointsSinceLastRadiusLongitudePoint += 1;
 		If (dataPointsSinceLastRadiusLongitudePoint == radiusLongitudePredictDataThinning);
@@ -645,7 +734,7 @@ Define Procedure ComputeRangeAndAngleFromPayload(Spacecraft blue, Spacecraft red
 	
 	positionBCS = AttitudeConvert(0, 3, blue, red.Position - blue.Position);
 	range = positionBCS.Norm;
-	angle = deg(acos(positionBCS.Normalized.DotProduct(sensativePayloadUnitVectorBCS.Normalized)));
+	angle = deg(acos(positionBCS.Normalized.DotProduct(blue.Sensors[sensorIndexPayload].BoresightUnitVector.Normalized)));
 EndProcedure;
 
 Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan futureEpoch);
@@ -658,6 +747,7 @@ Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan
 		pwAngleRange.BeginBatchUpdate();
 		pwRadiusLongitude.BeginBatchUpdate();
 		pwRange.BeginBatchUpdate();
+		pwAngleFromPayload.BeginBatchUpdate();
 		radialView.BeginBatchUpdate();
 		
 		red.StepToEpoch(blue[0].Epoch);
@@ -668,7 +758,7 @@ Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan
 		
 		overlayDateTime.Shapes[0].TextOptions.Text = blue[0].Epoch.ConvertToCalendarDate();
 	
-		// update angle/range data
+		// update angle/range data R1
 		Call ComputeRangeAndAngleFromPayload(blue[0], red[0], rangeB1_R1, angle);
 		rangeAngleFromPayloadR1.AddPoints(angle, rangeB1_R1);
 		rangeAngleFromPayloadR1CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR1.Data[rangeAngleFromPayloadR1.Data.RowCount - 1, 0:1];
@@ -679,6 +769,13 @@ Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan
 		End;
 		rangeR1CurrentLocation.Data[0, 0:1] = rangeR1.Data[rangeR1.Data.RowCount - 1, 0:1];
 		
+		angleFromPayloadR1.AddPoints(0, angle);
+		For i = 0 to angleFromPayloadR1.Data.RowCount - 1;
+			angleFromPayloadR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR1CurrentLocation.Data[0, 0:1] = angleFromPayloadR1.Data[angleFromPayloadR1.Data.RowCount - 1, 0:1];
+		
+		// update angle/range data R2
 		Call ComputeRangeAndAngleFromPayload(blue[0], red[1], rangeB1_R2, angle);
 		rangeAngleFromPayloadR2.AddPoints(angle, rangeB1_R2);
 		rangeAngleFromPayloadR2CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR2.Data[rangeAngleFromPayloadR2.Data.RowCount - 1, 0:1];
@@ -689,6 +786,13 @@ Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan
 		End;
 		rangeR2CurrentLocation.Data[0, 0:1] = rangeR2.Data[rangeR2.Data.RowCount - 1, 0:1];
 		
+		angleFromPayloadR2.AddPoints(0, angle);
+		For i = 0 to angleFromPayloadR2.Data.RowCount - 1;
+			angleFromPayloadR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR2CurrentLocation.Data[0, 0:1] = angleFromPayloadR2.Data[angleFromPayloadR2.Data.RowCount - 1, 0:1];
+		
+		// update angle/range data R3
 		Call ComputeRangeAndAngleFromPayload(blue[0], red[2], rangeB1_R3, angle);
 		rangeAngleFromPayloadR3.AddPoints(angle, rangeB1_R3);
 		rangeAngleFromPayloadR3CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR3.Data[rangeAngleFromPayloadR3.Data.RowCount - 1, 0:1];
@@ -698,6 +802,12 @@ Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan
 			rangeR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
 		End;
 		rangeR3CurrentLocation.Data[0, 0:1] = rangeR3.Data[rangeR3.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR3.AddPoints(0, angle);
+		For i = 0 to angleFromPayloadR3.Data.RowCount - 1;
+			angleFromPayloadR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR3CurrentLocation.Data[0, 0:1] = angleFromPayloadR3.Data[angleFromPayloadR3.Data.RowCount - 1, 0:1];
 
 		// update longitude vs radius data
 		radiusLongitudeB1.AddPoints(blue[0].Longitude, blue[0].Radius);
@@ -719,6 +829,7 @@ Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan
 				overlayRed1Future,
 				rangeAngleFromPayloadR1Predict,
 				rangeR1Predict,
+				angleFromPayloadR1Predict,
 				radiusLongitudeR1Predict,
 				rangeB1_R1 > aheadPredictRangeUpdateLimit);
 			Call ComputePredict(
@@ -728,15 +839,17 @@ Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan
 				overlayRed2Future,
 				rangeAngleFromPayloadR2Predict,
 				rangeR2Predict,
+				angleFromPayloadR2Predict,
 				radiusLongitudeR2Predict,
 				rangeB1_R2 > aheadPredictRangeUpdateLimit);
 			Call ComputePredict(
 				blue[0],
 				red[2],
 				aheadPredictTime,
-				overlayRed1Future,
+				overlayRed3Future,
 				rangeAngleFromPayloadR3Predict,
 				rangeR3Predict,
+				angleFromPayloadR3Predict,
 				radiusLongitudeR3Predict,
 				rangeB1_R3 > aheadPredictRangeUpdateLimit);
 			timeSinceAheadPredictUpdate = TimeSpan.Zero;
@@ -746,6 +859,7 @@ Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan
 		
 		pwAngleRange.EndBatchUpdate();
 		pwRange.EndBatchUpdate();
+		pwAngleFromPayload.EndBatchUpdate();
 		pwRadiusLongitude.EndBatchUpdate();
 		radialView.EndBatchUpdate();
 	End;
@@ -1467,8 +1581,25 @@ blue.Count = 1;
 red.ViewAsGroup = 0;
 blue.ViewAsGroup = 0;
 
-Global Array sensativePayloadUnitVectorBCS = {0, 0, 1};
+Global Constant Variable sensorIndexUplink = 0;
+Global Constant Variable sensorIndexPayload = 1;
 
+blue[0].AddSensor("uplink");
+blue[0].Sensors[sensorIndexUplink].BoresightUnitVector = {0, 1, 0};
+blue[0].Sensors[sensorIndexUplink].ConeHalfAngle = 15;
+blue[0].Sensors[sensorIndexUplink].ProjectionHeight = 30000;
+blue[0].Sensors[sensorIndexUplink].Color = ColorTools.Purple;
+blue[0].Sensors[sensorIndexUplink].Opacity = 0.1;
+
+blue[0].AddSensor("payload");
+blue[0].Sensors[sensorIndexPayload].BoresightUnitVector = {0, 0, 1};
+blue[0].Sensors[sensorIndexPayload].ConeHalfAngle = 10;
+blue[0].Sensors[sensorIndexPayload].ProjectionHeight = 50;
+blue[0].Sensors[sensorIndexPayload].Color = ColorTools.Lime;
+blue[0].Sensors[sensorIndexPayload].Opacity = 0.1;
+
+
+// Set up overlays
 Variable overlayPredictLineWidth = 1;
 
 Global GraphicsOverlay overlayRed1Future;
@@ -1499,7 +1630,7 @@ overlayRed3Future.ShapeTickWidth = 5;
 Global WindowOverlay overlayDateTime;
 overlayDateTime.Shapes[0].SetPosition(1, 10, 10);
 
-
+// Set up 3D view
 Global ViewWindow radialView;
 radialView.CurrentViewpoint.ThreeDView.Radius = 2147.54485002776;
 radialView.CurrentViewpoint.ThreeDView.RightAscension = 270;
@@ -1577,13 +1708,13 @@ red[0].SetKeplerianState({42164,
                           1});
 red[1].SetKeplerianState({42164 - red2and3RadialSeparation,
                           1e-6,
-                          baseI * 0.3,
+                          baseI * 0.1,
                           baseRAAN - red2AngularSeparation * 1.7,
                           1,
                           1});
 red[2].SetKeplerianState({42164 + red2and3RadialSeparation,
                           1e-6,
-                          baseI * 0.3,
+                          baseI * 0.1,
                           baseRAAN + red2AngularSeparation,
                           1,
                           1});
@@ -1653,6 +1784,69 @@ Define Procedure InitializePlotAxisRanges(PlotWindow plot, Array x, Array y);
 EndProcedure;
 
 Constant Variable maxRangeForPlots = 600;
+
+// set up time vs angle plot
+Global Variable angleFromPayloadB1_R1;
+Global Variable angleFromPayloadB1_R2;
+Global Variable angleFromPayloadB1_R3;
+
+Global PlotScatterSeries angleFromPayloadR1;
+Global PlotScatterSeries angleFromPayloadR2;
+Global PlotScatterSeries angleFromPayloadR3;
+
+Global PlotScatterSeries angleFromPayloadR1CurrentLocation;
+Global PlotScatterSeries angleFromPayloadR2CurrentLocation;
+Global PlotScatterSeries angleFromPayloadR3CurrentLocation;
+
+Global PlotScatterSeries angleFromPayloadR1Predict;
+Global PlotScatterSeries angleFromPayloadR2Predict;
+Global PlotScatterSeries angleFromPayloadR3Predict;
+
+PlotScatterSeries angleFromPayloadWarningArea;
+
+Global PlotWindow pwAngleFromPayload;
+Call InitializePlot(pwAngleFromPayload, "Elapsed Time vs Angle from Sensitive Payload", "Elapsed Time (hrs)", "Angle from Sensitive Payload (deg)", "Time vs Angle");
+pwAngleFromPayload.AddSeries(angleFromPayloadWarningArea);
+pwAngleFromPayload.AddSeries(angleFromPayloadR1);
+pwAngleFromPayload.AddSeries(angleFromPayloadR2);
+pwAngleFromPayload.AddSeries(angleFromPayloadR3);
+pwAngleFromPayload.AddSeries(angleFromPayloadR1Predict);
+pwAngleFromPayload.AddSeries(angleFromPayloadR2Predict);
+pwAngleFromPayload.AddSeries(angleFromPayloadR3Predict);
+pwAngleFromPayload.AddSeries(angleFromPayloadR1CurrentLocation);
+pwAngleFromPayload.AddSeries(angleFromPayloadR2CurrentLocation);
+pwAngleFromPayload.AddSeries(angleFromPayloadR3CurrentLocation);
+Call InitializePlotAxisRanges(pwAngleFromPayload, {-24, aheadPredictTime.ToHours()}, {0, 180});
+pwAngleFromPayload.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
+pwAngleFromPayload.MaxPoints = 3e2 * 300 / simStepSize.ToSeconds();
+pwAngleFromPayload.UseMonitorMode = 1;
+pwAngleFromPayload.Legend.Location = 1;
+
+// rangeAngleFromPayloadXX
+Call InitializePlotMainSeries(angleFromPayloadR1, "Red1", colorRed1);
+Call InitializePlotMainSeries(angleFromPayloadR2, "Red2", colorRed2);
+Call InitializePlotMainSeries(angleFromPayloadR3, "Red3", colorRed3);
+
+// rangeAngleFromPayloadXXCurrentLocation
+Call InitializePlotCurrentLocationSeries(angleFromPayloadR1CurrentLocation, colorRed1);
+Call InitializePlotCurrentLocationSeries(angleFromPayloadR2CurrentLocation, colorRed2);
+Call InitializePlotCurrentLocationSeries(angleFromPayloadR3CurrentLocation, colorRed3);
+
+// rangeAngleFromPayloadXXPredict
+Call InitializePlotPredictSeries(angleFromPayloadR1Predict, "Red1 Predict", colorRed1);
+Call InitializePlotPredictSeries(angleFromPayloadR2Predict, "Red2 Predict", colorRed2);
+Call InitializePlotPredictSeries(angleFromPayloadR3Predict, "Red3 Predict", colorRed3);
+
+// angleFromPayloadWarningArea
+angleFromPayloadWarningArea.LineColor = ColorTools.Orange;
+angleFromPayloadWarningArea.LineWidth = 3;
+angleFromPayloadWarningArea.LineStyle = 0;
+angleFromPayloadWarningArea.Label = "Payload Warning Zone";
+angleFromPayloadWarningArea.AddPoints(
+	{pwAngleFromPayload.XAxis.MinimumValue, pwAngleFromPayload.XAxis.MinimumValue, pwAngleFromPayload.XAxis.MaximumValue, pwAngleFromPayload.XAxis.MaximumValue},
+	{0, 70, 70, 0});
+angleFromPayloadWarningArea.AddPoints(angleFromPayloadWarningArea.Data[0,:]);
+
 
 // set up time vs range plot
 Global Variable rangeB1_R1;
@@ -1867,7 +2061,7 @@ Call AddSinglePointToPlot(
 Variable screenSpaceRatio = 0.5;
 
 
-OutputLayout.SetWindowFrameVisibility({radialView.ID, pwRadiusLongitude.ID, pwAngleRange.ID, pwRange.ID}, 0);
+OutputLayout.SetWindowFrameVisibility({radialView.ID, pwRadiusLongitude.ID, pwAngleRange.ID, pwRange.ID, pwAngleFromPayload.ID}, 0);
 
 OutputLayout.SetWindowPosition(pwRadiusLongitude.ID, 1, 0, 1, 0);
 OutputLayout.SetWindowSize(pwRadiusLongitude.ID, 1, screenSpaceRatio, 1, 0.5);
@@ -1878,6 +2072,10 @@ OutputLayout.SetWindowSize(pwAngleRange.ID, 1, screenSpaceRatio, 1, 0.5);
 OutputLayout.SetWindowPosition(pwRange.ID, 1, 0, 1, 0.5);
 OutputLayout.SetWindowSize(pwRange.ID, 1, screenSpaceRatio, 1, 0.5);
 OutputLayout.SendWindowToBack(pwRange.ID);
+
+OutputLayout.SetWindowPosition(pwAngleFromPayload.ID, 1, 0, 1, 0.5);
+OutputLayout.SetWindowSize(pwAngleFromPayload.ID, 1, screenSpaceRatio, 1, 0.5);
+OutputLayout.SendWindowToBack(pwAngleFromPayload.ID);
 
 OutputLayout.SetWindowPosition(radialView.ID, 1, screenSpaceRatio, 1, 0);
 OutputLayout.SetWindowSize(radialView.ID, 1, 1 - screenSpaceRatio, 1, 1);
@@ -1892,6 +2090,7 @@ Define Procedure ComputePredict(
 		GraphicsOverlay go,
 		PlotScatterSeries angleRangeSeries,
 		PlotScatterSeries rangeSeries,
+		PlotScatterSeries angleSeries,
 		PlotScatterSeries radiusLongitudeSeriesRed,
 		Variable justEraseOverlay);
 	Array positionBCS;
@@ -1904,6 +2103,7 @@ Define Procedure ComputePredict(
 	go.ClearOverlayElements();
 	angleRangeSeries.ClearPoints();
 	rangeSeries.ClearPoints();
+	angleSeries.ClearPoints();
 	radiusLongitudeSeriesRed.ClearPoints();
 	
 	If (justEraseOverlay);
@@ -1922,6 +2122,7 @@ Define Procedure ComputePredict(
 	TimeSpan initialEpoch = blueSC.Epoch;
 	TimeSpan epochToStepTo = initialEpoch + predictionDuration;
 	Variable range;
+	Variable angle;
 	WhileStepping blueSC to (blueSC.Epoch == epochToStepTo);
 		redSC.StepToEpoch(blueSC.Epoch);
 		
@@ -1930,8 +2131,10 @@ Define Procedure ComputePredict(
 		go.AddOverlayElement(positionBCS[0], positionBCS[1], positionBCS[2]);
 		
 		range = positionBCS.Norm;
-		angleRangeSeries.AddPoints(deg(acos(positionBCS.Normalized.DotProduct(sensativePayloadUnitVectorBCS.Normalized))), range);
+		angle = deg(acos(positionBCS.Normalized.DotProduct(blueSC.Sensors[sensorIndexPayload].BoresightUnitVector.Normalized)));
+		angleRangeSeries.AddPoints(angle, range);
 		rangeSeries.AddPoints((blueSC.Epoch - initialEpoch).ToHours(), range);
+		angleSeries.AddPoints((blueSC.Epoch - initialEpoch).ToHours(), angle);
 		
 		dataPointsSinceLastRadiusLongitudePoint += 1;
 		If (dataPointsSinceLastRadiusLongitudePoint == radiusLongitudePredictDataThinning);
@@ -1984,7 +2187,7 @@ Define Procedure ComputeRangeAndAngleFromPayload(Spacecraft blue, Spacecraft red
 	
 	positionBCS = AttitudeConvert(0, 3, blue, red.Position - blue.Position);
 	range = positionBCS.Norm;
-	angle = deg(acos(positionBCS.Normalized.DotProduct(sensativePayloadUnitVectorBCS.Normalized)));
+	angle = deg(acos(positionBCS.Normalized.DotProduct(blue.Sensors[sensorIndexPayload].BoresightUnitVector.Normalized)));
 EndProcedure;
 
 Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan futureEpoch);
@@ -1997,6 +2200,7 @@ Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan
 		pwAngleRange.BeginBatchUpdate();
 		pwRadiusLongitude.BeginBatchUpdate();
 		pwRange.BeginBatchUpdate();
+		pwAngleFromPayload.BeginBatchUpdate();
 		radialView.BeginBatchUpdate();
 		
 		red.StepToEpoch(blue[0].Epoch);
@@ -2007,7 +2211,7 @@ Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan
 		
 		overlayDateTime.Shapes[0].TextOptions.Text = blue[0].Epoch.ConvertToCalendarDate();
 	
-		// update angle/range data
+		// update angle/range data R1
 		Call ComputeRangeAndAngleFromPayload(blue[0], red[0], rangeB1_R1, angle);
 		rangeAngleFromPayloadR1.AddPoints(angle, rangeB1_R1);
 		rangeAngleFromPayloadR1CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR1.Data[rangeAngleFromPayloadR1.Data.RowCount - 1, 0:1];
@@ -2018,6 +2222,13 @@ Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan
 		End;
 		rangeR1CurrentLocation.Data[0, 0:1] = rangeR1.Data[rangeR1.Data.RowCount - 1, 0:1];
 		
+		angleFromPayloadR1.AddPoints(0, angle);
+		For i = 0 to angleFromPayloadR1.Data.RowCount - 1;
+			angleFromPayloadR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR1CurrentLocation.Data[0, 0:1] = angleFromPayloadR1.Data[angleFromPayloadR1.Data.RowCount - 1, 0:1];
+		
+		// update angle/range data R2
 		Call ComputeRangeAndAngleFromPayload(blue[0], red[1], rangeB1_R2, angle);
 		rangeAngleFromPayloadR2.AddPoints(angle, rangeB1_R2);
 		rangeAngleFromPayloadR2CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR2.Data[rangeAngleFromPayloadR2.Data.RowCount - 1, 0:1];
@@ -2028,6 +2239,13 @@ Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan
 		End;
 		rangeR2CurrentLocation.Data[0, 0:1] = rangeR2.Data[rangeR2.Data.RowCount - 1, 0:1];
 		
+		angleFromPayloadR2.AddPoints(0, angle);
+		For i = 0 to angleFromPayloadR2.Data.RowCount - 1;
+			angleFromPayloadR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR2CurrentLocation.Data[0, 0:1] = angleFromPayloadR2.Data[angleFromPayloadR2.Data.RowCount - 1, 0:1];
+		
+		// update angle/range data R3
 		Call ComputeRangeAndAngleFromPayload(blue[0], red[2], rangeB1_R3, angle);
 		rangeAngleFromPayloadR3.AddPoints(angle, rangeB1_R3);
 		rangeAngleFromPayloadR3CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR3.Data[rangeAngleFromPayloadR3.Data.RowCount - 1, 0:1];
@@ -2037,6 +2255,12 @@ Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan
 			rangeR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
 		End;
 		rangeR3CurrentLocation.Data[0, 0:1] = rangeR3.Data[rangeR3.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR3.AddPoints(0, angle);
+		For i = 0 to angleFromPayloadR3.Data.RowCount - 1;
+			angleFromPayloadR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR3CurrentLocation.Data[0, 0:1] = angleFromPayloadR3.Data[angleFromPayloadR3.Data.RowCount - 1, 0:1];
 
 		// update longitude vs radius data
 		radiusLongitudeB1.AddPoints(blue[0].Longitude, blue[0].Radius);
@@ -2058,6 +2282,7 @@ Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan
 				overlayRed1Future,
 				rangeAngleFromPayloadR1Predict,
 				rangeR1Predict,
+				angleFromPayloadR1Predict,
 				radiusLongitudeR1Predict,
 				rangeB1_R1 > aheadPredictRangeUpdateLimit);
 			Call ComputePredict(
@@ -2067,15 +2292,17 @@ Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan
 				overlayRed2Future,
 				rangeAngleFromPayloadR2Predict,
 				rangeR2Predict,
+				angleFromPayloadR2Predict,
 				radiusLongitudeR2Predict,
 				rangeB1_R2 > aheadPredictRangeUpdateLimit);
 			Call ComputePredict(
 				blue[0],
 				red[2],
 				aheadPredictTime,
-				overlayRed1Future,
+				overlayRed3Future,
 				rangeAngleFromPayloadR3Predict,
 				rangeR3Predict,
+				angleFromPayloadR3Predict,
 				radiusLongitudeR3Predict,
 				rangeB1_R3 > aheadPredictRangeUpdateLimit);
 			timeSinceAheadPredictUpdate = TimeSpan.Zero;
@@ -2085,6 +2312,7 @@ Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan
 		
 		pwAngleRange.EndBatchUpdate();
 		pwRange.EndBatchUpdate();
+		pwAngleFromPayload.EndBatchUpdate();
 		pwRadiusLongitude.EndBatchUpdate();
 		radialView.EndBatchUpdate();
 	End;

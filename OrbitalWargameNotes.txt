@@ -3,7 +3,8 @@ Mission Plan Notes;
 
 
 - more jamming info/visualizations to react to
-- add time based plots behind lower left
+
+- allow for inspecting output before making decision
 
 
 
