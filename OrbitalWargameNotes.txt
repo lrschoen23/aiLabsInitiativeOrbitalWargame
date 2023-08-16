@@ -28,9 +28,19 @@ EM/RF people: Billy Gonzolez, scott donel
 
 
 Later/maybe:
+- add font size modulation for sensor legend based on main window size
 - add markers at maneuver points
 - live barchart of game objectives
 - add station keeping box to longitude plot
 - sensor view for payload with keep out lines
+
+
+
+
+
+For briefing packet:
+
+- explain all data readouts
+- uplinking period before maneuvers/slews happen
 
 

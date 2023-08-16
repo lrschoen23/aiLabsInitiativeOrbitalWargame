@@ -93,11 +93,11 @@
         <Bookmarks />
         <Breakpoints />
         <FreeFormScript><![CDATA[
-Global TimeSpan simStepSize = TimeSpan.FromSeconds(300);
+Global TimeSpan simStepSize = TimeSpan.FromSeconds(800);
 
 Global TimeSpan aheadPredictTime = TimeSpan.FromHours(18);
 Global TimeSpan aheadPredictUpdateInterval = TimeSpan.FromSeconds(300);
-Global Constant Variable aheadPredictRangeUpdateLimit = 300;
+Global Constant Variable aheadPredictRangeUpdateLimit = 500;
 
 Global TimeSpan simStartEpoch = TimeTools.ParseCalendarDate("Jun 09 2025 15:00:00.000", "UTC", "UTC", "MJD GSFC");
 simStartEpoch -= TimeSpan.FromSeconds(4*60 + 23);
@@ -127,11 +127,16 @@ Global Constant Variable sensorIndexUplink = 0;
 Global Constant Variable sensorIndexPayload = 1;
 
 blue[0].AddSensor("uplink");
-blue[0].Sensors[sensorIndexUplink].BoresightUnitVector = {0, 1, 0};
+//blue[0].Sensors[sensorIndexUplink].BoresightUnitVector = {0, 1, 0};
 blue[0].Sensors[sensorIndexUplink].ConeHalfAngle = 15;
 blue[0].Sensors[sensorIndexUplink].ProjectionHeight = 30000;
 blue[0].Sensors[sensorIndexUplink].Color = ColorTools.Purple;
 blue[0].Sensors[sensorIndexUplink].Opacity = 0.1;
+blue[0].Sensors[sensorIndexUplink].AttitudeMatrix = [
+	0, 0, 1;
+	1, 0, 0;
+	0, 1, 0
+];
 
 blue[0].AddSensor("payload");
 blue[0].Sensors[sensorIndexPayload].BoresightUnitVector = {0, 0, 1};
@@ -169,27 +174,118 @@ overlayRed2Future.ShapeTickWidth = 5;
 overlayRed3Future.ShapeTickWidth = 5;
 
 
+Global Constant Variable overlayBorderBuffer = 0.013;
 Global WindowOverlay overlayDateTime;
-overlayDateTime.Shapes[0].SetPosition(1, 10, 10);
+overlayDateTime.Shapes[0].SetPosition(0, overlayBorderBuffer, overlayBorderBuffer);
+
+
+Global Constant Variable sensorLegendBoxWidth = 0.21;
+Global Constant Variable sensorLegendBoxHeight = 0.022 + overlayBorderBuffer*2;
+Global WindowOverlay overlaySensorLegend;
+overlaySensorLegend.AddShape();
+overlaySensorLegend.AddShape();
+overlaySensorLegend.AddShape();
+
+overlaySensorLegend.Shapes[0].Type = "Rectangle";
+overlaySensorLegend.Shapes[1].Type = "Rectangle";
+overlaySensorLegend.Shapes[2].Type = "Text";
+overlaySensorLegend.Shapes[3].Type = "Text";
+
+Define Procedure InitializeSensorLegendRectangle(WindowOverlay overlay, Variable index, Variable color);
+	overlay.Shapes[index].RectangleOptions.FillColor = color;
+	overlay.Shapes[index].RectangleOptions.FillOpacity = 0.3;
+	overlay.Shapes[index].RectangleOptions.BorderColor = color;
+	overlay.Shapes[index].RectangleOptions.BorderWidth = 3;
+	overlay.Shapes[index].RectangleOptions.BorderOpacity = 1;
+	overlay.Shapes[index].SetSize(0, sensorLegendBoxWidth, sensorLegendBoxHeight);
+EndProcedure;
+
+Define Procedure InitializeSensorLegendText(WindowOverlay overlay, Variable index, String label);
+	overlay.Shapes[index].TextOptions.Text = label;
+	overlay.Shapes[index].TextOptions.AlignmentVertical = 1;
+	overlay.Shapes[index].TextOptions.AlignmentHorizontal = 0;
+	overlay.Shapes[index].SetSize(0, sensorLegendBoxWidth, sensorLegendBoxHeight);
+	overlay.Shapes[index].BringToFront();
+EndProcedure;
+
+Call InitializeSensorLegendRectangle(overlaySensorLegend, 0, ColorTools.Purple);
+Call InitializeSensorLegendRectangle(overlaySensorLegend, 1, ColorTools.Lime);
+
+Call InitializeSensorLegendText(overlaySensorLegend, 2, "Uplink");
+Call InitializeSensorLegendText(overlaySensorLegend, 3, "Payload Orientation");
+
+overlaySensorLegend.Shapes[0].SetPosition(0, 1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer);
+overlaySensorLegend.Shapes[1].SetPosition(0, 1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer*2 + sensorLegendBoxHeight);
+overlaySensorLegend.Shapes[2].SetPosition(0, 1 - sensorLegendBoxWidth, overlayBorderBuffer);
+overlaySensorLegend.Shapes[3].SetPosition(0, 1 - sensorLegendBoxWidth, overlayBorderBuffer*2 + sensorLegendBoxHeight);
+
+
+Global WindowOverlay overlayUploadingLog;
+Variable uploadingLogWidth = 0.4;
+Variable uploadingLogHeight = 0.07;
+overlayUploadingLog.Shapes[0].SetPosition(0, (1 - uploadingLogWidth) / 2, 1 - uploadingLogHeight - overlayBorderBuffer);
+overlayUploadingLog.Shapes[0].SetSize(0, uploadingLogWidth, uploadingLogHeight);
+overlayUploadingLog.Shapes[0].TextOptions.Font.Size = 35;
+overlayUploadingLog.Shapes[0].TextOptions.Text = "UPLINKING DATA...";
+
+overlayUploadingLog.AddShape();
+overlayUploadingLog.Shapes[1].Type = "Rectangle";
+Call InitializeSensorLegendRectangle(overlayUploadingLog, 1, ColorTools.LightGray);
+overlayUploadingLog.Shapes[1].SetSize(0, uploadingLogWidth, uploadingLogHeight);
+overlayUploadingLog.Shapes[1].SetPosition(0, (1 - uploadingLogWidth) / 2, 1 - uploadingLogHeight - overlayBorderBuffer);
+
+overlayUploadingLog.Shapes[0].BringToFront();
+
 
 // Set up 3D view
-Global ViewWindow radialView;
-radialView.CurrentViewpoint.ThreeDView.Radius = 2147.54485002776;
-radialView.CurrentViewpoint.ThreeDView.RightAscension = 270;
-radialView.CurrentViewpoint.ThreeDView.Declination = 0;
-radialView.AddObject(red);
-radialView.AddObject(blue);
-radialView.AddObject(overlayRed1Future);
-radialView.AddObject(overlayRed2Future);
-radialView.AddObject(overlayRed3Future);
-radialView.AddObject(cameraSc);
-radialView.AddObject(overlayDateTime);
-radialView.CurrentViewpoint.ThreeDView.Source = cameraSc.ObjectId;
-radialView.CurrentViewpoint.ThreeDView.Target = cameraSc.ObjectId;
-radialView.SetShowName(0, TypeOf(CelestialObject), 0);
-radialView.SetShowObject(cameraSc.ObjectId, 0);
-radialView.ShowStatusText = 0;
-radialView.WindowTitle = "3D View";
+Global ViewWindow viewMain3D;
+viewMain3D.CurrentViewpoint.ThreeDView.Radius = 2147.54485002776;
+viewMain3D.CurrentViewpoint.ThreeDView.RightAscension = 270;
+viewMain3D.CurrentViewpoint.ThreeDView.Declination = 0;
+viewMain3D.AddObject(red);
+viewMain3D.AddObject(blue);
+viewMain3D.AddObject(overlayRed1Future);
+viewMain3D.AddObject(overlayRed2Future);
+viewMain3D.AddObject(overlayRed3Future);
+viewMain3D.AddObject(cameraSc);
+viewMain3D.AddObject(overlayDateTime);
+viewMain3D.AddObject(overlaySensorLegend);
+viewMain3D.AddObject(overlayUploadingLog);
+viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 0);
+viewMain3D.CurrentViewpoint.ThreeDView.Source = cameraSc.ObjectId;
+viewMain3D.CurrentViewpoint.ThreeDView.Target = cameraSc.ObjectId;
+viewMain3D.SetShowName(0, TypeOf(CelestialObject), 0);
+viewMain3D.SetShowObject(cameraSc.ObjectId, 0);
+viewMain3D.ShowStatusText = 0;
+viewMain3D.WindowTitle = "3D View";
+
+Global ViewWindow viewUplink;
+viewUplink.CurrentViewpoint.ViewpointType = "sensorview";
+viewUplink.AddObject(red);
+viewUplink.AddObject(blue);
+viewUplink.AddObject(overlayRed1Future);
+viewUplink.AddObject(overlayRed2Future);
+viewUplink.AddObject(overlayRed3Future);
+viewUplink.AddObject(overlayDateTime);
+viewUplink.AddObject(overlaySensorLegend);
+viewUplink.SetShowName(0, TypeOf(CelestialObject), 0);
+viewUplink.ShowStatusText = 0;
+viewUplink.CurrentViewpoint.SensorView.Source = blue[0].Sensors[sensorIndexUplink].ObjectId;
+viewUplink.WindowTitle = "Uplink View";
+
+Global ViewWindow viewPayload;
+viewPayload.CurrentViewpoint.ViewpointType = "sensorview";
+viewPayload.AddObject(red);
+viewPayload.AddObject(blue);
+viewPayload.AddObject(overlayRed1Future);
+viewPayload.AddObject(overlayRed2Future);
+viewPayload.AddObject(overlayRed3Future);
+viewPayload.AddObject(overlayDateTime);
+viewPayload.AddObject(overlaySensorLegend);
+viewPayload.SetShowName(0, TypeOf(CelestialObject), 0);
+viewPayload.ShowStatusText = 0;
+viewPayload.CurrentViewpoint.SensorView.Source = blue[0].Sensors[sensorIndexPayload].ObjectId;
+viewPayload.WindowTitle = "Payload View";
 
 Global ImpulsiveBurn burn;
 burn.AttitudeSystem = 6;
@@ -232,9 +328,17 @@ blue[0].DisplayName = "BlueSat";
 blue[0].Propagator.StepSize = simStepSize;
 blue[0].EulerAngles[1] = 90;
 blue[0].TailLength = radialViewTailLength;
-radialView.SetShowName(blue[0].ObjectId, 1);
-radialView.SetObjectLabelFont(blue[0].ObjectId, vf);
-radialView.SetLineWidth(blue[0].ObjectId, 0, 2);
+viewMain3D.SetShowName(blue[0].ObjectId, 1);
+viewMain3D.SetObjectLabelFont(blue[0].ObjectId, vf);
+viewMain3D.SetLineWidth(blue[0].ObjectId, 0, 2);
+
+viewUplink.SetShowName(blue[0].ObjectId, 1);
+viewUplink.SetObjectLabelFont(blue[0].ObjectId, vf);
+viewUplink.SetLineWidth(blue[0].ObjectId, 0, 2);
+
+viewPayload.SetShowName(blue[0].ObjectId, 1);
+viewPayload.SetObjectLabelFont(blue[0].ObjectId, vf);
+viewPayload.SetLineWidth(blue[0].ObjectId, 0, 2);
 
 cameraSc.EulerAngles[1] = 90;
 
@@ -271,16 +375,31 @@ For i = 0 to red.Count - 1;
 	red[i].BodyScale = 1000;
 	red[i].DisplayName = "Red" + (i+1).ToString();
 	red[i].TailLength = radialViewTailLength;
-	radialView.SetShowName(red[i].ObjectId, 1);
-	radialView.SetObjectLabelFont(red[i].ObjectId, vf);
-	radialView.SetLineWidth(red[i].ObjectId, 0, 2);
+	
+	viewMain3D.SetShowName(red[i].ObjectId, 1);
+	viewMain3D.SetObjectLabelFont(red[i].ObjectId, vf);
+	viewMain3D.SetLineWidth(red[i].ObjectId, 0, 2);
+	
+	viewUplink.SetShowName(red[i].ObjectId, 1);
+	viewUplink.SetObjectLabelFont(red[i].ObjectId, vf);
+	viewUplink.SetLineWidth(red[i].ObjectId, 0, 2);
+	
+	viewPayload.SetShowName(red[i].ObjectId, 1);
+	viewPayload.SetObjectLabelFont(red[i].ObjectId, vf);
+	viewPayload.SetLineWidth(red[i].ObjectId, 0, 2);
 End;
 
 
 Global Array initialKepStateRed1 = red[0].GetKeplerianState();
 Global TimeSpan simEpoch;
 
-Define Procedure InitializePlotPredictSeries(PlotScatterSeries series, String label, Variable color);
+]]></FreeFormScript>
+      </FreeForm>
+      <FreeForm enabled="true">
+        <Label>Initialize Plots</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[Define Procedure InitializePlotPredictSeries(PlotScatterSeries series, String label, Variable color);
 	series.Label = label;
 	series.MarkersColor = color;
 
@@ -347,6 +466,7 @@ Global PlotScatterSeries angleFromPayloadR3Predict;
 PlotScatterSeries angleFromPayloadWarningArea;
 
 Global PlotWindow pwAngleFromPayload;
+pwAngleFromPayload.BeginBatchUpdate();
 Call InitializePlot(pwAngleFromPayload, "Elapsed Time vs Angle from Sensitive Payload", "Elapsed Time (hrs)", "Angle from Sensitive Payload (deg)", "Time vs Angle");
 pwAngleFromPayload.AddSeries(angleFromPayloadWarningArea);
 pwAngleFromPayload.AddSeries(angleFromPayloadR1);
@@ -380,13 +500,13 @@ Call InitializePlotPredictSeries(angleFromPayloadR2Predict, "Red2 Predict", colo
 Call InitializePlotPredictSeries(angleFromPayloadR3Predict, "Red3 Predict", colorRed3);
 
 // angleFromPayloadWarningArea
-angleFromPayloadWarningArea.LineColor = ColorTools.Orange;
+angleFromPayloadWarningArea.LineColor = ColorTools.Yellow;
 angleFromPayloadWarningArea.LineWidth = 3;
 angleFromPayloadWarningArea.LineStyle = 0;
 angleFromPayloadWarningArea.Label = "Payload Warning Zone";
 angleFromPayloadWarningArea.AddPoints(
 	{pwAngleFromPayload.XAxis.MinimumValue, pwAngleFromPayload.XAxis.MinimumValue, pwAngleFromPayload.XAxis.MaximumValue, pwAngleFromPayload.XAxis.MaximumValue},
-	{0, 70, 70, 0});
+	{0, 55, 55, 0});
 angleFromPayloadWarningArea.AddPoints(angleFromPayloadWarningArea.Data[0,:]);
 
 
@@ -410,6 +530,7 @@ Global PlotScatterSeries rangeR3Predict;
 PlotScatterSeries rangeKeepOutArea_TimeRangePlot;
 
 Global PlotWindow pwRange;
+pwRange.BeginBatchUpdate();
 Call InitializePlot(pwRange, "Elapsed Time vs Range", "Elapsed Time (hrs)", "Range (km)", "Time vs Range");
 pwRange.AddSeries(rangeKeepOutArea_TimeRangePlot);
 pwRange.AddSeries(rangeR1);
@@ -470,6 +591,7 @@ PlotScatterSeries rangeAngleKeepOutArea;
 PlotScatterSeries rangeKeepOutArea_AngleRangePlot;
 
 Global PlotWindow pwAngleRange;
+pwAngleRange.BeginBatchUpdate();
 Call InitializePlot(pwAngleRange, "Angle from Sensitive Payload vs Range", "Angle from Sensitive Payload (deg)", "Range (km)", "Angle vs Range");
 pwAngleRange.AddSeries(rangeKeepOutArea_AngleRangePlot);
 pwAngleRange.AddSeries(rangeAngleKeepOutArea);
@@ -508,7 +630,7 @@ rangeAngleKeepOutArea.LineColor = ColorTools.Yellow;
 rangeAngleKeepOutArea.LineWidth = 3;
 rangeAngleKeepOutArea.LineStyle = 0;
 rangeAngleKeepOutArea.Label = "Payload Keep Out Zone";
-rangeAngleKeepOutArea.AddPoints({0, 0, 45, 90}, {0, 80, 80, 0});
+rangeAngleKeepOutArea.AddPoints({0, 0, 30, 70}, {0, 80, 80, 0});
 rangeAngleKeepOutArea.AddPoints(rangeAngleKeepOutArea.Data[0,:]);
 
 // rangeKeepOutArea_AngleRangePlot
@@ -536,6 +658,7 @@ Global PlotScatterSeries radiusLongitudeR2Predict;
 Global PlotScatterSeries radiusLongitudeR3Predict;
 
 Global PlotWindow pwRadiusLongitude;
+pwRadiusLongitude.BeginBatchUpdate();
 Call InitializePlot(pwRadiusLongitude, "Longitude vs Radius", "Longitude (deg)", "Radius (km)", "Radius vs Longitude");
 pwRadiusLongitude.AddSeries(radiusLongitudeB1);
 pwRadiusLongitude.AddSeries(radiusLongitudeR1);
@@ -596,31 +719,50 @@ Call AddSinglePointToPlot(
 	3,
 	ColorTools.Green,
 	"");
+	
+
+pwRange.EndBatchUpdate();
+pwAngleFromPayload.EndBatchUpdate();
+pwAngleRange.EndBatchUpdate();
+pwRadiusLongitude.EndBatchUpdate();]]></FreeFormScript>
+      </FreeForm>
+      <FreeForm enabled="true">
+        <Label>Output Configuration</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[
+Global Constant Variable screenSpaceRatio = 0.5;
+
+Define Procedure SetWindowRight(Variable ID);
+	OutputLayout.SetWindowPosition(ID, 1, screenSpaceRatio, 1, 0);
+	OutputLayout.SetWindowSize(ID, 1, 1 - screenSpaceRatio, 1, 1);
+EndProcedure;
+
+Define Procedure SetWindowTopLeft(Variable ID);
+	OutputLayout.SetWindowPosition(ID, 1, 0, 1, 0);
+	OutputLayout.SetWindowSize(ID, 1, screenSpaceRatio, 1, 0.5);
+EndProcedure;
+
+Define Procedure SetWindowBottomLeft(Variable ID);
+	OutputLayout.SetWindowPosition(ID, 1, 0, 1, 0.5);
+	OutputLayout.SetWindowSize(ID, 1, screenSpaceRatio, 1, 0.5);
+EndProcedure;
 
 
+OutputLayout.SetWindowFrameVisibility({viewMain3D.ID, pwRadiusLongitude.ID, pwAngleRange.ID, pwRange.ID, pwAngleFromPayload.ID, viewUplink.ID, viewPayload.ID}, 0);
 
+Call SetWindowTopLeft(pwRadiusLongitude.ID);
 
-Variable screenSpaceRatio = 0.5;
+Call SetWindowBottomLeft(pwAngleRange.ID);
+Call SetWindowBottomLeft(pwRange.ID);
+Call SetWindowBottomLeft(pwAngleFromPayload.ID);
+OutputLayout.BringWindowToFront(pwAngleRange.ID);
 
+Call SetWindowRight(viewMain3D.ID);
+Call SetWindowRight(viewUplink.ID);
+Call SetWindowRight(viewPayload.ID);
+OutputLayout.BringWindowToFront(viewMain3D.ID);
 
-OutputLayout.SetWindowFrameVisibility({radialView.ID, pwRadiusLongitude.ID, pwAngleRange.ID, pwRange.ID, pwAngleFromPayload.ID}, 0);
-
-OutputLayout.SetWindowPosition(pwRadiusLongitude.ID, 1, 0, 1, 0);
-OutputLayout.SetWindowSize(pwRadiusLongitude.ID, 1, screenSpaceRatio, 1, 0.5);
-
-OutputLayout.SetWindowPosition(pwAngleRange.ID, 1, 0, 1, 0.5);
-OutputLayout.SetWindowSize(pwAngleRange.ID, 1, screenSpaceRatio, 1, 0.5);
-
-OutputLayout.SetWindowPosition(pwRange.ID, 1, 0, 1, 0.5);
-OutputLayout.SetWindowSize(pwRange.ID, 1, screenSpaceRatio, 1, 0.5);
-OutputLayout.SendWindowToBack(pwRange.ID);
-
-OutputLayout.SetWindowPosition(pwAngleFromPayload.ID, 1, 0, 1, 0.5);
-OutputLayout.SetWindowSize(pwAngleFromPayload.ID, 1, screenSpaceRatio, 1, 0.5);
-OutputLayout.SendWindowToBack(pwAngleFromPayload.ID);
-
-OutputLayout.SetWindowPosition(radialView.ID, 1, screenSpaceRatio, 1, 0);
-OutputLayout.SetWindowSize(radialView.ID, 1, 1 - screenSpaceRatio, 1, 1);
 
 OutputLayout.ApplyUpdates();]]></FreeFormScript>
       </FreeForm>
@@ -737,26 +879,31 @@ Define Procedure ComputeRangeAndAngleFromPayload(Spacecraft blue, Spacecraft red
 	angle = deg(acos(positionBCS.Normalized.DotProduct(blue.Sensors[sensorIndexPayload].BoresightUnitVector.Normalized)));
 EndProcedure;
 
-Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan futureEpoch);
+Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan futureEpoch, Variable slewAngle);
 	TimeSpan timeSinceAheadPredictUpdate = TimeSpan.Zero();
 	
 	Variable angle;
 	Variable i;
+	
+	Variable slewRateDegPerSecond = slewAngle / (futureEpoch - blue[0].Epoch).ToSeconds();
 	
 	WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
 		pwAngleRange.BeginBatchUpdate();
 		pwRadiusLongitude.BeginBatchUpdate();
 		pwRange.BeginBatchUpdate();
 		pwAngleFromPayload.BeginBatchUpdate();
-		radialView.BeginBatchUpdate();
+		viewMain3D.BeginBatchUpdate();
+		viewUplink.BeginBatchUpdate();
+		viewPayload.BeginBatchUpdate();
 		
 		red.StepToEpoch(blue[0].Epoch);
 		simEpoch = blue[0].Epoch;
+		blue[0].EulerAngles[0] += slewRateDegPerSecond * blue[0].Propagator.StepSize.ToSeconds();
 		
 		cameraSc.Epoch = blue[0].Epoch;
 		cameraSc.SetCartesianState(blue[0].GetCartesianState());
 		
-		overlayDateTime.Shapes[0].TextOptions.Text = blue[0].Epoch.ConvertToCalendarDate();
+		overlayDateTime.Shapes[0].TextOptions.Text = blue[0].Epoch.ConvertToCalendarDate("Mmm DD YYYY  hh:mm");
 	
 		// update angle/range data R1
 		Call ComputeRangeAndAngleFromPayload(blue[0], red[0], rangeB1_R1, angle);
@@ -855,14 +1002,24 @@ Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan
 			timeSinceAheadPredictUpdate = TimeSpan.Zero;
 		End;
 		
-		radialView.Update();
+		viewMain3D.Update();
+		viewUplink.Update();
+		viewPayload.Update();
 		
-		pwAngleRange.EndBatchUpdate();
 		pwRange.EndBatchUpdate();
 		pwAngleFromPayload.EndBatchUpdate();
+		pwAngleRange.EndBatchUpdate();
 		pwRadiusLongitude.EndBatchUpdate();
-		radialView.EndBatchUpdate();
+		viewUplink.EndBatchUpdate();
+		viewPayload.EndBatchUpdate();
+		viewMain3D.EndBatchUpdate();
 	End;
+EndProcedure;
+
+Define Procedure AdvanceSimUplinkPeriod(Formation red, Formation blue);
+	viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 1);
+	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(0.5), 0);
+	viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 0);
 EndProcedure;
 
 
@@ -871,7 +1028,7 @@ Define Procedure BenignScript(Formation red, Formation blue);
 	TimeSpan initialEpoch;
 	
 	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -895,7 +1052,8 @@ Define Procedure BenignScript(Formation red, Formation blue);
 	blue[0].Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimUplinkPeriod(red, blue);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 	//Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -919,7 +1077,7 @@ Define Procedure BenignScript(Formation red, Formation blue);
 	red[0].Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 EndProcedure;
 
@@ -940,7 +1098,7 @@ Define Procedure ObservationScript(Formation red, Formation blue);
 	Variable angle;
 	
 	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -1024,7 +1182,7 @@ Define Procedure ObservationScript(Formation red, Formation blue);
 
 	red[0].Maneuver(burn);
 
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 
 //Block PRESOLVED OPTIMIZATION
@@ -1140,13 +1298,13 @@ Define Procedure ObservationScript(Formation red, Formation blue);
 	red[0].Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 	burn.BurnDirection = -{    0.000145506,       -0.000805460,       -0.000000254};
 	red[0].Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 EndProcedure;
 
@@ -1163,7 +1321,7 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	TimeSpan initialEpoch;
 	
 	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -1243,7 +1401,7 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	red[0].Maneuver(burn);
 
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(4);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -1318,7 +1476,7 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	TimeSpan killOperationTime = TimeSpan.FromDays(0.2);
 	
 	futureEpoch = blue[0].Epoch + preDeployWaitTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 	// Deploy inspector from Red 1
 	red.Count += 1;
@@ -1327,8 +1485,8 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	deployableSat.DisplayName = "Red" + red.Count.ToString();
 	deployableSat.Color = colorRed4;
 	deployableSat.TailLength = radialViewTailLength/4;
-	radialView.SetShowName(deployableSat.ObjectId, 1);
-	radialView.SetObjectLabelFont(deployableSat.ObjectId, vf);
+	viewMain3D.SetShowName(deployableSat.ObjectId, 1);
+	viewMain3D.SetObjectLabelFont(deployableSat.ObjectId, vf);
 	
 	deployableSat.Epoch = red[0].Epoch;
 	deployableSat.SetCartesianState(red[0].GetCartesianState());
@@ -1390,12 +1548,12 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	deployableSat.Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + rendezvousTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 	deployableSat.SetCartesianState(blue[0].GetCartesianState());
 	
 	futureEpoch = blue[0].Epoch + killOperationTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 	// Inspector return to Red 1
 	
@@ -1455,12 +1613,12 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	deployableSat.Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + rendezvousTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 	red.Count -= 1;
 	
 	futureEpoch = blue[0].Epoch + preDeployWaitTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -1533,7 +1691,7 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	red[0].Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 EndProcedure;
 
@@ -1544,18 +1702,18 @@ EndProcedure;
         <Bookmarks />
         <Breakpoints />
         <FreeFormScript><![CDATA[
-//Call BenignScript(red, blue);
+Call BenignScript(red, blue);
 //Call ObservationScript(red, blue);
-Call DisableScript(red, blue);]]></FreeFormScript>
+//Call DisableScript(red, blue);]]></FreeFormScript>
       </FreeForm>
     </ProjectCommands>
   </ProjectMissionSequence>
   <ProjectScript><![CDATA[
-Global TimeSpan simStepSize = TimeSpan.FromSeconds(300);
+Global TimeSpan simStepSize = TimeSpan.FromSeconds(800);
 
 Global TimeSpan aheadPredictTime = TimeSpan.FromHours(18);
 Global TimeSpan aheadPredictUpdateInterval = TimeSpan.FromSeconds(300);
-Global Constant Variable aheadPredictRangeUpdateLimit = 300;
+Global Constant Variable aheadPredictRangeUpdateLimit = 500;
 
 Global TimeSpan simStartEpoch = TimeTools.ParseCalendarDate("Jun 09 2025 15:00:00.000", "UTC", "UTC", "MJD GSFC");
 simStartEpoch -= TimeSpan.FromSeconds(4*60 + 23);
@@ -1585,11 +1743,16 @@ Global Constant Variable sensorIndexUplink = 0;
 Global Constant Variable sensorIndexPayload = 1;
 
 blue[0].AddSensor("uplink");
-blue[0].Sensors[sensorIndexUplink].BoresightUnitVector = {0, 1, 0};
+//blue[0].Sensors[sensorIndexUplink].BoresightUnitVector = {0, 1, 0};
 blue[0].Sensors[sensorIndexUplink].ConeHalfAngle = 15;
 blue[0].Sensors[sensorIndexUplink].ProjectionHeight = 30000;
 blue[0].Sensors[sensorIndexUplink].Color = ColorTools.Purple;
 blue[0].Sensors[sensorIndexUplink].Opacity = 0.1;
+blue[0].Sensors[sensorIndexUplink].AttitudeMatrix = [
+	0, 0, 1;
+	1, 0, 0;
+	0, 1, 0
+];
 
 blue[0].AddSensor("payload");
 blue[0].Sensors[sensorIndexPayload].BoresightUnitVector = {0, 0, 1};
@@ -1627,27 +1790,118 @@ overlayRed2Future.ShapeTickWidth = 5;
 overlayRed3Future.ShapeTickWidth = 5;
 
 
+Global Constant Variable overlayBorderBuffer = 0.013;
 Global WindowOverlay overlayDateTime;
-overlayDateTime.Shapes[0].SetPosition(1, 10, 10);
+overlayDateTime.Shapes[0].SetPosition(0, overlayBorderBuffer, overlayBorderBuffer);
+
+
+Global Constant Variable sensorLegendBoxWidth = 0.21;
+Global Constant Variable sensorLegendBoxHeight = 0.022 + overlayBorderBuffer*2;
+Global WindowOverlay overlaySensorLegend;
+overlaySensorLegend.AddShape();
+overlaySensorLegend.AddShape();
+overlaySensorLegend.AddShape();
+
+overlaySensorLegend.Shapes[0].Type = "Rectangle";
+overlaySensorLegend.Shapes[1].Type = "Rectangle";
+overlaySensorLegend.Shapes[2].Type = "Text";
+overlaySensorLegend.Shapes[3].Type = "Text";
+
+Define Procedure InitializeSensorLegendRectangle(WindowOverlay overlay, Variable index, Variable color);
+	overlay.Shapes[index].RectangleOptions.FillColor = color;
+	overlay.Shapes[index].RectangleOptions.FillOpacity = 0.3;
+	overlay.Shapes[index].RectangleOptions.BorderColor = color;
+	overlay.Shapes[index].RectangleOptions.BorderWidth = 3;
+	overlay.Shapes[index].RectangleOptions.BorderOpacity = 1;
+	overlay.Shapes[index].SetSize(0, sensorLegendBoxWidth, sensorLegendBoxHeight);
+EndProcedure;
+
+Define Procedure InitializeSensorLegendText(WindowOverlay overlay, Variable index, String label);
+	overlay.Shapes[index].TextOptions.Text = label;
+	overlay.Shapes[index].TextOptions.AlignmentVertical = 1;
+	overlay.Shapes[index].TextOptions.AlignmentHorizontal = 0;
+	overlay.Shapes[index].SetSize(0, sensorLegendBoxWidth, sensorLegendBoxHeight);
+	overlay.Shapes[index].BringToFront();
+EndProcedure;
+
+Call InitializeSensorLegendRectangle(overlaySensorLegend, 0, ColorTools.Purple);
+Call InitializeSensorLegendRectangle(overlaySensorLegend, 1, ColorTools.Lime);
+
+Call InitializeSensorLegendText(overlaySensorLegend, 2, "Uplink");
+Call InitializeSensorLegendText(overlaySensorLegend, 3, "Payload Orientation");
+
+overlaySensorLegend.Shapes[0].SetPosition(0, 1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer);
+overlaySensorLegend.Shapes[1].SetPosition(0, 1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer*2 + sensorLegendBoxHeight);
+overlaySensorLegend.Shapes[2].SetPosition(0, 1 - sensorLegendBoxWidth, overlayBorderBuffer);
+overlaySensorLegend.Shapes[3].SetPosition(0, 1 - sensorLegendBoxWidth, overlayBorderBuffer*2 + sensorLegendBoxHeight);
+
+
+Global WindowOverlay overlayUploadingLog;
+Variable uploadingLogWidth = 0.4;
+Variable uploadingLogHeight = 0.07;
+overlayUploadingLog.Shapes[0].SetPosition(0, (1 - uploadingLogWidth) / 2, 1 - uploadingLogHeight - overlayBorderBuffer);
+overlayUploadingLog.Shapes[0].SetSize(0, uploadingLogWidth, uploadingLogHeight);
+overlayUploadingLog.Shapes[0].TextOptions.Font.Size = 35;
+overlayUploadingLog.Shapes[0].TextOptions.Text = "UPLINKING DATA...";
+
+overlayUploadingLog.AddShape();
+overlayUploadingLog.Shapes[1].Type = "Rectangle";
+Call InitializeSensorLegendRectangle(overlayUploadingLog, 1, ColorTools.LightGray);
+overlayUploadingLog.Shapes[1].SetSize(0, uploadingLogWidth, uploadingLogHeight);
+overlayUploadingLog.Shapes[1].SetPosition(0, (1 - uploadingLogWidth) / 2, 1 - uploadingLogHeight - overlayBorderBuffer);
+
+overlayUploadingLog.Shapes[0].BringToFront();
+
 
 // Set up 3D view
-Global ViewWindow radialView;
-radialView.CurrentViewpoint.ThreeDView.Radius = 2147.54485002776;
-radialView.CurrentViewpoint.ThreeDView.RightAscension = 270;
-radialView.CurrentViewpoint.ThreeDView.Declination = 0;
-radialView.AddObject(red);
-radialView.AddObject(blue);
-radialView.AddObject(overlayRed1Future);
-radialView.AddObject(overlayRed2Future);
-radialView.AddObject(overlayRed3Future);
-radialView.AddObject(cameraSc);
-radialView.AddObject(overlayDateTime);
-radialView.CurrentViewpoint.ThreeDView.Source = cameraSc.ObjectId;
-radialView.CurrentViewpoint.ThreeDView.Target = cameraSc.ObjectId;
-radialView.SetShowName(0, TypeOf(CelestialObject), 0);
-radialView.SetShowObject(cameraSc.ObjectId, 0);
-radialView.ShowStatusText = 0;
-radialView.WindowTitle = "3D View";
+Global ViewWindow viewMain3D;
+viewMain3D.CurrentViewpoint.ThreeDView.Radius = 2147.54485002776;
+viewMain3D.CurrentViewpoint.ThreeDView.RightAscension = 270;
+viewMain3D.CurrentViewpoint.ThreeDView.Declination = 0;
+viewMain3D.AddObject(red);
+viewMain3D.AddObject(blue);
+viewMain3D.AddObject(overlayRed1Future);
+viewMain3D.AddObject(overlayRed2Future);
+viewMain3D.AddObject(overlayRed3Future);
+viewMain3D.AddObject(cameraSc);
+viewMain3D.AddObject(overlayDateTime);
+viewMain3D.AddObject(overlaySensorLegend);
+viewMain3D.AddObject(overlayUploadingLog);
+viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 0);
+viewMain3D.CurrentViewpoint.ThreeDView.Source = cameraSc.ObjectId;
+viewMain3D.CurrentViewpoint.ThreeDView.Target = cameraSc.ObjectId;
+viewMain3D.SetShowName(0, TypeOf(CelestialObject), 0);
+viewMain3D.SetShowObject(cameraSc.ObjectId, 0);
+viewMain3D.ShowStatusText = 0;
+viewMain3D.WindowTitle = "3D View";
+
+Global ViewWindow viewUplink;
+viewUplink.CurrentViewpoint.ViewpointType = "sensorview";
+viewUplink.AddObject(red);
+viewUplink.AddObject(blue);
+viewUplink.AddObject(overlayRed1Future);
+viewUplink.AddObject(overlayRed2Future);
+viewUplink.AddObject(overlayRed3Future);
+viewUplink.AddObject(overlayDateTime);
+viewUplink.AddObject(overlaySensorLegend);
+viewUplink.SetShowName(0, TypeOf(CelestialObject), 0);
+viewUplink.ShowStatusText = 0;
+viewUplink.CurrentViewpoint.SensorView.Source = blue[0].Sensors[sensorIndexUplink].ObjectId;
+viewUplink.WindowTitle = "Uplink View";
+
+Global ViewWindow viewPayload;
+viewPayload.CurrentViewpoint.ViewpointType = "sensorview";
+viewPayload.AddObject(red);
+viewPayload.AddObject(blue);
+viewPayload.AddObject(overlayRed1Future);
+viewPayload.AddObject(overlayRed2Future);
+viewPayload.AddObject(overlayRed3Future);
+viewPayload.AddObject(overlayDateTime);
+viewPayload.AddObject(overlaySensorLegend);
+viewPayload.SetShowName(0, TypeOf(CelestialObject), 0);
+viewPayload.ShowStatusText = 0;
+viewPayload.CurrentViewpoint.SensorView.Source = blue[0].Sensors[sensorIndexPayload].ObjectId;
+viewPayload.WindowTitle = "Payload View";
 
 Global ImpulsiveBurn burn;
 burn.AttitudeSystem = 6;
@@ -1690,9 +1944,17 @@ blue[0].DisplayName = "BlueSat";
 blue[0].Propagator.StepSize = simStepSize;
 blue[0].EulerAngles[1] = 90;
 blue[0].TailLength = radialViewTailLength;
-radialView.SetShowName(blue[0].ObjectId, 1);
-radialView.SetObjectLabelFont(blue[0].ObjectId, vf);
-radialView.SetLineWidth(blue[0].ObjectId, 0, 2);
+viewMain3D.SetShowName(blue[0].ObjectId, 1);
+viewMain3D.SetObjectLabelFont(blue[0].ObjectId, vf);
+viewMain3D.SetLineWidth(blue[0].ObjectId, 0, 2);
+
+viewUplink.SetShowName(blue[0].ObjectId, 1);
+viewUplink.SetObjectLabelFont(blue[0].ObjectId, vf);
+viewUplink.SetLineWidth(blue[0].ObjectId, 0, 2);
+
+viewPayload.SetShowName(blue[0].ObjectId, 1);
+viewPayload.SetObjectLabelFont(blue[0].ObjectId, vf);
+viewPayload.SetLineWidth(blue[0].ObjectId, 0, 2);
 
 cameraSc.EulerAngles[1] = 90;
 
@@ -1729,14 +1991,24 @@ For i = 0 to red.Count - 1;
 	red[i].BodyScale = 1000;
 	red[i].DisplayName = "Red" + (i+1).ToString();
 	red[i].TailLength = radialViewTailLength;
-	radialView.SetShowName(red[i].ObjectId, 1);
-	radialView.SetObjectLabelFont(red[i].ObjectId, vf);
-	radialView.SetLineWidth(red[i].ObjectId, 0, 2);
+	
+	viewMain3D.SetShowName(red[i].ObjectId, 1);
+	viewMain3D.SetObjectLabelFont(red[i].ObjectId, vf);
+	viewMain3D.SetLineWidth(red[i].ObjectId, 0, 2);
+	
+	viewUplink.SetShowName(red[i].ObjectId, 1);
+	viewUplink.SetObjectLabelFont(red[i].ObjectId, vf);
+	viewUplink.SetLineWidth(red[i].ObjectId, 0, 2);
+	
+	viewPayload.SetShowName(red[i].ObjectId, 1);
+	viewPayload.SetObjectLabelFont(red[i].ObjectId, vf);
+	viewPayload.SetLineWidth(red[i].ObjectId, 0, 2);
 End;
 
 
 Global Array initialKepStateRed1 = red[0].GetKeplerianState();
 Global TimeSpan simEpoch;
+
 
 Define Procedure InitializePlotPredictSeries(PlotScatterSeries series, String label, Variable color);
 	series.Label = label;
@@ -1805,6 +2077,7 @@ Global PlotScatterSeries angleFromPayloadR3Predict;
 PlotScatterSeries angleFromPayloadWarningArea;
 
 Global PlotWindow pwAngleFromPayload;
+pwAngleFromPayload.BeginBatchUpdate();
 Call InitializePlot(pwAngleFromPayload, "Elapsed Time vs Angle from Sensitive Payload", "Elapsed Time (hrs)", "Angle from Sensitive Payload (deg)", "Time vs Angle");
 pwAngleFromPayload.AddSeries(angleFromPayloadWarningArea);
 pwAngleFromPayload.AddSeries(angleFromPayloadR1);
@@ -1838,13 +2111,13 @@ Call InitializePlotPredictSeries(angleFromPayloadR2Predict, "Red2 Predict", colo
 Call InitializePlotPredictSeries(angleFromPayloadR3Predict, "Red3 Predict", colorRed3);
 
 // angleFromPayloadWarningArea
-angleFromPayloadWarningArea.LineColor = ColorTools.Orange;
+angleFromPayloadWarningArea.LineColor = ColorTools.Yellow;
 angleFromPayloadWarningArea.LineWidth = 3;
 angleFromPayloadWarningArea.LineStyle = 0;
 angleFromPayloadWarningArea.Label = "Payload Warning Zone";
 angleFromPayloadWarningArea.AddPoints(
 	{pwAngleFromPayload.XAxis.MinimumValue, pwAngleFromPayload.XAxis.MinimumValue, pwAngleFromPayload.XAxis.MaximumValue, pwAngleFromPayload.XAxis.MaximumValue},
-	{0, 70, 70, 0});
+	{0, 55, 55, 0});
 angleFromPayloadWarningArea.AddPoints(angleFromPayloadWarningArea.Data[0,:]);
 
 
@@ -1868,6 +2141,7 @@ Global PlotScatterSeries rangeR3Predict;
 PlotScatterSeries rangeKeepOutArea_TimeRangePlot;
 
 Global PlotWindow pwRange;
+pwRange.BeginBatchUpdate();
 Call InitializePlot(pwRange, "Elapsed Time vs Range", "Elapsed Time (hrs)", "Range (km)", "Time vs Range");
 pwRange.AddSeries(rangeKeepOutArea_TimeRangePlot);
 pwRange.AddSeries(rangeR1);
@@ -1928,6 +2202,7 @@ PlotScatterSeries rangeAngleKeepOutArea;
 PlotScatterSeries rangeKeepOutArea_AngleRangePlot;
 
 Global PlotWindow pwAngleRange;
+pwAngleRange.BeginBatchUpdate();
 Call InitializePlot(pwAngleRange, "Angle from Sensitive Payload vs Range", "Angle from Sensitive Payload (deg)", "Range (km)", "Angle vs Range");
 pwAngleRange.AddSeries(rangeKeepOutArea_AngleRangePlot);
 pwAngleRange.AddSeries(rangeAngleKeepOutArea);
@@ -1966,7 +2241,7 @@ rangeAngleKeepOutArea.LineColor = ColorTools.Yellow;
 rangeAngleKeepOutArea.LineWidth = 3;
 rangeAngleKeepOutArea.LineStyle = 0;
 rangeAngleKeepOutArea.Label = "Payload Keep Out Zone";
-rangeAngleKeepOutArea.AddPoints({0, 0, 45, 90}, {0, 80, 80, 0});
+rangeAngleKeepOutArea.AddPoints({0, 0, 30, 70}, {0, 80, 80, 0});
 rangeAngleKeepOutArea.AddPoints(rangeAngleKeepOutArea.Data[0,:]);
 
 // rangeKeepOutArea_AngleRangePlot
@@ -1994,6 +2269,7 @@ Global PlotScatterSeries radiusLongitudeR2Predict;
 Global PlotScatterSeries radiusLongitudeR3Predict;
 
 Global PlotWindow pwRadiusLongitude;
+pwRadiusLongitude.BeginBatchUpdate();
 Call InitializePlot(pwRadiusLongitude, "Longitude vs Radius", "Longitude (deg)", "Radius (km)", "Radius vs Longitude");
 pwRadiusLongitude.AddSeries(radiusLongitudeB1);
 pwRadiusLongitude.AddSeries(radiusLongitudeR1);
@@ -2054,31 +2330,45 @@ Call AddSinglePointToPlot(
 	3,
 	ColorTools.Green,
 	"");
+	
+
+pwRange.EndBatchUpdate();
+pwAngleFromPayload.EndBatchUpdate();
+pwAngleRange.EndBatchUpdate();
+pwRadiusLongitude.EndBatchUpdate();
+
+Global Constant Variable screenSpaceRatio = 0.5;
+
+Define Procedure SetWindowRight(Variable ID);
+	OutputLayout.SetWindowPosition(ID, 1, screenSpaceRatio, 1, 0);
+	OutputLayout.SetWindowSize(ID, 1, 1 - screenSpaceRatio, 1, 1);
+EndProcedure;
+
+Define Procedure SetWindowTopLeft(Variable ID);
+	OutputLayout.SetWindowPosition(ID, 1, 0, 1, 0);
+	OutputLayout.SetWindowSize(ID, 1, screenSpaceRatio, 1, 0.5);
+EndProcedure;
+
+Define Procedure SetWindowBottomLeft(Variable ID);
+	OutputLayout.SetWindowPosition(ID, 1, 0, 1, 0.5);
+	OutputLayout.SetWindowSize(ID, 1, screenSpaceRatio, 1, 0.5);
+EndProcedure;
 
 
+OutputLayout.SetWindowFrameVisibility({viewMain3D.ID, pwRadiusLongitude.ID, pwAngleRange.ID, pwRange.ID, pwAngleFromPayload.ID, viewUplink.ID, viewPayload.ID}, 0);
 
+Call SetWindowTopLeft(pwRadiusLongitude.ID);
 
-Variable screenSpaceRatio = 0.5;
+Call SetWindowBottomLeft(pwAngleRange.ID);
+Call SetWindowBottomLeft(pwRange.ID);
+Call SetWindowBottomLeft(pwAngleFromPayload.ID);
+OutputLayout.BringWindowToFront(pwAngleRange.ID);
 
+Call SetWindowRight(viewMain3D.ID);
+Call SetWindowRight(viewUplink.ID);
+Call SetWindowRight(viewPayload.ID);
+OutputLayout.BringWindowToFront(viewMain3D.ID);
 
-OutputLayout.SetWindowFrameVisibility({radialView.ID, pwRadiusLongitude.ID, pwAngleRange.ID, pwRange.ID, pwAngleFromPayload.ID}, 0);
-
-OutputLayout.SetWindowPosition(pwRadiusLongitude.ID, 1, 0, 1, 0);
-OutputLayout.SetWindowSize(pwRadiusLongitude.ID, 1, screenSpaceRatio, 1, 0.5);
-
-OutputLayout.SetWindowPosition(pwAngleRange.ID, 1, 0, 1, 0.5);
-OutputLayout.SetWindowSize(pwAngleRange.ID, 1, screenSpaceRatio, 1, 0.5);
-
-OutputLayout.SetWindowPosition(pwRange.ID, 1, 0, 1, 0.5);
-OutputLayout.SetWindowSize(pwRange.ID, 1, screenSpaceRatio, 1, 0.5);
-OutputLayout.SendWindowToBack(pwRange.ID);
-
-OutputLayout.SetWindowPosition(pwAngleFromPayload.ID, 1, 0, 1, 0.5);
-OutputLayout.SetWindowSize(pwAngleFromPayload.ID, 1, screenSpaceRatio, 1, 0.5);
-OutputLayout.SendWindowToBack(pwAngleFromPayload.ID);
-
-OutputLayout.SetWindowPosition(radialView.ID, 1, screenSpaceRatio, 1, 0);
-OutputLayout.SetWindowSize(radialView.ID, 1, 1 - screenSpaceRatio, 1, 1);
 
 OutputLayout.ApplyUpdates();
 
@@ -2190,26 +2480,31 @@ Define Procedure ComputeRangeAndAngleFromPayload(Spacecraft blue, Spacecraft red
 	angle = deg(acos(positionBCS.Normalized.DotProduct(blue.Sensors[sensorIndexPayload].BoresightUnitVector.Normalized)));
 EndProcedure;
 
-Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan futureEpoch);
+Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan futureEpoch, Variable slewAngle);
 	TimeSpan timeSinceAheadPredictUpdate = TimeSpan.Zero();
 	
 	Variable angle;
 	Variable i;
+	
+	Variable slewRateDegPerSecond = slewAngle / (futureEpoch - blue[0].Epoch).ToSeconds();
 	
 	WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
 		pwAngleRange.BeginBatchUpdate();
 		pwRadiusLongitude.BeginBatchUpdate();
 		pwRange.BeginBatchUpdate();
 		pwAngleFromPayload.BeginBatchUpdate();
-		radialView.BeginBatchUpdate();
+		viewMain3D.BeginBatchUpdate();
+		viewUplink.BeginBatchUpdate();
+		viewPayload.BeginBatchUpdate();
 		
 		red.StepToEpoch(blue[0].Epoch);
 		simEpoch = blue[0].Epoch;
+		blue[0].EulerAngles[0] += slewRateDegPerSecond * blue[0].Propagator.StepSize.ToSeconds();
 		
 		cameraSc.Epoch = blue[0].Epoch;
 		cameraSc.SetCartesianState(blue[0].GetCartesianState());
 		
-		overlayDateTime.Shapes[0].TextOptions.Text = blue[0].Epoch.ConvertToCalendarDate();
+		overlayDateTime.Shapes[0].TextOptions.Text = blue[0].Epoch.ConvertToCalendarDate("Mmm DD YYYY  hh:mm");
 	
 		// update angle/range data R1
 		Call ComputeRangeAndAngleFromPayload(blue[0], red[0], rangeB1_R1, angle);
@@ -2308,14 +2603,24 @@ Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan
 			timeSinceAheadPredictUpdate = TimeSpan.Zero;
 		End;
 		
-		radialView.Update();
+		viewMain3D.Update();
+		viewUplink.Update();
+		viewPayload.Update();
 		
-		pwAngleRange.EndBatchUpdate();
 		pwRange.EndBatchUpdate();
 		pwAngleFromPayload.EndBatchUpdate();
+		pwAngleRange.EndBatchUpdate();
 		pwRadiusLongitude.EndBatchUpdate();
-		radialView.EndBatchUpdate();
+		viewUplink.EndBatchUpdate();
+		viewPayload.EndBatchUpdate();
+		viewMain3D.EndBatchUpdate();
 	End;
+EndProcedure;
+
+Define Procedure AdvanceSimUplinkPeriod(Formation red, Formation blue);
+	viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 1);
+	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(0.5), 0);
+	viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 0);
 EndProcedure;
 
 
@@ -2324,7 +2629,7 @@ Define Procedure BenignScript(Formation red, Formation blue);
 	TimeSpan initialEpoch;
 	
 	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -2348,7 +2653,8 @@ Define Procedure BenignScript(Formation red, Formation blue);
 	blue[0].Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimUplinkPeriod(red, blue);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 	//Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -2372,7 +2678,7 @@ Define Procedure BenignScript(Formation red, Formation blue);
 	red[0].Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 EndProcedure;
 
@@ -2393,7 +2699,7 @@ Define Procedure ObservationScript(Formation red, Formation blue);
 	Variable angle;
 	
 	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -2477,7 +2783,7 @@ Define Procedure ObservationScript(Formation red, Formation blue);
 
 	red[0].Maneuver(burn);
 
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 
 //Block PRESOLVED OPTIMIZATION
@@ -2593,13 +2899,13 @@ Define Procedure ObservationScript(Formation red, Formation blue);
 	red[0].Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 	burn.BurnDirection = -{    0.000145506,       -0.000805460,       -0.000000254};
 	red[0].Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 EndProcedure;
 
@@ -2616,7 +2922,7 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	TimeSpan initialEpoch;
 	
 	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -2696,7 +3002,7 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	red[0].Maneuver(burn);
 
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(4);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -2771,7 +3077,7 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	TimeSpan killOperationTime = TimeSpan.FromDays(0.2);
 	
 	futureEpoch = blue[0].Epoch + preDeployWaitTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 	// Deploy inspector from Red 1
 	red.Count += 1;
@@ -2780,8 +3086,8 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	deployableSat.DisplayName = "Red" + red.Count.ToString();
 	deployableSat.Color = colorRed4;
 	deployableSat.TailLength = radialViewTailLength/4;
-	radialView.SetShowName(deployableSat.ObjectId, 1);
-	radialView.SetObjectLabelFont(deployableSat.ObjectId, vf);
+	viewMain3D.SetShowName(deployableSat.ObjectId, 1);
+	viewMain3D.SetObjectLabelFont(deployableSat.ObjectId, vf);
 	
 	deployableSat.Epoch = red[0].Epoch;
 	deployableSat.SetCartesianState(red[0].GetCartesianState());
@@ -2843,12 +3149,12 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	deployableSat.Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + rendezvousTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 	deployableSat.SetCartesianState(blue[0].GetCartesianState());
 	
 	futureEpoch = blue[0].Epoch + killOperationTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 	// Inspector return to Red 1
 	
@@ -2908,12 +3214,12 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	deployableSat.Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + rendezvousTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 	red.Count -= 1;
 	
 	futureEpoch = blue[0].Epoch + preDeployWaitTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -2986,14 +3292,14 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	red[0].Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 EndProcedure;
 
 
 
-//Call BenignScript(red, blue);
+Call BenignScript(red, blue);
 //Call ObservationScript(red, blue);
-Call DisableScript(red, blue);]]></ProjectScript>
+//Call DisableScript(red, blue);]]></ProjectScript>
   <ProjectNotes></ProjectNotes>
 </FreeFlyerProjectFile>
