@@ -225,6 +225,133 @@
         <metadata dim="0" />
       </UserInterface>
     </Object>
+    <Object>
+      <UserInterface name="OperatorActions" isConstant="false" isGlobal="false">
+        <Name>OperatorActions</Name>
+        <General>
+          <Title>Operator Actions</Title>
+          <ContinueButtonLabel>&amp;Continue</ContinueButtonLabel>
+          <LabelColumnWidth units="pixel" displayed_units="pixel">200</LabelColumnWidth>
+          <DataColumnWidth units="pixel" displayed_units="pixel">400</DataColumnWidth>
+          <NavigationType>Ordered Access</NavigationType>
+          <Elements dim="4">
+            <value>
+              <UIPage name="OperatorActions_Page1" isConstant="false" isGlobal="false">
+                <Name>OperatorActions_Page1</Name>
+                <PageTitle>Operator Actions</PageTitle>
+                <metadata dim="0" />
+              </UIPage>
+            </value>
+            <value>
+              <UILabel name="OperatorActions_FormattingElement2" isConstant="false" isGlobal="false">
+                <Name>OperatorActions_FormattingElement2</Name>
+                <LabelText>To re-evaluate the data readouts and 3D views before making a selection,
+choose "Re-evaluate data" from the list above. Then, when you are ready
+to choose an action, click the blue play button in the top toolbar.</LabelText>
+                <metadata dim="0" />
+              </UILabel>
+            </value>
+            <value>
+              <UISeperator name="OperatorActions_FormattingElement1" isConstant="false" isGlobal="false">
+                <Name>OperatorActions_FormattingElement1</Name>
+                <ShowLine>true</ShowLine>
+                <Label></Label>
+                <metadata dim="0" />
+              </UISeperator>
+            </value>
+            <value>
+              <UIMultiChoice name="OperatorActions_DataElement1" isConstant="false" isGlobal="false">
+                <Name>OperatorActions_DataElement1</Name>
+                <ValueDestination>
+                  <ObjectHolder name="OperatorActions_DataElement1_:ValueDestination" isConstant="false" isGlobal="false">
+                    <Name>OperatorActions_DataElement1_:ValueDestination</Name>
+                    <BaseObject>userChoice</BaseObject>
+                    <metadata dim="0" />
+                  </ObjectHolder>
+                </ValueDestination>
+                <Label>Select an action:</Label>
+                <Items dim="5">
+                  <value>
+                    <UIMultiChoiceItem name="OperatorActions_DataElement1_Choice1" isConstant="false" isGlobal="false">
+                      <Name>OperatorActions_DataElement1_Choice1</Name>
+                      <Label>Standby (no action)</Label>
+                      <Value>
+                        <DoubleConstant name="OperatorActions_DataElement1_Choice1_:Value" isConstant="false" isGlobal="false">
+                          <Name>OperatorActions_DataElement1_Choice1_:Value</Name>
+                          <value units="" displayed_units="">0</value>
+                          <metadata dim="0" />
+                        </DoubleConstant>
+                      </Value>
+                      <metadata dim="0" />
+                    </UIMultiChoiceItem>
+                  </value>
+                  <value>
+                    <UIMultiChoiceItem name="OperatorActions_DataElement1_Choice2" isConstant="false" isGlobal="false">
+                      <Name>OperatorActions_DataElement1_Choice2</Name>
+                      <Label>Perform premature station-keeping maneuver</Label>
+                      <Value>
+                        <DoubleConstant name="OperatorActions_DataElement1_Choice2_:Value" isConstant="false" isGlobal="false">
+                          <Name>OperatorActions_DataElement1_Choice2_:Value</Name>
+                          <value units="" displayed_units="">1</value>
+                          <metadata dim="0" />
+                        </DoubleConstant>
+                      </Value>
+                      <metadata dim="0" />
+                    </UIMultiChoiceItem>
+                  </value>
+                  <value>
+                    <UIMultiChoiceItem name="OperatorActions_DataElement1_Choice3" isConstant="false" isGlobal="false">
+                      <Name>OperatorActions_DataElement1_Choice3</Name>
+                      <Label>Perform evasive maneuver</Label>
+                      <Value>
+                        <DoubleConstant name="OperatorActions_DataElement1_Choice3_:Value" isConstant="false" isGlobal="false">
+                          <Name>OperatorActions_DataElement1_Choice3_:Value</Name>
+                          <value units="" displayed_units="">2</value>
+                          <metadata dim="0" />
+                        </DoubleConstant>
+                      </Value>
+                      <metadata dim="0" />
+                    </UIMultiChoiceItem>
+                  </value>
+                  <value>
+                    <UIMultiChoiceItem name="OperatorActions_DataElement1_Choice4" isConstant="false" isGlobal="false">
+                      <Name>OperatorActions_DataElement1_Choice4</Name>
+                      <Label>Slew payload away from closest red spacecraft</Label>
+                      <Value>
+                        <DoubleConstant name="OperatorActions_DataElement1_Choice4_:Value" isConstant="false" isGlobal="false">
+                          <Name>OperatorActions_DataElement1_Choice4_:Value</Name>
+                          <value units="" displayed_units="">3</value>
+                          <metadata dim="0" />
+                        </DoubleConstant>
+                      </Value>
+                      <metadata dim="0" />
+                    </UIMultiChoiceItem>
+                  </value>
+                  <value>
+                    <UIMultiChoiceItem name="OperatorActions_DataElement1_Choice5" isConstant="false" isGlobal="false">
+                      <Name>OperatorActions_DataElement1_Choice5</Name>
+                      <Label>Re-evaluate data</Label>
+                      <Value>
+                        <DoubleConstant name="OperatorActions_DataElement1_Choice5_:Value" isConstant="false" isGlobal="false">
+                          <Name>OperatorActions_DataElement1_Choice5_:Value</Name>
+                          <value units="" displayed_units="">4</value>
+                          <metadata dim="0" />
+                        </DoubleConstant>
+                      </Value>
+                      <metadata dim="0" />
+                    </UIMultiChoiceItem>
+                  </value>
+                </Items>
+                <DefaultValue>OperatorActions_DataElement1_Choice1</DefaultValue>
+                <UseRadioButtons>true</UseRadioButtons>
+                <metadata dim="0" />
+              </UIMultiChoice>
+            </value>
+          </Elements>
+        </General>
+        <metadata dim="0" />
+      </UserInterface>
+    </Object>
   </ProjectObjects>
   <ProjectMissionSequence>
     <ProjectExternals>
@@ -826,6 +953,7 @@ Call InitializePlotAxisRanges(pwRadiusLongitude, {blue[0].Longitude - 3, blue[0]
 pwRadiusLongitude.PointsToUpdate = 10;
 pwRadiusLongitude.MaxPoints = tailPoints;
 pwRadiusLongitude.UseMonitorMode = 1;
+pwRadiusLongitude.Legend.Location = 1;
 
 // radiusLongitude
 Call InitializePlotMainSeries(radiusLongitudeB1, "BlueSat", colorBlue1);
@@ -2478,6 +2606,7 @@ Call InitializePlotAxisRanges(pwRadiusLongitude, {blue[0].Longitude - 3, blue[0]
 pwRadiusLongitude.PointsToUpdate = 10;
 pwRadiusLongitude.MaxPoints = tailPoints;
 pwRadiusLongitude.UseMonitorMode = 1;
+pwRadiusLongitude.Legend.Location = 1;
 
 // radiusLongitude
 Call InitializePlotMainSeries(radiusLongitudeB1, "BlueSat", colorBlue1);
