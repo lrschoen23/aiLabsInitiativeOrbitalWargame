@@ -42,5 +42,6 @@ For briefing packet:
 
 - explain all data readouts
 - uplinking period before maneuvers/slews happen
+- ready mechanic for ground based jamming, secondary comm path
 
 

@@ -330,7 +330,7 @@ to choose an action, click the blue play button in the top toolbar.</LabelText>
                   <value>
                     <UIMultiChoiceItem name="OperatorActions_DataElement1_Choice5" isConstant="false" isGlobal="false">
                       <Name>OperatorActions_DataElement1_Choice5</Name>
-                      <Label>Jam red comms using ground-based unit</Label>
+                      <Label>Ready ground-based jamming unit</Label>
                       <Value>
                         <DoubleConstant name="OperatorActions_DataElement1_Choice5_:Value" isConstant="false" isGlobal="false">
                           <Name>OperatorActions_DataElement1_Choice5_:Value</Name>
@@ -392,8 +392,9 @@ to choose an action, click the blue play button in the top toolbar.</LabelText>
         <Breakpoints />
         <FreeFormScript><![CDATA[//Show MainMenu;
 
-userChoice = 1;
-simStepSizeSeconds = 850;]]></FreeFormScript>
+userChoice = 3;
+simStepSizeSeconds = 1500;
+]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
         <Label>Initialize</Label>
@@ -403,7 +404,6 @@ simStepSizeSeconds = 850;]]></FreeFormScript>
 Global TimeSpan simStepSize = TimeSpan.FromSeconds(simStepSizeSeconds);
 
 Global TimeSpan aheadPredictTime = TimeSpan.FromHours(18);
-Global TimeSpan aheadPredictUpdateInterval = simStepSize.Scaled(0.5);
 Global Constant Variable aheadPredictRangeUpdateLimit = 500;
 
 Global TimeSpan simStartEpoch = TimeTools.ParseCalendarDate("Jun 09 2025 15:00:00.000", "UTC", "UTC", "MJD GSFC");
@@ -414,6 +414,8 @@ Global Variable colorRed2 = ColorTools.InterpolateColorHSV({ColorTools.White, Co
 Global Variable colorRed3 = ColorTools.InterpolateColorHSV({ColorTools.White, ColorTools.Red, ColorTools.Black}, 0.25);
 Global Variable colorRed4 = ColorTools.InterpolateColorHSV({ColorTools.White, ColorTools.Red, ColorTools.Black}, 0.1);
 Global Variable colorBlue1 = ColorTools.DodgerBlue;
+
+FF_Preferences.PropagationStoppingConditionTolerance = TimeSpan.FromSeconds(1e-5);
 
 Global Variable doOptimizationAndSaveValues = 0;
 
@@ -427,6 +429,15 @@ blue.Count = 1;
 
 red.ViewAsGroup = 0;
 blue.ViewAsGroup = 0;
+
+Global GroundVehicle blueJammer;
+blueJammer.AddSensor("jammerBeam");
+blueJammer.Sensors[0].Active = 0;
+blueJammer.Color = colorBlue1;
+blueJammer.Latitude = -10;
+blueJammer.Longitude = -100;
+blueJammer.Speed = 0;
+blueJammer.Height = 500;
 
 Global Constant Variable sensorIndexUplink = 0;
 Global Constant Variable sensorIndexPayload = 1;
@@ -540,58 +551,80 @@ overlayUploadingLog.Shapes[1].SetPosition(0, (1 - uploadingLogWidth) / 2, 1 - up
 
 overlayUploadingLog.Shapes[0].BringToFront();
 
+Global ViewFont vf;
+vf.Size = 14;
+
+Define Procedure InitializeViewWindow(ViewWindow vw, String windowTitle, Formation red, Formation blue);
+	vw.AddObject(blue);
+	vw.AddObject(red);
+	vw.AddObject(blueJammer);
+	vw.AddObject(overlayRed1Future);
+	vw.AddObject(overlayRed2Future);
+	vw.AddObject(overlayRed3Future);
+	vw.AddObject(overlayDateTime);
+	vw.AddObject(overlaySensorLegend);
+	
+	vw.SetShowName(0, TypeOf(CelestialObject), 0);
+	vw.SetShowBody(blueJammer.ObjectId, 0);
+	vw.SetShowName(blueJammer.ObjectId, 1);
+	vw.SetShowIcon(blueJammer.ObjectId, 1);
+	vw.SetObjectIconSize(blueJammer.ObjectId, 50);
+	vw.SetObjectLabelFont(blueJammer.ObjectId, vf);
+	
+	vw.ShowStatusText = 0;
+	vw.WindowTitle = windowTitle;
+EndProcedure;
 
 // Set up 3D view
 Global Constant Variable tailLengthHours = 24;
 Global Constant Variable tailPoints = tailLengthHours * 60 * 60 / simStepSizeSeconds;
 Global ViewWindow viewMain3D;
+Call InitializeViewWindow(viewMain3D, "3D View", red, blue);
 viewMain3D.CurrentViewpoint.ThreeDView.Radius = 3000;
 viewMain3D.CurrentViewpoint.ThreeDView.RightAscension = 270;
 viewMain3D.CurrentViewpoint.ThreeDView.Declination = 0;
-viewMain3D.AddObject(red);
-viewMain3D.AddObject(blue);
-viewMain3D.AddObject(overlayRed1Future);
-viewMain3D.AddObject(overlayRed2Future);
-viewMain3D.AddObject(overlayRed3Future);
 viewMain3D.AddObject(cameraSc);
-viewMain3D.AddObject(overlayDateTime);
-viewMain3D.AddObject(overlaySensorLegend);
 viewMain3D.AddObject(overlayUploadingLog);
 viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 0);
 viewMain3D.CurrentViewpoint.ThreeDView.Source = cameraSc.ObjectId;
 viewMain3D.CurrentViewpoint.ThreeDView.Target = cameraSc.ObjectId;
-viewMain3D.SetShowName(0, TypeOf(CelestialObject), 0);
 viewMain3D.SetShowObject(cameraSc.ObjectId, 0);
-viewMain3D.ShowStatusText = 0;
-viewMain3D.WindowTitle = "3D View";
 
 Global ViewWindow viewUplink;
+Call InitializeViewWindow(viewUplink, "Uplink View", red, blue);
 viewUplink.CurrentViewpoint.ViewpointType = "sensorview";
-viewUplink.AddObject(red);
-viewUplink.AddObject(blue);
-viewUplink.AddObject(overlayRed1Future);
-viewUplink.AddObject(overlayRed2Future);
-viewUplink.AddObject(overlayRed3Future);
-viewUplink.AddObject(overlayDateTime);
-viewUplink.AddObject(overlaySensorLegend);
-viewUplink.SetShowName(0, TypeOf(CelestialObject), 0);
-viewUplink.ShowStatusText = 0;
+viewUplink.CurrentViewpoint.SensorView.FilterAllSiblings = 0;
 viewUplink.CurrentViewpoint.SensorView.Source = blue[0].Sensors[sensorIndexUplink].ObjectId;
-viewUplink.WindowTitle = "Uplink View";
 
 Global ViewWindow viewPayload;
+Call InitializeViewWindow(viewPayload, "Payload View", red, blue);
 viewPayload.CurrentViewpoint.ViewpointType = "sensorview";
-viewPayload.AddObject(red);
-viewPayload.AddObject(blue);
-viewPayload.AddObject(overlayRed1Future);
-viewPayload.AddObject(overlayRed2Future);
-viewPayload.AddObject(overlayRed3Future);
-viewPayload.AddObject(overlayDateTime);
-viewPayload.AddObject(overlaySensorLegend);
-viewPayload.SetShowName(0, TypeOf(CelestialObject), 0);
-viewPayload.ShowStatusText = 0;
+viewPayload.CurrentViewpoint.SensorView.FilterAllSiblings = 0;
 viewPayload.CurrentViewpoint.SensorView.Source = blue[0].Sensors[sensorIndexPayload].ObjectId;
-viewPayload.WindowTitle = "Payload View";
+
+Global Variable blueJammerState = 0;
+// jammerState 0 is inactive, 1 is ready, 2 is active
+Define Procedure SetBlueJammerState(Variable jammerState);
+	blueJammerState = jammerState;
+	If (blueJammerState == 0);
+		blueJammer.DisplayName = "Ship-based Jammer (Inactive)";
+		viewMain3D.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerInactiveIcon.png");
+		viewUplink.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerInactiveIcon.png");
+		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerInactiveIcon.png");
+	ElseIf (blueJammerState == 1);
+		blueJammer.DisplayName = "Ship-based Jammer (Standing By)";
+		viewMain3D.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerReadyIcon.png");
+		viewUplink.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerReadyIcon.png");
+		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerReadyIcon.png");
+	ElseIf (blueJammerState == 2);
+		blueJammer.DisplayName = "Ship-based Jammer (Active)";
+		viewMain3D.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerActiveIcon.png");
+		viewUplink.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerActiveIcon.png");
+		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerActiveIcon.png");
+	End;
+EndProcedure;
+
+Call SetBlueJammerState(0);
 
 Global ImpulsiveBurn burn;
 burn.AttitudeSystem = 6;
@@ -614,8 +647,7 @@ Define Procedure OpenForWrite(String filename);
 	file.Open();
 EndProcedure;
 
-Global ViewFont vf;
-vf.Size = 14;
+
 
 // Set initial states
 Variable baseRAAN = 40;
@@ -650,7 +682,7 @@ cameraSc.EulerAngles[1] = 90;
 
 
 Variable red1AngularSeparation = 2;
-Variable red2AngularSeparation = 2.5;
+Variable red2AngularSeparation = 2.3;
 Variable red2and3RadialSeparation = 60;
 red[0].SetKeplerianState({42164,
                           1e-6,
@@ -660,16 +692,16 @@ red[0].SetKeplerianState({42164,
                           1});
 red[1].SetKeplerianState({42164 - red2and3RadialSeparation,
                           1e-6,
-                          baseI * 1.0,
-                          baseRAAN - red2AngularSeparation * 1.7,
-                          1,
-                          1});
+                          baseI * 1.01,
+                          baseRAAN,
+                          0,
+                          1 - red2AngularSeparation});
 red[2].SetKeplerianState({42164 + red2and3RadialSeparation,
                           1e-6,
                           baseI * 1.0,
-                          baseRAAN + red2AngularSeparation,
+                          baseRAAN,
                           1,
-                          1});
+                          1 + red2AngularSeparation + 1.3});
                           
 red[0].Color = colorRed1;
 red[1].Color = colorRed2;
@@ -697,7 +729,6 @@ End;
 
 
 Global Array initialKepStateRed1 = red[0].GetKeplerianState();
-Global TimeSpan simEpoch;
 
 ]]></FreeFormScript>
       </FreeForm>
@@ -771,6 +802,19 @@ Global PlotScatterSeries angleFromPayloadR3Predict;
 
 PlotScatterSeries angleFromPayloadWarningArea;
 
+Define Procedure SetMaxPoints(PlotWindow pw, Variable points);
+	If (points < 100);
+		pw.MaxPoints = 100;
+		Diagnostics.ReportWarningMessage(
+		"The max points for PlotWindow is too low, falling back to 100. " +
+		"Decrease step size to fix this warning. Note: you can still run " + 
+		"without fixing, but the tail lengths in plots will not match those " +
+		"in the view windows.");
+	Else;
+		pw.MaxPoints = points;
+	End;
+EndProcedure;
+
 Global PlotWindow pwAngleFromPayload;
 pwAngleFromPayload.BeginBatchUpdate();
 Call InitializePlot(pwAngleFromPayload, "Elapsed Time vs Angle from Sensitive Payload", "Elapsed Time (hrs)", "Angle from Sensitive Payload (deg)", "Time vs Angle");
@@ -786,9 +830,9 @@ pwAngleFromPayload.AddSeries(angleFromPayloadR2CurrentLocation);
 pwAngleFromPayload.AddSeries(angleFromPayloadR3CurrentLocation);
 Call InitializePlotAxisRanges(pwAngleFromPayload, {-24, aheadPredictTime.ToHours()}, {0, 180});
 pwAngleFromPayload.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
-pwAngleFromPayload.MaxPoints = tailPoints;
 pwAngleFromPayload.UseMonitorMode = 1;
 pwAngleFromPayload.Legend.Location = 1;
+Call SetMaxPoints(pwAngleFromPayload, tailPoints);
 
 // rangeAngleFromPayloadXX
 Call InitializePlotMainSeries(angleFromPayloadR1, "Red1", colorRed1);
@@ -850,9 +894,9 @@ pwRange.AddSeries(rangeR2CurrentLocation);
 pwRange.AddSeries(rangeR3CurrentLocation);
 Call InitializePlotAxisRanges(pwRange, {-24, aheadPredictTime.ToHours()}, {0, maxRangeForPlots});
 pwRange.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
-pwRange.MaxPoints = 3e2 * 300 / simStepSize.ToSeconds();
 pwRange.UseMonitorMode = 1;
 pwRange.Legend.Location = 1;
+Call SetMaxPoints(pwAngleFromPayload, tailPoints);
 
 // rangeAngleFromPayloadXX
 Call InitializePlotMainSeries(rangeR1, "Red1", colorRed1);
@@ -912,9 +956,9 @@ pwAngleRange.AddSeries(rangeAngleFromPayloadR2CurrentLocation);
 pwAngleRange.AddSeries(rangeAngleFromPayloadR3CurrentLocation);
 Call InitializePlotAxisRanges(pwAngleRange, {0, 180}, {0, maxRangeForPlots});
 pwAngleRange.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
-pwAngleRange.MaxPoints = 3e2 * 300 / simStepSize.ToSeconds();
 pwAngleRange.UseMonitorMode = 1;
 pwAngleRange.Legend.Location = 1;
+Call SetMaxPoints(pwAngleRange, tailPoints);
 
 // rangeAngleFromPayloadXX
 Call InitializePlotMainSeries(rangeAngleFromPayloadR1, "Red1", colorRed1);
@@ -979,9 +1023,9 @@ pwRadiusLongitude.AddSeries(radiusLongitudeR2CurrentLocation);
 pwRadiusLongitude.AddSeries(radiusLongitudeR3CurrentLocation);
 Call InitializePlotAxisRanges(pwRadiusLongitude, {blue[0].Longitude - 3, blue[0].Longitude + 3}, {42060, 42260});
 pwRadiusLongitude.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
-pwRadiusLongitude.MaxPoints = tailPoints;
 pwRadiusLongitude.UseMonitorMode = 1;
 pwRadiusLongitude.Legend.Location = 1;
+Call SetMaxPoints(pwRadiusLongitude, tailPoints);
 
 // radiusLongitude
 Call InitializePlotMainSeries(radiusLongitudeB1, "BlueSat", colorBlue1);
@@ -1186,146 +1230,155 @@ Define Procedure ComputeRangeAndAngleFromPayload(Spacecraft blue, Spacecraft red
 	angle = deg(acos(positionBCS.Normalized.DotProduct(blue.Sensors[sensorIndexPayload].BoresightUnitVector.Normalized)));
 EndProcedure;
 
-Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan futureEpoch, Variable slewAngle);
-	TimeSpan timeSinceAheadPredictUpdate = TimeSpan.Zero();
-	
+Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 	Variable angle;
 	Variable i;
+
+	pwAngleRange.BeginBatchUpdate();
+	pwRadiusLongitude.BeginBatchUpdate();
+	pwRange.BeginBatchUpdate();
+	pwAngleFromPayload.BeginBatchUpdate();
+	viewMain3D.BeginBatchUpdate();
+	viewUplink.BeginBatchUpdate();
+	viewPayload.BeginBatchUpdate();
 	
+	overlayDateTime.Shapes[0].TextOptions.Text = blue[0].Epoch.ConvertToCalendarDate("Mmm DD YYYY  hh:mm");
+
+	// update angle/range data R1
+	Call ComputeRangeAndAngleFromPayload(blue[0], red[0], rangeB1_R1, angle);
+	rangeAngleFromPayloadR1.AddPoints(angle, rangeB1_R1);
+	rangeAngleFromPayloadR1CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR1.Data[rangeAngleFromPayloadR1.Data.RowCount - 1, 0:1];
+	
+	rangeR1.AddPoints(0, rangeB1_R1);
+	For i = 0 to rangeR1.Data.RowCount - 1;
+		rangeR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+	End;
+	rangeR1CurrentLocation.Data[0, 0:1] = rangeR1.Data[rangeR1.Data.RowCount - 1, 0:1];
+	
+	angleFromPayloadR1.AddPoints(0, angle);
+	For i = 0 to angleFromPayloadR1.Data.RowCount - 1;
+		angleFromPayloadR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+	End;
+	angleFromPayloadR1CurrentLocation.Data[0, 0:1] = angleFromPayloadR1.Data[angleFromPayloadR1.Data.RowCount - 1, 0:1];
+	
+	// update angle/range data R2
+	Call ComputeRangeAndAngleFromPayload(blue[0], red[1], rangeB1_R2, angle);
+	rangeAngleFromPayloadR2.AddPoints(angle, rangeB1_R2);
+	rangeAngleFromPayloadR2CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR2.Data[rangeAngleFromPayloadR2.Data.RowCount - 1, 0:1];
+	
+	rangeR2.AddPoints(0, rangeB1_R2);
+	For i = 0 to rangeR2.Data.RowCount - 1;
+		rangeR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+	End;
+	rangeR2CurrentLocation.Data[0, 0:1] = rangeR2.Data[rangeR2.Data.RowCount - 1, 0:1];
+	
+	angleFromPayloadR2.AddPoints(0, angle);
+	For i = 0 to angleFromPayloadR2.Data.RowCount - 1;
+		angleFromPayloadR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+	End;
+	angleFromPayloadR2CurrentLocation.Data[0, 0:1] = angleFromPayloadR2.Data[angleFromPayloadR2.Data.RowCount - 1, 0:1];
+	
+	// update angle/range data R3
+	Call ComputeRangeAndAngleFromPayload(blue[0], red[2], rangeB1_R3, angle);
+	rangeAngleFromPayloadR3.AddPoints(angle, rangeB1_R3);
+	rangeAngleFromPayloadR3CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR3.Data[rangeAngleFromPayloadR3.Data.RowCount - 1, 0:1];
+	
+	rangeR3.AddPoints(0, rangeB1_R3);
+	For i = 0 to rangeR3.Data.RowCount - 1;
+		rangeR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+	End;
+	rangeR3CurrentLocation.Data[0, 0:1] = rangeR3.Data[rangeR3.Data.RowCount - 1, 0:1];
+	
+	angleFromPayloadR3.AddPoints(0, angle);
+	For i = 0 to angleFromPayloadR3.Data.RowCount - 1;
+		angleFromPayloadR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+	End;
+	angleFromPayloadR3CurrentLocation.Data[0, 0:1] = angleFromPayloadR3.Data[angleFromPayloadR3.Data.RowCount - 1, 0:1];
+
+	// update longitude vs radius data
+	radiusLongitudeB1.AddPoints(blue[0].Longitude, blue[0].Radius);
+	radiusLongitudeR1.AddPoints(red[0].Longitude, red[0].Radius);
+	radiusLongitudeR2.AddPoints(red[1].Longitude, red[1].Radius);
+	radiusLongitudeR3.AddPoints(red[2].Longitude, red[2].Radius);
+	radiusLongitudeB1CurrentLocation.Data[0, 0:1] = radiusLongitudeB1.Data[radiusLongitudeB1.Data.RowCount - 1, 0:1];
+	radiusLongitudeR1CurrentLocation.Data[0, 0:1] = radiusLongitudeR1.Data[radiusLongitudeR1.Data.RowCount - 1, 0:1];
+	radiusLongitudeR2CurrentLocation.Data[0, 0:1] = radiusLongitudeR2.Data[radiusLongitudeR2.Data.RowCount - 1, 0:1];
+	radiusLongitudeR3CurrentLocation.Data[0, 0:1] = radiusLongitudeR3.Data[radiusLongitudeR3.Data.RowCount - 1, 0:1];
+	
+	// update predict data
+	Call ComputePredict(
+		blue[0],
+		red[0],
+		aheadPredictTime,
+		overlayRed1Future,
+		rangeAngleFromPayloadR1Predict,
+		rangeR1Predict,
+		angleFromPayloadR1Predict,
+		radiusLongitudeR1Predict,
+		rangeB1_R1 > aheadPredictRangeUpdateLimit);
+	Call ComputePredict(
+		blue[0],
+		red[1],
+		aheadPredictTime,
+		overlayRed2Future,
+		rangeAngleFromPayloadR2Predict,
+		rangeR2Predict,
+		angleFromPayloadR2Predict,
+		radiusLongitudeR2Predict,
+		rangeB1_R2 > aheadPredictRangeUpdateLimit);
+	Call ComputePredict(
+		blue[0],
+		red[2],
+		aheadPredictTime,
+		overlayRed3Future,
+		rangeAngleFromPayloadR3Predict,
+		rangeR3Predict,
+		angleFromPayloadR3Predict,
+		radiusLongitudeR3Predict,
+		rangeB1_R3 > aheadPredictRangeUpdateLimit);
+	
+	viewMain3D.Update();
+	viewUplink.Update();
+	viewPayload.Update();
+	
+	pwRange.EndBatchUpdate();
+	pwAngleFromPayload.EndBatchUpdate();
+	pwAngleRange.EndBatchUpdate();
+	pwRadiusLongitude.EndBatchUpdate();
+	viewUplink.EndBatchUpdate();
+	viewPayload.EndBatchUpdate();
+	viewMain3D.EndBatchUpdate();
+
+EndProcedure;
+
+Define Procedure PostBlueStepSubroutine(Formation red, Formation blue);
+	red.StepToEpoch(blue[0].Epoch);
+	blueJammer.StepToEpoch(blue[0].Epoch);
+	
+	cameraSc.Epoch = blue[0].Epoch;
+	cameraSc.SetCartesianState(blue[0].GetCartesianState());
+	
+	Call UpdateDataReadouts(red, blue);
+EndProcedure;
+
+Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan futureEpoch);	
+	WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+		Call PostBlueStepSubroutine(red, blue);
+	End;
+EndProcedure;
+
+Define Procedure AdvanceSimToFutureEpochWithBlueSlew(Formation red, Formation blue, TimeSpan futureEpoch, Variable slewAngle);
 	Variable slewRateDegPerSecond = slewAngle / (futureEpoch - blue[0].Epoch).ToSeconds();
 	
-	WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
-		pwAngleRange.BeginBatchUpdate();
-		pwRadiusLongitude.BeginBatchUpdate();
-		pwRange.BeginBatchUpdate();
-		pwAngleFromPayload.BeginBatchUpdate();
-		viewMain3D.BeginBatchUpdate();
-		viewUplink.BeginBatchUpdate();
-		viewPayload.BeginBatchUpdate();
-		
-		red.StepToEpoch(blue[0].Epoch);
-		simEpoch = blue[0].Epoch;
-		blue[0].EulerAngles[0] += slewRateDegPerSecond * blue[0].Propagator.StepSize.ToSeconds();
-		
-		cameraSc.Epoch = blue[0].Epoch;
-		cameraSc.SetCartesianState(blue[0].GetCartesianState());
-		
-		overlayDateTime.Shapes[0].TextOptions.Text = blue[0].Epoch.ConvertToCalendarDate("Mmm DD YYYY  hh:mm");
-	
-		// update angle/range data R1
-		Call ComputeRangeAndAngleFromPayload(blue[0], red[0], rangeB1_R1, angle);
-		rangeAngleFromPayloadR1.AddPoints(angle, rangeB1_R1);
-		rangeAngleFromPayloadR1CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR1.Data[rangeAngleFromPayloadR1.Data.RowCount - 1, 0:1];
-		
-		rangeR1.AddPoints(0, rangeB1_R1);
-		For i = 0 to rangeR1.Data.RowCount - 1;
-			rangeR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
-		End;
-		rangeR1CurrentLocation.Data[0, 0:1] = rangeR1.Data[rangeR1.Data.RowCount - 1, 0:1];
-		
-		angleFromPayloadR1.AddPoints(0, angle);
-		For i = 0 to angleFromPayloadR1.Data.RowCount - 1;
-			angleFromPayloadR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
-		End;
-		angleFromPayloadR1CurrentLocation.Data[0, 0:1] = angleFromPayloadR1.Data[angleFromPayloadR1.Data.RowCount - 1, 0:1];
-		
-		// update angle/range data R2
-		Call ComputeRangeAndAngleFromPayload(blue[0], red[1], rangeB1_R2, angle);
-		rangeAngleFromPayloadR2.AddPoints(angle, rangeB1_R2);
-		rangeAngleFromPayloadR2CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR2.Data[rangeAngleFromPayloadR2.Data.RowCount - 1, 0:1];
-		
-		rangeR2.AddPoints(0, rangeB1_R2);
-		For i = 0 to rangeR2.Data.RowCount - 1;
-			rangeR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
-		End;
-		rangeR2CurrentLocation.Data[0, 0:1] = rangeR2.Data[rangeR2.Data.RowCount - 1, 0:1];
-		
-		angleFromPayloadR2.AddPoints(0, angle);
-		For i = 0 to angleFromPayloadR2.Data.RowCount - 1;
-			angleFromPayloadR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
-		End;
-		angleFromPayloadR2CurrentLocation.Data[0, 0:1] = angleFromPayloadR2.Data[angleFromPayloadR2.Data.RowCount - 1, 0:1];
-		
-		// update angle/range data R3
-		Call ComputeRangeAndAngleFromPayload(blue[0], red[2], rangeB1_R3, angle);
-		rangeAngleFromPayloadR3.AddPoints(angle, rangeB1_R3);
-		rangeAngleFromPayloadR3CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR3.Data[rangeAngleFromPayloadR3.Data.RowCount - 1, 0:1];
-		
-		rangeR3.AddPoints(0, rangeB1_R3);
-		For i = 0 to rangeR3.Data.RowCount - 1;
-			rangeR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
-		End;
-		rangeR3CurrentLocation.Data[0, 0:1] = rangeR3.Data[rangeR3.Data.RowCount - 1, 0:1];
-		
-		angleFromPayloadR3.AddPoints(0, angle);
-		For i = 0 to angleFromPayloadR3.Data.RowCount - 1;
-			angleFromPayloadR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
-		End;
-		angleFromPayloadR3CurrentLocation.Data[0, 0:1] = angleFromPayloadR3.Data[angleFromPayloadR3.Data.RowCount - 1, 0:1];
-
-		// update longitude vs radius data
-		radiusLongitudeB1.AddPoints(blue[0].Longitude, blue[0].Radius);
-		radiusLongitudeR1.AddPoints(red[0].Longitude, red[0].Radius);
-		radiusLongitudeR2.AddPoints(red[1].Longitude, red[1].Radius);
-		radiusLongitudeR3.AddPoints(red[2].Longitude, red[2].Radius);
-		radiusLongitudeB1CurrentLocation.Data[0, 0:1] = radiusLongitudeB1.Data[radiusLongitudeB1.Data.RowCount - 1, 0:1];
-		radiusLongitudeR1CurrentLocation.Data[0, 0:1] = radiusLongitudeR1.Data[radiusLongitudeR1.Data.RowCount - 1, 0:1];
-		radiusLongitudeR2CurrentLocation.Data[0, 0:1] = radiusLongitudeR2.Data[radiusLongitudeR2.Data.RowCount - 1, 0:1];
-		radiusLongitudeR3CurrentLocation.Data[0, 0:1] = radiusLongitudeR3.Data[radiusLongitudeR3.Data.RowCount - 1, 0:1];
-		
-		// update predict data
-		timeSinceAheadPredictUpdate += blue[0].Propagator.StepSize;
-		If (timeSinceAheadPredictUpdate > aheadPredictUpdateInterval);
-			Call ComputePredict(
-				blue[0],
-				red[0],
-				aheadPredictTime,
-				overlayRed1Future,
-				rangeAngleFromPayloadR1Predict,
-				rangeR1Predict,
-				angleFromPayloadR1Predict,
-				radiusLongitudeR1Predict,
-				rangeB1_R1 > aheadPredictRangeUpdateLimit);
-			Call ComputePredict(
-				blue[0],
-				red[1],
-				aheadPredictTime,
-				overlayRed2Future,
-				rangeAngleFromPayloadR2Predict,
-				rangeR2Predict,
-				angleFromPayloadR2Predict,
-				radiusLongitudeR2Predict,
-				rangeB1_R2 > aheadPredictRangeUpdateLimit);
-			Call ComputePredict(
-				blue[0],
-				red[2],
-				aheadPredictTime,
-				overlayRed3Future,
-				rangeAngleFromPayloadR3Predict,
-				rangeR3Predict,
-				angleFromPayloadR3Predict,
-				radiusLongitudeR3Predict,
-				rangeB1_R3 > aheadPredictRangeUpdateLimit);
-			timeSinceAheadPredictUpdate = TimeSpan.Zero;
-		End;
-		
-		viewMain3D.Update();
-		viewUplink.Update();
-		viewPayload.Update();
-		
-		pwRange.EndBatchUpdate();
-		pwAngleFromPayload.EndBatchUpdate();
-		pwAngleRange.EndBatchUpdate();
-		pwRadiusLongitude.EndBatchUpdate();
-		viewUplink.EndBatchUpdate();
-		viewPayload.EndBatchUpdate();
-		viewMain3D.EndBatchUpdate();
+	WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);	
+		blue[0].EulerAngles[0] += slewRateDegPerSecond * blue[0].Propagator.StepSize.ToSeconds();	
+		Call PostBlueStepSubroutine(red, blue);
 	End;
 EndProcedure;
 
 Define Procedure AdvanceSimUplinkPeriod(Formation red, Formation blue);
 	viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 1);
-	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(0.5), 0);
+	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(0.5));
 	viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 0);
 EndProcedure;
 
@@ -1366,7 +1419,7 @@ Define Procedure DisplayModeScript(Formation red, Formation blue);
 	
 	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
 	While (1);
-		Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+		Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 		
 		viewMain3D.ResetTails();
 		viewPayload.ResetTails();
@@ -1406,7 +1459,7 @@ Define Procedure BenignScript(Formation red, Formation blue);
 	
 	
 	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -1430,7 +1483,7 @@ Define Procedure BenignScript(Formation red, Formation blue);
 	blue[0].Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(2);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 	burn.AttitudeSystem = 1;
 	burn.BurnDirection[1] = 0;
@@ -1476,7 +1529,7 @@ Define Procedure BenignScript(Formation red, Formation blue);
 		Report opt.ReturnString;
 		opt.RestoreObjectsInProcess();
 		
-		Call OpenForWrite("SavedValues/BenignScript_Red1Burn1.txt");
+		Call OpenForWrite("SavedValues/BenignScript_Red1Burn1and2.txt");
 		file.PutLine(opt.GetBestStateVariableValue("dv1").ToString());
 		file.PutLine(opt.GetBestStateVariableValue("dv2").ToString());
 		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
@@ -1484,7 +1537,7 @@ Define Procedure BenignScript(Formation red, Formation blue);
 	End;
 //EndBlock PRESOLVED OPTIMIZATION
 	
-	Call OpenForRead("SavedValues/BenignScript_Red1Burn1.txt");
+	Call OpenForRead("SavedValues/BenignScript_Red1Burn1and2.txt");
 	burn.BurnDirection[0] = file.GetLine().ToVariable();
 	dv2 = file.GetLine().ToVariable();
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
@@ -1492,14 +1545,14 @@ Define Procedure BenignScript(Formation red, Formation blue);
 
 	red[0].Maneuver(burn);
 
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 	burn.BurnDirection[0] = dv2;
 	red[0].Maneuver(burn);
 	burn.AttitudeSystem = 6;
 	
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(4);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 EndProcedure;
 
@@ -1520,7 +1573,7 @@ Define Procedure ObservationScript(Formation red, Formation blue);
 	Variable angle;
 	
 	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -1604,7 +1657,7 @@ Define Procedure ObservationScript(Formation red, Formation blue);
 
 	red[0].Maneuver(burn);
 
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 
 //Block PRESOLVED OPTIMIZATION
@@ -1684,13 +1737,13 @@ Define Procedure ObservationScript(Formation red, Formation blue);
 	red[0].Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 	burn.BurnDirection = -{    0.000145506,       -0.000805460,       -0.000000254};
 	red[0].Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 EndProcedure;
 
@@ -1706,8 +1759,12 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	Variable totalDV;
 	TimeSpan initialEpoch;
 	
+//	red[1].SetKeplerianState(blue[0].GetKeplerianState());
+//	red[1].E += 0.0012;
+//	red[1].I += 0.01;
+	
 	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -1729,6 +1786,9 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	file.Close();
 	
 	blue[0].Maneuver(burn);
+	
+	
+	
 	
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -1786,8 +1846,80 @@ Define Procedure DisableScript(Formation red, Formation blue);
 
 	red[0].Maneuver(burn);
 
+	WhileStepping blue[0] to (blue[0].Longitude < red[1].Longitude);
+		Call PostBlueStepSubroutine(red, blue);
+	End;
+	
+		burn.AttitudeSystem = 1;
+	burn.BurnDirection[1] = 0;
+	burn.BurnDirection[2] = 0;
+	
+	//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		opt.Reset(1);
+		opt.AddStateVariable("dv1", -0.001, -0.01, 0);
+		opt.AddStateVariable("dv2", -0.001, -0.01, 0);
+		opt.AddStateVariable("days", 0.5, 0.1, 1);
+		opt.AddConstraint("A", 42100, 42100, 100);
+		opt.AddConstraint("E", 0, 0.0001);
+		
+		opt.SaveObjectToProcess(red[0]);
+		opt.LoadEngine();
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			
+			burn.BurnDirection[0] = opt.GetStateVariableValue("dv1");
+			totalDV = abs(burn.BurnDirection[0]);
+			red[0].Maneuver(burn);
+			
+			futureEpoch = red[0].Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+			WhileStepping red[0] to (red[0].Epoch == futureEpoch);
+			End;
+			
+			burn.BurnDirection[0] = opt.GetStateVariableValue("dv2");
+			totalDV += abs(burn.BurnDirection[0]);
+			red[0].Maneuver(burn);
+			
+			opt.SetConstraintValue("A", red[0].A);
+			opt.SetConstraintValue("E", red[0].E);
+									 
+			opt.Minimize(totalDV);
+			
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		Call OpenForWrite("SavedValues/DisableScript_Red2Burn1and2.txt");
+		file.PutLine(opt.GetBestStateVariableValue("dv1").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv2").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+	
+	Call OpenForRead("SavedValues/DisableScript_Red2Burn1and2.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	dv2 = file.GetLine().ToVariable();
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
+	file.Close();
+
+	red[0].Maneuver(burn);
+
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+	burn.BurnDirection[0] = dv2;
+	red[0].Maneuver(burn);
+	burn.AttitudeSystem = 6;
+	
+	
+	
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(4);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -1862,7 +1994,7 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	TimeSpan killOperationTime = TimeSpan.FromDays(0.2);
 	
 	futureEpoch = blue[0].Epoch + preDeployWaitTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 	// Deploy inspector from Red 1
 	red.Count += 1;
@@ -1934,12 +2066,12 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	deployableSat.Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + rendezvousTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 	deployableSat.SetCartesianState(blue[0].GetCartesianState());
 	
 	futureEpoch = blue[0].Epoch + killOperationTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 	// Inspector return to Red 1
 	
@@ -1999,12 +2131,12 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	deployableSat.Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + rendezvousTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 	red.Count -= 1;
 	
 	futureEpoch = blue[0].Epoch + preDeployWaitTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -2077,7 +2209,7 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	red[0].Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 EndProcedure;
 
@@ -2102,13 +2234,13 @@ End;]]></FreeFormScript>
   </ProjectMissionSequence>
   <ProjectScript><![CDATA[//Show MainMenu;
 
-userChoice = 1;
-simStepSizeSeconds = 850;
+userChoice = 3;
+simStepSizeSeconds = 1500;
+
 
 Global TimeSpan simStepSize = TimeSpan.FromSeconds(simStepSizeSeconds);
 
 Global TimeSpan aheadPredictTime = TimeSpan.FromHours(18);
-Global TimeSpan aheadPredictUpdateInterval = simStepSize.Scaled(0.5);
 Global Constant Variable aheadPredictRangeUpdateLimit = 500;
 
 Global TimeSpan simStartEpoch = TimeTools.ParseCalendarDate("Jun 09 2025 15:00:00.000", "UTC", "UTC", "MJD GSFC");
@@ -2119,6 +2251,8 @@ Global Variable colorRed2 = ColorTools.InterpolateColorHSV({ColorTools.White, Co
 Global Variable colorRed3 = ColorTools.InterpolateColorHSV({ColorTools.White, ColorTools.Red, ColorTools.Black}, 0.25);
 Global Variable colorRed4 = ColorTools.InterpolateColorHSV({ColorTools.White, ColorTools.Red, ColorTools.Black}, 0.1);
 Global Variable colorBlue1 = ColorTools.DodgerBlue;
+
+FF_Preferences.PropagationStoppingConditionTolerance = TimeSpan.FromSeconds(1e-5);
 
 Global Variable doOptimizationAndSaveValues = 0;
 
@@ -2132,6 +2266,15 @@ blue.Count = 1;
 
 red.ViewAsGroup = 0;
 blue.ViewAsGroup = 0;
+
+Global GroundVehicle blueJammer;
+blueJammer.AddSensor("jammerBeam");
+blueJammer.Sensors[0].Active = 0;
+blueJammer.Color = colorBlue1;
+blueJammer.Latitude = -10;
+blueJammer.Longitude = -100;
+blueJammer.Speed = 0;
+blueJammer.Height = 500;
 
 Global Constant Variable sensorIndexUplink = 0;
 Global Constant Variable sensorIndexPayload = 1;
@@ -2245,58 +2388,80 @@ overlayUploadingLog.Shapes[1].SetPosition(0, (1 - uploadingLogWidth) / 2, 1 - up
 
 overlayUploadingLog.Shapes[0].BringToFront();
 
+Global ViewFont vf;
+vf.Size = 14;
+
+Define Procedure InitializeViewWindow(ViewWindow vw, String windowTitle, Formation red, Formation blue);
+	vw.AddObject(blue);
+	vw.AddObject(red);
+	vw.AddObject(blueJammer);
+	vw.AddObject(overlayRed1Future);
+	vw.AddObject(overlayRed2Future);
+	vw.AddObject(overlayRed3Future);
+	vw.AddObject(overlayDateTime);
+	vw.AddObject(overlaySensorLegend);
+	
+	vw.SetShowName(0, TypeOf(CelestialObject), 0);
+	vw.SetShowBody(blueJammer.ObjectId, 0);
+	vw.SetShowName(blueJammer.ObjectId, 1);
+	vw.SetShowIcon(blueJammer.ObjectId, 1);
+	vw.SetObjectIconSize(blueJammer.ObjectId, 50);
+	vw.SetObjectLabelFont(blueJammer.ObjectId, vf);
+	
+	vw.ShowStatusText = 0;
+	vw.WindowTitle = windowTitle;
+EndProcedure;
 
 // Set up 3D view
 Global Constant Variable tailLengthHours = 24;
 Global Constant Variable tailPoints = tailLengthHours * 60 * 60 / simStepSizeSeconds;
 Global ViewWindow viewMain3D;
+Call InitializeViewWindow(viewMain3D, "3D View", red, blue);
 viewMain3D.CurrentViewpoint.ThreeDView.Radius = 3000;
 viewMain3D.CurrentViewpoint.ThreeDView.RightAscension = 270;
 viewMain3D.CurrentViewpoint.ThreeDView.Declination = 0;
-viewMain3D.AddObject(red);
-viewMain3D.AddObject(blue);
-viewMain3D.AddObject(overlayRed1Future);
-viewMain3D.AddObject(overlayRed2Future);
-viewMain3D.AddObject(overlayRed3Future);
 viewMain3D.AddObject(cameraSc);
-viewMain3D.AddObject(overlayDateTime);
-viewMain3D.AddObject(overlaySensorLegend);
 viewMain3D.AddObject(overlayUploadingLog);
 viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 0);
 viewMain3D.CurrentViewpoint.ThreeDView.Source = cameraSc.ObjectId;
 viewMain3D.CurrentViewpoint.ThreeDView.Target = cameraSc.ObjectId;
-viewMain3D.SetShowName(0, TypeOf(CelestialObject), 0);
 viewMain3D.SetShowObject(cameraSc.ObjectId, 0);
-viewMain3D.ShowStatusText = 0;
-viewMain3D.WindowTitle = "3D View";
 
 Global ViewWindow viewUplink;
+Call InitializeViewWindow(viewUplink, "Uplink View", red, blue);
 viewUplink.CurrentViewpoint.ViewpointType = "sensorview";
-viewUplink.AddObject(red);
-viewUplink.AddObject(blue);
-viewUplink.AddObject(overlayRed1Future);
-viewUplink.AddObject(overlayRed2Future);
-viewUplink.AddObject(overlayRed3Future);
-viewUplink.AddObject(overlayDateTime);
-viewUplink.AddObject(overlaySensorLegend);
-viewUplink.SetShowName(0, TypeOf(CelestialObject), 0);
-viewUplink.ShowStatusText = 0;
+viewUplink.CurrentViewpoint.SensorView.FilterAllSiblings = 0;
 viewUplink.CurrentViewpoint.SensorView.Source = blue[0].Sensors[sensorIndexUplink].ObjectId;
-viewUplink.WindowTitle = "Uplink View";
 
 Global ViewWindow viewPayload;
+Call InitializeViewWindow(viewPayload, "Payload View", red, blue);
 viewPayload.CurrentViewpoint.ViewpointType = "sensorview";
-viewPayload.AddObject(red);
-viewPayload.AddObject(blue);
-viewPayload.AddObject(overlayRed1Future);
-viewPayload.AddObject(overlayRed2Future);
-viewPayload.AddObject(overlayRed3Future);
-viewPayload.AddObject(overlayDateTime);
-viewPayload.AddObject(overlaySensorLegend);
-viewPayload.SetShowName(0, TypeOf(CelestialObject), 0);
-viewPayload.ShowStatusText = 0;
+viewPayload.CurrentViewpoint.SensorView.FilterAllSiblings = 0;
 viewPayload.CurrentViewpoint.SensorView.Source = blue[0].Sensors[sensorIndexPayload].ObjectId;
-viewPayload.WindowTitle = "Payload View";
+
+Global Variable blueJammerState = 0;
+// jammerState 0 is inactive, 1 is ready, 2 is active
+Define Procedure SetBlueJammerState(Variable jammerState);
+	blueJammerState = jammerState;
+	If (blueJammerState == 0);
+		blueJammer.DisplayName = "Ship-based Jammer (Inactive)";
+		viewMain3D.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerInactiveIcon.png");
+		viewUplink.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerInactiveIcon.png");
+		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerInactiveIcon.png");
+	ElseIf (blueJammerState == 1);
+		blueJammer.DisplayName = "Ship-based Jammer (Standing By)";
+		viewMain3D.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerReadyIcon.png");
+		viewUplink.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerReadyIcon.png");
+		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerReadyIcon.png");
+	ElseIf (blueJammerState == 2);
+		blueJammer.DisplayName = "Ship-based Jammer (Active)";
+		viewMain3D.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerActiveIcon.png");
+		viewUplink.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerActiveIcon.png");
+		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerActiveIcon.png");
+	End;
+EndProcedure;
+
+Call SetBlueJammerState(0);
 
 Global ImpulsiveBurn burn;
 burn.AttitudeSystem = 6;
@@ -2319,8 +2484,7 @@ Define Procedure OpenForWrite(String filename);
 	file.Open();
 EndProcedure;
 
-Global ViewFont vf;
-vf.Size = 14;
+
 
 // Set initial states
 Variable baseRAAN = 40;
@@ -2355,7 +2519,7 @@ cameraSc.EulerAngles[1] = 90;
 
 
 Variable red1AngularSeparation = 2;
-Variable red2AngularSeparation = 2.5;
+Variable red2AngularSeparation = 2.3;
 Variable red2and3RadialSeparation = 60;
 red[0].SetKeplerianState({42164,
                           1e-6,
@@ -2365,16 +2529,16 @@ red[0].SetKeplerianState({42164,
                           1});
 red[1].SetKeplerianState({42164 - red2and3RadialSeparation,
                           1e-6,
-                          baseI * 1.0,
-                          baseRAAN - red2AngularSeparation * 1.7,
-                          1,
-                          1});
+                          baseI * 1.01,
+                          baseRAAN,
+                          0,
+                          1 - red2AngularSeparation});
 red[2].SetKeplerianState({42164 + red2and3RadialSeparation,
                           1e-6,
                           baseI * 1.0,
-                          baseRAAN + red2AngularSeparation,
+                          baseRAAN,
                           1,
-                          1});
+                          1 + red2AngularSeparation + 1.3});
                           
 red[0].Color = colorRed1;
 red[1].Color = colorRed2;
@@ -2402,7 +2566,6 @@ End;
 
 
 Global Array initialKepStateRed1 = red[0].GetKeplerianState();
-Global TimeSpan simEpoch;
 
 
 Define Procedure InitializePlotPredictSeries(PlotScatterSeries series, String label, Variable color);
@@ -2471,6 +2634,19 @@ Global PlotScatterSeries angleFromPayloadR3Predict;
 
 PlotScatterSeries angleFromPayloadWarningArea;
 
+Define Procedure SetMaxPoints(PlotWindow pw, Variable points);
+	If (points < 100);
+		pw.MaxPoints = 100;
+		Diagnostics.ReportWarningMessage(
+		"The max points for PlotWindow is too low, falling back to 100. " +
+		"Decrease step size to fix this warning. Note: you can still run " + 
+		"without fixing, but the tail lengths in plots will not match those " +
+		"in the view windows.");
+	Else;
+		pw.MaxPoints = points;
+	End;
+EndProcedure;
+
 Global PlotWindow pwAngleFromPayload;
 pwAngleFromPayload.BeginBatchUpdate();
 Call InitializePlot(pwAngleFromPayload, "Elapsed Time vs Angle from Sensitive Payload", "Elapsed Time (hrs)", "Angle from Sensitive Payload (deg)", "Time vs Angle");
@@ -2486,9 +2662,9 @@ pwAngleFromPayload.AddSeries(angleFromPayloadR2CurrentLocation);
 pwAngleFromPayload.AddSeries(angleFromPayloadR3CurrentLocation);
 Call InitializePlotAxisRanges(pwAngleFromPayload, {-24, aheadPredictTime.ToHours()}, {0, 180});
 pwAngleFromPayload.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
-pwAngleFromPayload.MaxPoints = tailPoints;
 pwAngleFromPayload.UseMonitorMode = 1;
 pwAngleFromPayload.Legend.Location = 1;
+Call SetMaxPoints(pwAngleFromPayload, tailPoints);
 
 // rangeAngleFromPayloadXX
 Call InitializePlotMainSeries(angleFromPayloadR1, "Red1", colorRed1);
@@ -2550,9 +2726,9 @@ pwRange.AddSeries(rangeR2CurrentLocation);
 pwRange.AddSeries(rangeR3CurrentLocation);
 Call InitializePlotAxisRanges(pwRange, {-24, aheadPredictTime.ToHours()}, {0, maxRangeForPlots});
 pwRange.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
-pwRange.MaxPoints = 3e2 * 300 / simStepSize.ToSeconds();
 pwRange.UseMonitorMode = 1;
 pwRange.Legend.Location = 1;
+Call SetMaxPoints(pwAngleFromPayload, tailPoints);
 
 // rangeAngleFromPayloadXX
 Call InitializePlotMainSeries(rangeR1, "Red1", colorRed1);
@@ -2612,9 +2788,9 @@ pwAngleRange.AddSeries(rangeAngleFromPayloadR2CurrentLocation);
 pwAngleRange.AddSeries(rangeAngleFromPayloadR3CurrentLocation);
 Call InitializePlotAxisRanges(pwAngleRange, {0, 180}, {0, maxRangeForPlots});
 pwAngleRange.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
-pwAngleRange.MaxPoints = 3e2 * 300 / simStepSize.ToSeconds();
 pwAngleRange.UseMonitorMode = 1;
 pwAngleRange.Legend.Location = 1;
+Call SetMaxPoints(pwAngleRange, tailPoints);
 
 // rangeAngleFromPayloadXX
 Call InitializePlotMainSeries(rangeAngleFromPayloadR1, "Red1", colorRed1);
@@ -2679,9 +2855,9 @@ pwRadiusLongitude.AddSeries(radiusLongitudeR2CurrentLocation);
 pwRadiusLongitude.AddSeries(radiusLongitudeR3CurrentLocation);
 Call InitializePlotAxisRanges(pwRadiusLongitude, {blue[0].Longitude - 3, blue[0].Longitude + 3}, {42060, 42260});
 pwRadiusLongitude.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
-pwRadiusLongitude.MaxPoints = tailPoints;
 pwRadiusLongitude.UseMonitorMode = 1;
 pwRadiusLongitude.Legend.Location = 1;
+Call SetMaxPoints(pwRadiusLongitude, tailPoints);
 
 // radiusLongitude
 Call InitializePlotMainSeries(radiusLongitudeB1, "BlueSat", colorBlue1);
@@ -2876,146 +3052,155 @@ Define Procedure ComputeRangeAndAngleFromPayload(Spacecraft blue, Spacecraft red
 	angle = deg(acos(positionBCS.Normalized.DotProduct(blue.Sensors[sensorIndexPayload].BoresightUnitVector.Normalized)));
 EndProcedure;
 
-Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan futureEpoch, Variable slewAngle);
-	TimeSpan timeSinceAheadPredictUpdate = TimeSpan.Zero();
-	
+Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 	Variable angle;
 	Variable i;
+
+	pwAngleRange.BeginBatchUpdate();
+	pwRadiusLongitude.BeginBatchUpdate();
+	pwRange.BeginBatchUpdate();
+	pwAngleFromPayload.BeginBatchUpdate();
+	viewMain3D.BeginBatchUpdate();
+	viewUplink.BeginBatchUpdate();
+	viewPayload.BeginBatchUpdate();
 	
+	overlayDateTime.Shapes[0].TextOptions.Text = blue[0].Epoch.ConvertToCalendarDate("Mmm DD YYYY  hh:mm");
+
+	// update angle/range data R1
+	Call ComputeRangeAndAngleFromPayload(blue[0], red[0], rangeB1_R1, angle);
+	rangeAngleFromPayloadR1.AddPoints(angle, rangeB1_R1);
+	rangeAngleFromPayloadR1CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR1.Data[rangeAngleFromPayloadR1.Data.RowCount - 1, 0:1];
+	
+	rangeR1.AddPoints(0, rangeB1_R1);
+	For i = 0 to rangeR1.Data.RowCount - 1;
+		rangeR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+	End;
+	rangeR1CurrentLocation.Data[0, 0:1] = rangeR1.Data[rangeR1.Data.RowCount - 1, 0:1];
+	
+	angleFromPayloadR1.AddPoints(0, angle);
+	For i = 0 to angleFromPayloadR1.Data.RowCount - 1;
+		angleFromPayloadR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+	End;
+	angleFromPayloadR1CurrentLocation.Data[0, 0:1] = angleFromPayloadR1.Data[angleFromPayloadR1.Data.RowCount - 1, 0:1];
+	
+	// update angle/range data R2
+	Call ComputeRangeAndAngleFromPayload(blue[0], red[1], rangeB1_R2, angle);
+	rangeAngleFromPayloadR2.AddPoints(angle, rangeB1_R2);
+	rangeAngleFromPayloadR2CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR2.Data[rangeAngleFromPayloadR2.Data.RowCount - 1, 0:1];
+	
+	rangeR2.AddPoints(0, rangeB1_R2);
+	For i = 0 to rangeR2.Data.RowCount - 1;
+		rangeR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+	End;
+	rangeR2CurrentLocation.Data[0, 0:1] = rangeR2.Data[rangeR2.Data.RowCount - 1, 0:1];
+	
+	angleFromPayloadR2.AddPoints(0, angle);
+	For i = 0 to angleFromPayloadR2.Data.RowCount - 1;
+		angleFromPayloadR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+	End;
+	angleFromPayloadR2CurrentLocation.Data[0, 0:1] = angleFromPayloadR2.Data[angleFromPayloadR2.Data.RowCount - 1, 0:1];
+	
+	// update angle/range data R3
+	Call ComputeRangeAndAngleFromPayload(blue[0], red[2], rangeB1_R3, angle);
+	rangeAngleFromPayloadR3.AddPoints(angle, rangeB1_R3);
+	rangeAngleFromPayloadR3CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR3.Data[rangeAngleFromPayloadR3.Data.RowCount - 1, 0:1];
+	
+	rangeR3.AddPoints(0, rangeB1_R3);
+	For i = 0 to rangeR3.Data.RowCount - 1;
+		rangeR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+	End;
+	rangeR3CurrentLocation.Data[0, 0:1] = rangeR3.Data[rangeR3.Data.RowCount - 1, 0:1];
+	
+	angleFromPayloadR3.AddPoints(0, angle);
+	For i = 0 to angleFromPayloadR3.Data.RowCount - 1;
+		angleFromPayloadR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+	End;
+	angleFromPayloadR3CurrentLocation.Data[0, 0:1] = angleFromPayloadR3.Data[angleFromPayloadR3.Data.RowCount - 1, 0:1];
+
+	// update longitude vs radius data
+	radiusLongitudeB1.AddPoints(blue[0].Longitude, blue[0].Radius);
+	radiusLongitudeR1.AddPoints(red[0].Longitude, red[0].Radius);
+	radiusLongitudeR2.AddPoints(red[1].Longitude, red[1].Radius);
+	radiusLongitudeR3.AddPoints(red[2].Longitude, red[2].Radius);
+	radiusLongitudeB1CurrentLocation.Data[0, 0:1] = radiusLongitudeB1.Data[radiusLongitudeB1.Data.RowCount - 1, 0:1];
+	radiusLongitudeR1CurrentLocation.Data[0, 0:1] = radiusLongitudeR1.Data[radiusLongitudeR1.Data.RowCount - 1, 0:1];
+	radiusLongitudeR2CurrentLocation.Data[0, 0:1] = radiusLongitudeR2.Data[radiusLongitudeR2.Data.RowCount - 1, 0:1];
+	radiusLongitudeR3CurrentLocation.Data[0, 0:1] = radiusLongitudeR3.Data[radiusLongitudeR3.Data.RowCount - 1, 0:1];
+	
+	// update predict data
+	Call ComputePredict(
+		blue[0],
+		red[0],
+		aheadPredictTime,
+		overlayRed1Future,
+		rangeAngleFromPayloadR1Predict,
+		rangeR1Predict,
+		angleFromPayloadR1Predict,
+		radiusLongitudeR1Predict,
+		rangeB1_R1 > aheadPredictRangeUpdateLimit);
+	Call ComputePredict(
+		blue[0],
+		red[1],
+		aheadPredictTime,
+		overlayRed2Future,
+		rangeAngleFromPayloadR2Predict,
+		rangeR2Predict,
+		angleFromPayloadR2Predict,
+		radiusLongitudeR2Predict,
+		rangeB1_R2 > aheadPredictRangeUpdateLimit);
+	Call ComputePredict(
+		blue[0],
+		red[2],
+		aheadPredictTime,
+		overlayRed3Future,
+		rangeAngleFromPayloadR3Predict,
+		rangeR3Predict,
+		angleFromPayloadR3Predict,
+		radiusLongitudeR3Predict,
+		rangeB1_R3 > aheadPredictRangeUpdateLimit);
+	
+	viewMain3D.Update();
+	viewUplink.Update();
+	viewPayload.Update();
+	
+	pwRange.EndBatchUpdate();
+	pwAngleFromPayload.EndBatchUpdate();
+	pwAngleRange.EndBatchUpdate();
+	pwRadiusLongitude.EndBatchUpdate();
+	viewUplink.EndBatchUpdate();
+	viewPayload.EndBatchUpdate();
+	viewMain3D.EndBatchUpdate();
+
+EndProcedure;
+
+Define Procedure PostBlueStepSubroutine(Formation red, Formation blue);
+	red.StepToEpoch(blue[0].Epoch);
+	blueJammer.StepToEpoch(blue[0].Epoch);
+	
+	cameraSc.Epoch = blue[0].Epoch;
+	cameraSc.SetCartesianState(blue[0].GetCartesianState());
+	
+	Call UpdateDataReadouts(red, blue);
+EndProcedure;
+
+Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan futureEpoch);	
+	WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+		Call PostBlueStepSubroutine(red, blue);
+	End;
+EndProcedure;
+
+Define Procedure AdvanceSimToFutureEpochWithBlueSlew(Formation red, Formation blue, TimeSpan futureEpoch, Variable slewAngle);
 	Variable slewRateDegPerSecond = slewAngle / (futureEpoch - blue[0].Epoch).ToSeconds();
 	
-	WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
-		pwAngleRange.BeginBatchUpdate();
-		pwRadiusLongitude.BeginBatchUpdate();
-		pwRange.BeginBatchUpdate();
-		pwAngleFromPayload.BeginBatchUpdate();
-		viewMain3D.BeginBatchUpdate();
-		viewUplink.BeginBatchUpdate();
-		viewPayload.BeginBatchUpdate();
-		
-		red.StepToEpoch(blue[0].Epoch);
-		simEpoch = blue[0].Epoch;
-		blue[0].EulerAngles[0] += slewRateDegPerSecond * blue[0].Propagator.StepSize.ToSeconds();
-		
-		cameraSc.Epoch = blue[0].Epoch;
-		cameraSc.SetCartesianState(blue[0].GetCartesianState());
-		
-		overlayDateTime.Shapes[0].TextOptions.Text = blue[0].Epoch.ConvertToCalendarDate("Mmm DD YYYY  hh:mm");
-	
-		// update angle/range data R1
-		Call ComputeRangeAndAngleFromPayload(blue[0], red[0], rangeB1_R1, angle);
-		rangeAngleFromPayloadR1.AddPoints(angle, rangeB1_R1);
-		rangeAngleFromPayloadR1CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR1.Data[rangeAngleFromPayloadR1.Data.RowCount - 1, 0:1];
-		
-		rangeR1.AddPoints(0, rangeB1_R1);
-		For i = 0 to rangeR1.Data.RowCount - 1;
-			rangeR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
-		End;
-		rangeR1CurrentLocation.Data[0, 0:1] = rangeR1.Data[rangeR1.Data.RowCount - 1, 0:1];
-		
-		angleFromPayloadR1.AddPoints(0, angle);
-		For i = 0 to angleFromPayloadR1.Data.RowCount - 1;
-			angleFromPayloadR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
-		End;
-		angleFromPayloadR1CurrentLocation.Data[0, 0:1] = angleFromPayloadR1.Data[angleFromPayloadR1.Data.RowCount - 1, 0:1];
-		
-		// update angle/range data R2
-		Call ComputeRangeAndAngleFromPayload(blue[0], red[1], rangeB1_R2, angle);
-		rangeAngleFromPayloadR2.AddPoints(angle, rangeB1_R2);
-		rangeAngleFromPayloadR2CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR2.Data[rangeAngleFromPayloadR2.Data.RowCount - 1, 0:1];
-		
-		rangeR2.AddPoints(0, rangeB1_R2);
-		For i = 0 to rangeR2.Data.RowCount - 1;
-			rangeR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
-		End;
-		rangeR2CurrentLocation.Data[0, 0:1] = rangeR2.Data[rangeR2.Data.RowCount - 1, 0:1];
-		
-		angleFromPayloadR2.AddPoints(0, angle);
-		For i = 0 to angleFromPayloadR2.Data.RowCount - 1;
-			angleFromPayloadR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
-		End;
-		angleFromPayloadR2CurrentLocation.Data[0, 0:1] = angleFromPayloadR2.Data[angleFromPayloadR2.Data.RowCount - 1, 0:1];
-		
-		// update angle/range data R3
-		Call ComputeRangeAndAngleFromPayload(blue[0], red[2], rangeB1_R3, angle);
-		rangeAngleFromPayloadR3.AddPoints(angle, rangeB1_R3);
-		rangeAngleFromPayloadR3CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR3.Data[rangeAngleFromPayloadR3.Data.RowCount - 1, 0:1];
-		
-		rangeR3.AddPoints(0, rangeB1_R3);
-		For i = 0 to rangeR3.Data.RowCount - 1;
-			rangeR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
-		End;
-		rangeR3CurrentLocation.Data[0, 0:1] = rangeR3.Data[rangeR3.Data.RowCount - 1, 0:1];
-		
-		angleFromPayloadR3.AddPoints(0, angle);
-		For i = 0 to angleFromPayloadR3.Data.RowCount - 1;
-			angleFromPayloadR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
-		End;
-		angleFromPayloadR3CurrentLocation.Data[0, 0:1] = angleFromPayloadR3.Data[angleFromPayloadR3.Data.RowCount - 1, 0:1];
-
-		// update longitude vs radius data
-		radiusLongitudeB1.AddPoints(blue[0].Longitude, blue[0].Radius);
-		radiusLongitudeR1.AddPoints(red[0].Longitude, red[0].Radius);
-		radiusLongitudeR2.AddPoints(red[1].Longitude, red[1].Radius);
-		radiusLongitudeR3.AddPoints(red[2].Longitude, red[2].Radius);
-		radiusLongitudeB1CurrentLocation.Data[0, 0:1] = radiusLongitudeB1.Data[radiusLongitudeB1.Data.RowCount - 1, 0:1];
-		radiusLongitudeR1CurrentLocation.Data[0, 0:1] = radiusLongitudeR1.Data[radiusLongitudeR1.Data.RowCount - 1, 0:1];
-		radiusLongitudeR2CurrentLocation.Data[0, 0:1] = radiusLongitudeR2.Data[radiusLongitudeR2.Data.RowCount - 1, 0:1];
-		radiusLongitudeR3CurrentLocation.Data[0, 0:1] = radiusLongitudeR3.Data[radiusLongitudeR3.Data.RowCount - 1, 0:1];
-		
-		// update predict data
-		timeSinceAheadPredictUpdate += blue[0].Propagator.StepSize;
-		If (timeSinceAheadPredictUpdate > aheadPredictUpdateInterval);
-			Call ComputePredict(
-				blue[0],
-				red[0],
-				aheadPredictTime,
-				overlayRed1Future,
-				rangeAngleFromPayloadR1Predict,
-				rangeR1Predict,
-				angleFromPayloadR1Predict,
-				radiusLongitudeR1Predict,
-				rangeB1_R1 > aheadPredictRangeUpdateLimit);
-			Call ComputePredict(
-				blue[0],
-				red[1],
-				aheadPredictTime,
-				overlayRed2Future,
-				rangeAngleFromPayloadR2Predict,
-				rangeR2Predict,
-				angleFromPayloadR2Predict,
-				radiusLongitudeR2Predict,
-				rangeB1_R2 > aheadPredictRangeUpdateLimit);
-			Call ComputePredict(
-				blue[0],
-				red[2],
-				aheadPredictTime,
-				overlayRed3Future,
-				rangeAngleFromPayloadR3Predict,
-				rangeR3Predict,
-				angleFromPayloadR3Predict,
-				radiusLongitudeR3Predict,
-				rangeB1_R3 > aheadPredictRangeUpdateLimit);
-			timeSinceAheadPredictUpdate = TimeSpan.Zero;
-		End;
-		
-		viewMain3D.Update();
-		viewUplink.Update();
-		viewPayload.Update();
-		
-		pwRange.EndBatchUpdate();
-		pwAngleFromPayload.EndBatchUpdate();
-		pwAngleRange.EndBatchUpdate();
-		pwRadiusLongitude.EndBatchUpdate();
-		viewUplink.EndBatchUpdate();
-		viewPayload.EndBatchUpdate();
-		viewMain3D.EndBatchUpdate();
+	WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);	
+		blue[0].EulerAngles[0] += slewRateDegPerSecond * blue[0].Propagator.StepSize.ToSeconds();	
+		Call PostBlueStepSubroutine(red, blue);
 	End;
 EndProcedure;
 
 Define Procedure AdvanceSimUplinkPeriod(Formation red, Formation blue);
 	viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 1);
-	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(0.5), 0);
+	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(0.5));
 	viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 0);
 EndProcedure;
 
@@ -3056,7 +3241,7 @@ Define Procedure DisplayModeScript(Formation red, Formation blue);
 	
 	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
 	While (1);
-		Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+		Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 		
 		viewMain3D.ResetTails();
 		viewPayload.ResetTails();
@@ -3096,7 +3281,7 @@ Define Procedure BenignScript(Formation red, Formation blue);
 	
 	
 	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -3120,7 +3305,7 @@ Define Procedure BenignScript(Formation red, Formation blue);
 	blue[0].Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(2);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 	burn.AttitudeSystem = 1;
 	burn.BurnDirection[1] = 0;
@@ -3166,7 +3351,7 @@ Define Procedure BenignScript(Formation red, Formation blue);
 		Report opt.ReturnString;
 		opt.RestoreObjectsInProcess();
 		
-		Call OpenForWrite("SavedValues/BenignScript_Red1Burn1.txt");
+		Call OpenForWrite("SavedValues/BenignScript_Red1Burn1and2.txt");
 		file.PutLine(opt.GetBestStateVariableValue("dv1").ToString());
 		file.PutLine(opt.GetBestStateVariableValue("dv2").ToString());
 		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
@@ -3174,7 +3359,7 @@ Define Procedure BenignScript(Formation red, Formation blue);
 	End;
 //EndBlock PRESOLVED OPTIMIZATION
 	
-	Call OpenForRead("SavedValues/BenignScript_Red1Burn1.txt");
+	Call OpenForRead("SavedValues/BenignScript_Red1Burn1and2.txt");
 	burn.BurnDirection[0] = file.GetLine().ToVariable();
 	dv2 = file.GetLine().ToVariable();
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
@@ -3182,14 +3367,14 @@ Define Procedure BenignScript(Formation red, Formation blue);
 
 	red[0].Maneuver(burn);
 
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 	burn.BurnDirection[0] = dv2;
 	red[0].Maneuver(burn);
 	burn.AttitudeSystem = 6;
 	
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(4);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 EndProcedure;
 
@@ -3210,7 +3395,7 @@ Define Procedure ObservationScript(Formation red, Formation blue);
 	Variable angle;
 	
 	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -3294,7 +3479,7 @@ Define Procedure ObservationScript(Formation red, Formation blue);
 
 	red[0].Maneuver(burn);
 
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 
 //Block PRESOLVED OPTIMIZATION
@@ -3374,13 +3559,13 @@ Define Procedure ObservationScript(Formation red, Formation blue);
 	red[0].Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 	burn.BurnDirection = -{    0.000145506,       -0.000805460,       -0.000000254};
 	red[0].Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 EndProcedure;
 
@@ -3396,8 +3581,12 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	Variable totalDV;
 	TimeSpan initialEpoch;
 	
+//	red[1].SetKeplerianState(blue[0].GetKeplerianState());
+//	red[1].E += 0.0012;
+//	red[1].I += 0.01;
+	
 	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -3419,6 +3608,9 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	file.Close();
 	
 	blue[0].Maneuver(burn);
+	
+	
+	
 	
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -3476,8 +3668,80 @@ Define Procedure DisableScript(Formation red, Formation blue);
 
 	red[0].Maneuver(burn);
 
+	WhileStepping blue[0] to (blue[0].Longitude < red[1].Longitude);
+		Call PostBlueStepSubroutine(red, blue);
+	End;
+	
+		burn.AttitudeSystem = 1;
+	burn.BurnDirection[1] = 0;
+	burn.BurnDirection[2] = 0;
+	
+	//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		opt.Reset(1);
+		opt.AddStateVariable("dv1", -0.001, -0.01, 0);
+		opt.AddStateVariable("dv2", -0.001, -0.01, 0);
+		opt.AddStateVariable("days", 0.5, 0.1, 1);
+		opt.AddConstraint("A", 42100, 42100, 100);
+		opt.AddConstraint("E", 0, 0.0001);
+		
+		opt.SaveObjectToProcess(red[0]);
+		opt.LoadEngine();
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			
+			burn.BurnDirection[0] = opt.GetStateVariableValue("dv1");
+			totalDV = abs(burn.BurnDirection[0]);
+			red[0].Maneuver(burn);
+			
+			futureEpoch = red[0].Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+			WhileStepping red[0] to (red[0].Epoch == futureEpoch);
+			End;
+			
+			burn.BurnDirection[0] = opt.GetStateVariableValue("dv2");
+			totalDV += abs(burn.BurnDirection[0]);
+			red[0].Maneuver(burn);
+			
+			opt.SetConstraintValue("A", red[0].A);
+			opt.SetConstraintValue("E", red[0].E);
+									 
+			opt.Minimize(totalDV);
+			
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		Call OpenForWrite("SavedValues/DisableScript_Red2Burn1and2.txt");
+		file.PutLine(opt.GetBestStateVariableValue("dv1").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv2").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+	
+	Call OpenForRead("SavedValues/DisableScript_Red2Burn1and2.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	dv2 = file.GetLine().ToVariable();
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
+	file.Close();
+
+	red[0].Maneuver(burn);
+
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+	burn.BurnDirection[0] = dv2;
+	red[0].Maneuver(burn);
+	burn.AttitudeSystem = 6;
+	
+	
+	
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(4);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -3552,7 +3816,7 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	TimeSpan killOperationTime = TimeSpan.FromDays(0.2);
 	
 	futureEpoch = blue[0].Epoch + preDeployWaitTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 	// Deploy inspector from Red 1
 	red.Count += 1;
@@ -3624,12 +3888,12 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	deployableSat.Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + rendezvousTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 	deployableSat.SetCartesianState(blue[0].GetCartesianState());
 	
 	futureEpoch = blue[0].Epoch + killOperationTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 	// Inspector return to Red 1
 	
@@ -3689,12 +3953,12 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	deployableSat.Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + rendezvousTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 	red.Count -= 1;
 	
 	futureEpoch = blue[0].Epoch + preDeployWaitTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -3767,7 +4031,7 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	red[0].Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 EndProcedure;
 
