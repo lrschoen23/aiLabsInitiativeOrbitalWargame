@@ -83,7 +83,7 @@
       </ConsoleWindow>
     </Object>
     <Object>
-      <Variable name="userChoice" isConstant="false" isGlobal="false">
+      <Variable name="userChoice" isConstant="false" isGlobal="true">
         <Name>userChoice</Name>
         <Value units="" displayed_units="">0.0</Value>
         <metadata dim="0" />
@@ -219,161 +219,6 @@
                 <Units>seconds</Units>
                 <metadata dim="0" />
               </UINumericTextEntry>
-            </value>
-          </Elements>
-        </General>
-        <metadata dim="0" />
-      </UserInterface>
-    </Object>
-    <Object>
-      <UserInterface name="OperatorActions" isConstant="false" isGlobal="false">
-        <Name>OperatorActions</Name>
-        <General>
-          <Title>Operator Actions</Title>
-          <ContinueButtonLabel>&amp;Continue</ContinueButtonLabel>
-          <LabelColumnWidth units="pixel" displayed_units="pixel">200</LabelColumnWidth>
-          <DataColumnWidth units="pixel" displayed_units="pixel">400</DataColumnWidth>
-          <NavigationType>Ordered Access</NavigationType>
-          <Elements dim="4">
-            <value>
-              <UIPage name="OperatorActions_Page1" isConstant="false" isGlobal="false">
-                <Name>OperatorActions_Page1</Name>
-                <PageTitle>Operator Actions</PageTitle>
-                <metadata dim="0" />
-              </UIPage>
-            </value>
-            <value>
-              <UILabel name="OperatorActions_FormattingElement2" isConstant="false" isGlobal="false">
-                <Name>OperatorActions_FormattingElement2</Name>
-                <LabelText>To re-evaluate the data readouts and 3D views before making a selection,
-choose "Re-evaluate data" from the list above. Then, when you are ready
-to choose an action, click the blue play button in the top toolbar.</LabelText>
-                <metadata dim="0" />
-              </UILabel>
-            </value>
-            <value>
-              <UISeperator name="OperatorActions_FormattingElement1" isConstant="false" isGlobal="false">
-                <Name>OperatorActions_FormattingElement1</Name>
-                <ShowLine>true</ShowLine>
-                <Label></Label>
-                <metadata dim="0" />
-              </UISeperator>
-            </value>
-            <value>
-              <UIMultiChoice name="OperatorActions_DataElement1" isConstant="false" isGlobal="false">
-                <Name>OperatorActions_DataElement1</Name>
-                <ValueDestination>
-                  <ObjectHolder name="OperatorActions_DataElement1_:ValueDestination" isConstant="false" isGlobal="false">
-                    <Name>OperatorActions_DataElement1_:ValueDestination</Name>
-                    <BaseObject>userChoice</BaseObject>
-                    <metadata dim="0" />
-                  </ObjectHolder>
-                </ValueDestination>
-                <Label>Select an action:</Label>
-                <Items dim="7">
-                  <value>
-                    <UIMultiChoiceItem name="OperatorActions_DataElement1_Choice1" isConstant="false" isGlobal="false">
-                      <Name>OperatorActions_DataElement1_Choice1</Name>
-                      <Label>Continue nominal operations</Label>
-                      <Value>
-                        <DoubleConstant name="OperatorActions_DataElement1_Choice1_:Value" isConstant="false" isGlobal="false">
-                          <Name>OperatorActions_DataElement1_Choice1_:Value</Name>
-                          <value units="" displayed_units="">0</value>
-                          <metadata dim="0" />
-                        </DoubleConstant>
-                      </Value>
-                      <metadata dim="0" />
-                    </UIMultiChoiceItem>
-                  </value>
-                  <value>
-                    <UIMultiChoiceItem name="OperatorActions_DataElement1_Choice2" isConstant="false" isGlobal="false">
-                      <Name>OperatorActions_DataElement1_Choice2</Name>
-                      <Label>Perform premature station-keeping maneuver</Label>
-                      <Value>
-                        <DoubleConstant name="OperatorActions_DataElement1_Choice2_:Value" isConstant="false" isGlobal="false">
-                          <Name>OperatorActions_DataElement1_Choice2_:Value</Name>
-                          <value units="" displayed_units="">1</value>
-                          <metadata dim="0" />
-                        </DoubleConstant>
-                      </Value>
-                      <metadata dim="0" />
-                    </UIMultiChoiceItem>
-                  </value>
-                  <value>
-                    <UIMultiChoiceItem name="OperatorActions_DataElement1_Choice3" isConstant="false" isGlobal="false">
-                      <Name>OperatorActions_DataElement1_Choice3</Name>
-                      <Label>Perform evasive maneuver</Label>
-                      <Value>
-                        <DoubleConstant name="OperatorActions_DataElement1_Choice3_:Value" isConstant="false" isGlobal="false">
-                          <Name>OperatorActions_DataElement1_Choice3_:Value</Name>
-                          <value units="" displayed_units="">2</value>
-                          <metadata dim="0" />
-                        </DoubleConstant>
-                      </Value>
-                      <metadata dim="0" />
-                    </UIMultiChoiceItem>
-                  </value>
-                  <value>
-                    <UIMultiChoiceItem name="OperatorActions_DataElement1_Choice4" isConstant="false" isGlobal="false">
-                      <Name>OperatorActions_DataElement1_Choice4</Name>
-                      <Label>Slew payload away from closest red spacecraft</Label>
-                      <Value>
-                        <DoubleConstant name="OperatorActions_DataElement1_Choice4_:Value" isConstant="false" isGlobal="false">
-                          <Name>OperatorActions_DataElement1_Choice4_:Value</Name>
-                          <value units="" displayed_units="">3</value>
-                          <metadata dim="0" />
-                        </DoubleConstant>
-                      </Value>
-                      <metadata dim="0" />
-                    </UIMultiChoiceItem>
-                  </value>
-                  <value>
-                    <UIMultiChoiceItem name="OperatorActions_DataElement1_Choice5" isConstant="false" isGlobal="false">
-                      <Name>OperatorActions_DataElement1_Choice5</Name>
-                      <Label>Ready ground-based jamming unit</Label>
-                      <Value>
-                        <DoubleConstant name="OperatorActions_DataElement1_Choice5_:Value" isConstant="false" isGlobal="false">
-                          <Name>OperatorActions_DataElement1_Choice5_:Value</Name>
-                          <value units="" displayed_units="">4</value>
-                          <metadata dim="0" />
-                        </DoubleConstant>
-                      </Value>
-                      <metadata dim="0" />
-                    </UIMultiChoiceItem>
-                  </value>
-                  <value>
-                    <UIMultiChoiceItem name="OperatorActions_DataElement1_Choice6" isConstant="false" isGlobal="false">
-                      <Name>OperatorActions_DataElement1_Choice6</Name>
-                      <Label>Ready secondary blue comm path</Label>
-                      <Value>
-                        <DoubleConstant name="OperatorActions_DataElement1_Choice6_:Value" isConstant="false" isGlobal="false">
-                          <Name>OperatorActions_DataElement1_Choice6_:Value</Name>
-                          <value units="" displayed_units="">5</value>
-                          <metadata dim="0" />
-                        </DoubleConstant>
-                      </Value>
-                      <metadata dim="0" />
-                    </UIMultiChoiceItem>
-                  </value>
-                  <value>
-                    <UIMultiChoiceItem name="OperatorActions_DataElement1_Choice7" isConstant="false" isGlobal="false">
-                      <Name>OperatorActions_DataElement1_Choice7</Name>
-                      <Label>Re-evaluate data</Label>
-                      <Value>
-                        <DoubleConstant name="OperatorActions_DataElement1_Choice7_:Value" isConstant="false" isGlobal="false">
-                          <Name>OperatorActions_DataElement1_Choice7_:Value</Name>
-                          <value units="" displayed_units="">6</value>
-                          <metadata dim="0" />
-                        </DoubleConstant>
-                      </Value>
-                      <metadata dim="0" />
-                    </UIMultiChoiceItem>
-                  </value>
-                </Items>
-                <DefaultValue>OperatorActions_DataElement1_Choice1</DefaultValue>
-                <UseRadioButtons>true</UseRadioButtons>
-                <metadata dim="0" />
-              </UIMultiChoice>
             </value>
           </Elements>
         </General>
@@ -602,8 +447,10 @@ viewPayload.CurrentViewpoint.ViewpointType = "sensorview";
 viewPayload.CurrentViewpoint.SensorView.FilterAllSiblings = 0;
 viewPayload.CurrentViewpoint.SensorView.Source = blue[0].Sensors[sensorIndexPayload].ObjectId;
 
-Global Variable blueJammerState = 0;
-// jammerState 0 is inactive, 1 is ready, 2 is active
+Global Variable blueBackupCommsState = 0; // 0 is inactive, 1 is ready, 2 is active
+Global Variable blueJammerState = 0; // 0 is inactive, 1 is ready, 2 is active
+
+// 0 is inactive, 1 is ready, 2 is active
 Define Procedure SetBlueJammerState(Variable jammerState);
 	blueJammerState = jammerState;
 	If (blueJammerState == 0);
@@ -616,6 +463,7 @@ Define Procedure SetBlueJammerState(Variable jammerState);
 		viewMain3D.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerReadyIcon.png");
 		viewUplink.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerReadyIcon.png");
 		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerReadyIcon.png");
+		
 	ElseIf (blueJammerState == 2);
 		blueJammer.DisplayName = "Ship-based Jammer (Active)";
 		viewMain3D.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerActiveIcon.png");
@@ -698,10 +546,10 @@ red[1].SetKeplerianState({42164 - red2and3RadialSeparation,
                           1 - red2AngularSeparation});
 red[2].SetKeplerianState({42164 + red2and3RadialSeparation,
                           1e-6,
-                          baseI * 1.0,
+                          baseI * 1.01,
                           baseRAAN,
                           1,
-                          1 + red2AngularSeparation + 1.3});
+                          1 + red2AngularSeparation + 0.8});
                           
 red[0].Color = colorRed1;
 red[1].Color = colorRed2;
@@ -1076,6 +924,65 @@ pwRange.EndBatchUpdate();
 pwAngleFromPayload.EndBatchUpdate();
 pwAngleRange.EndBatchUpdate();
 pwRadiusLongitude.EndBatchUpdate();]]></FreeFormScript>
+      </FreeForm>
+      <FreeForm enabled="true">
+        <Label>OperatorActions menu</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[Global UserInterface OperatorActions;
+
+Global Constant Variable I = 1;
+Global Constant Variable II = 2;
+Global Constant Variable III = 3;
+Global Constant Variable IV = 4;
+Global Constant Variable V = 5;
+Global Constant Variable VI = 6;
+Global Constant Variable VII = 7;
+
+
+Define Procedure BuildOperatorActionsMenu();
+	OperatorActions.ClearElements();
+	OperatorActions.Title = "Operator Actions";
+	String msg = @"To re-evaluate the data readouts and 3D views before making a selection,\nchoose 'Re-evaluate data' from the list above. Then, when you are ready\nto choose an action, click the blue play button in the top toolbar.";
+	OperatorActions.AddLabel(msg);
+	OperatorActions.AddSeparator("", 1);
+	Variable multiChoiceID = OperatorActions.AddMultiChoice("userChoice", "Select an action:", "I", 1);
+	OperatorActions.AddMultiChoiceItem(multiChoiceID, "I",   "Continue nominal operations");
+	
+	If (blueBackupCommsState == 0); // inactive
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "II",  "Ready secondary blue comms path");
+	ElseIf (blueBackupCommsState == 1); // ready
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "II",  "Switch to secondary blue comms path");
+	ElseIf (blueBackupCommsState == 2); // active
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "II",  "Switch to primary blue comm path");
+	End;
+	
+	OperatorActions.AddMultiChoiceItem(multiChoiceID, "III", "Slew payload away from closest red spacecraft");
+	
+	If (blueJammerState == 0); // inactive
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "IV",  "Ready ground-based jamming unit");
+	ElseIf (blueBackupCommsState == 1); // ready
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "IV",  "Activate ground-based jamming unit");
+	ElseIf (blueBackupCommsState == 2); // active
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "IV",  "De-activate ground-based jamming unit");
+	End;
+	
+	OperatorActions.AddMultiChoiceItem(multiChoiceID, "V",   "Perform evasive maneuver");
+	OperatorActions.AddMultiChoiceItem(multiChoiceID, "VI",  "Re-evaluate data");
+EndProcedure;
+
+Define Procedure ShowOperatorActionsMenu();
+	Call BuildOperatorActionsMenu();
+	Show OperatorActions;
+	
+	While (userChoice == VI);
+		Pause;
+		Show OperatorActions;
+	End;
+EndProcedure;
+
+
+]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
         <Label>Output Configuration</Label>
@@ -1758,6 +1665,8 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	Array kepState;
 	Variable totalDV;
 	TimeSpan initialEpoch;
+	Array dv2(3);
+	TimeSpan futureEpoch2;
 	
 //	red[1].SetKeplerianState(blue[0].GetKeplerianState());
 //	red[1].E += 0.0012;
@@ -1845,44 +1754,47 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	file.Close();
 
 	red[0].Maneuver(burn);
+	futureEpoch2 = blue[0].Epoch + TimeSpan.FromDays(4);
 
 	WhileStepping blue[0] to (blue[0].Longitude < red[1].Longitude);
 		Call PostBlueStepSubroutine(red, blue);
 	End;
 	
-		burn.AttitudeSystem = 1;
-	burn.BurnDirection[1] = 0;
-	burn.BurnDirection[2] = 0;
-	
 	//Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
 		opt.Reset(1);
-		opt.AddStateVariable("dv1", -0.001, -0.01, 0);
-		opt.AddStateVariable("dv2", -0.001, -0.01, 0);
+		opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
+		opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
 		opt.AddStateVariable("days", 0.5, 0.1, 1);
-		opt.AddConstraint("A", 42100, 42100, 100);
-		opt.AddConstraint("E", 0, 0.0001);
+		opt.AddConstraint("A",    blue[0].A,          blue[0].A, 100);
+		opt.AddConstraint("E",    blue[0].E + 0.0012, blue[0].E + 0.0012);
+		opt.AddConstraint("I",    blue[0].I,          blue[0].I, 100, 360);
+		opt.AddConstraint("RAAN", blue[0].RAAN,       blue[0].RAAN, 100, 360);
+		opt.AddConstraint("W",    blue[0].W,          blue[0].W, 100, 360);
 		
-		opt.SaveObjectToProcess(red[0]);
+		opt.SaveObjectToProcess(red[1]);
 		opt.LoadEngine();
 		While (opt.IsRunning());
 			opt.UpdateStateVariables();
 			opt.RestoreObjectsInProcess();
 			
-			burn.BurnDirection[0] = opt.GetStateVariableValue("dv1");
-			totalDV = abs(burn.BurnDirection[0]);
-			red[0].Maneuver(burn);
+			burn.BurnDirection = opt.GetStateVariableValues[0:2];
+			totalDV = burn.BurnDirection.Norm;
+			red[1].Maneuver(burn);
 			
-			futureEpoch = red[0].Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
-			WhileStepping red[0] to (red[0].Epoch == futureEpoch);
+			futureEpoch = red[1].Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+			WhileStepping red[1] to (red[1].Epoch == futureEpoch);
 			End;
 			
-			burn.BurnDirection[0] = opt.GetStateVariableValue("dv2");
-			totalDV += abs(burn.BurnDirection[0]);
-			red[0].Maneuver(burn);
+			burn.BurnDirection = opt.GetStateVariableValues[3:5];
+			totalDV += burn.BurnDirection.Norm;
+			red[1].Maneuver(burn);
 			
-			opt.SetConstraintValue("A", red[0].A);
-			opt.SetConstraintValue("E", red[0].E);
+			opt.SetConstraintValue("A", red[1].A);
+			opt.SetConstraintValue("E", red[1].E);
+			opt.SetConstraintValue("I", red[1].I);
+			opt.SetConstraintValue("RAAN", red[1].RAAN);
+			opt.SetConstraintValue("W", red[1].W);
 									 
 			opt.Minimize(totalDV);
 			
@@ -1895,8 +1807,12 @@ Define Procedure DisableScript(Formation red, Formation blue);
 		opt.RestoreObjectsInProcess();
 		
 		Call OpenForWrite("SavedValues/DisableScript_Red2Burn1and2.txt");
-		file.PutLine(opt.GetBestStateVariableValue("dv1").ToString());
-		file.PutLine(opt.GetBestStateVariableValue("dv2").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv11").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv12").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv13").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv21").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv22").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv23").ToString());
 		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
 		file.Close();
 	End;
@@ -1904,21 +1820,25 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	
 	Call OpenForRead("SavedValues/DisableScript_Red2Burn1and2.txt");
 	burn.BurnDirection[0] = file.GetLine().ToVariable();
-	dv2 = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	dv2[0] = file.GetLine().ToVariable();
+	dv2[1] = file.GetLine().ToVariable();
+	dv2[2] = file.GetLine().ToVariable();
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
 	file.Close();
 
-	red[0].Maneuver(burn);
-
+	red[1].Maneuver(burn);
+	burn.BurnDirection *= -1;
+	red[2].Maneuver(burn);
 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
-	burn.BurnDirection[0] = dv2;
-	red[0].Maneuver(burn);
-	burn.AttitudeSystem = 6;
+	burn.BurnDirection = dv2;
+	red[1].Maneuver(burn);
+	burn.BurnDirection *= -1;
+	red[2].Maneuver(burn);
 	
-	
-	
-	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(4);
+	futureEpoch = futureEpoch2;
 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 
 //Block PRESOLVED OPTIMIZATION
@@ -2439,8 +2359,10 @@ viewPayload.CurrentViewpoint.ViewpointType = "sensorview";
 viewPayload.CurrentViewpoint.SensorView.FilterAllSiblings = 0;
 viewPayload.CurrentViewpoint.SensorView.Source = blue[0].Sensors[sensorIndexPayload].ObjectId;
 
-Global Variable blueJammerState = 0;
-// jammerState 0 is inactive, 1 is ready, 2 is active
+Global Variable blueBackupCommsState = 0; // 0 is inactive, 1 is ready, 2 is active
+Global Variable blueJammerState = 0; // 0 is inactive, 1 is ready, 2 is active
+
+// 0 is inactive, 1 is ready, 2 is active
 Define Procedure SetBlueJammerState(Variable jammerState);
 	blueJammerState = jammerState;
 	If (blueJammerState == 0);
@@ -2453,6 +2375,7 @@ Define Procedure SetBlueJammerState(Variable jammerState);
 		viewMain3D.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerReadyIcon.png");
 		viewUplink.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerReadyIcon.png");
 		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerReadyIcon.png");
+		
 	ElseIf (blueJammerState == 2);
 		blueJammer.DisplayName = "Ship-based Jammer (Active)";
 		viewMain3D.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerActiveIcon.png");
@@ -2535,10 +2458,10 @@ red[1].SetKeplerianState({42164 - red2and3RadialSeparation,
                           1 - red2AngularSeparation});
 red[2].SetKeplerianState({42164 + red2and3RadialSeparation,
                           1e-6,
-                          baseI * 1.0,
+                          baseI * 1.01,
                           baseRAAN,
                           1,
-                          1 + red2AngularSeparation + 1.3});
+                          1 + red2AngularSeparation + 0.8});
                           
 red[0].Color = colorRed1;
 red[1].Color = colorRed2;
@@ -2908,6 +2831,60 @@ pwRange.EndBatchUpdate();
 pwAngleFromPayload.EndBatchUpdate();
 pwAngleRange.EndBatchUpdate();
 pwRadiusLongitude.EndBatchUpdate();
+Global UserInterface OperatorActions;
+
+Global Constant Variable I = 1;
+Global Constant Variable II = 2;
+Global Constant Variable III = 3;
+Global Constant Variable IV = 4;
+Global Constant Variable V = 5;
+Global Constant Variable VI = 6;
+Global Constant Variable VII = 7;
+
+
+Define Procedure BuildOperatorActionsMenu();
+	OperatorActions.ClearElements();
+	OperatorActions.Title = "Operator Actions";
+	String msg = @"To re-evaluate the data readouts and 3D views before making a selection,\nchoose 'Re-evaluate data' from the list above. Then, when you are ready\nto choose an action, click the blue play button in the top toolbar.";
+	OperatorActions.AddLabel(msg);
+	OperatorActions.AddSeparator("", 1);
+	Variable multiChoiceID = OperatorActions.AddMultiChoice("userChoice", "Select an action:", "I", 1);
+	OperatorActions.AddMultiChoiceItem(multiChoiceID, "I",   "Continue nominal operations");
+	
+	If (blueBackupCommsState == 0); // inactive
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "II",  "Ready secondary blue comms path");
+	ElseIf (blueBackupCommsState == 1); // ready
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "II",  "Switch to secondary blue comms path");
+	ElseIf (blueBackupCommsState == 2); // active
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "II",  "Switch to primary blue comm path");
+	End;
+	
+	OperatorActions.AddMultiChoiceItem(multiChoiceID, "III", "Slew payload away from closest red spacecraft");
+	
+	If (blueJammerState == 0); // inactive
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "IV",  "Ready ground-based jamming unit");
+	ElseIf (blueBackupCommsState == 1); // ready
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "IV",  "Activate ground-based jamming unit");
+	ElseIf (blueBackupCommsState == 2); // active
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "IV",  "De-activate ground-based jamming unit");
+	End;
+	
+	OperatorActions.AddMultiChoiceItem(multiChoiceID, "V",   "Perform evasive maneuver");
+	OperatorActions.AddMultiChoiceItem(multiChoiceID, "VI",  "Re-evaluate data");
+EndProcedure;
+
+Define Procedure ShowOperatorActionsMenu();
+	Call BuildOperatorActionsMenu();
+	Show OperatorActions;
+	
+	While (userChoice == VI);
+		Pause;
+		Show OperatorActions;
+	End;
+EndProcedure;
+
+
+
 
 Global Constant Variable screenSpaceRatio = 0.5;
 
@@ -3580,6 +3557,8 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	Array kepState;
 	Variable totalDV;
 	TimeSpan initialEpoch;
+	Array dv2(3);
+	TimeSpan futureEpoch2;
 	
 //	red[1].SetKeplerianState(blue[0].GetKeplerianState());
 //	red[1].E += 0.0012;
@@ -3667,44 +3646,47 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	file.Close();
 
 	red[0].Maneuver(burn);
+	futureEpoch2 = blue[0].Epoch + TimeSpan.FromDays(4);
 
 	WhileStepping blue[0] to (blue[0].Longitude < red[1].Longitude);
 		Call PostBlueStepSubroutine(red, blue);
 	End;
 	
-		burn.AttitudeSystem = 1;
-	burn.BurnDirection[1] = 0;
-	burn.BurnDirection[2] = 0;
-	
 	//Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
 		opt.Reset(1);
-		opt.AddStateVariable("dv1", -0.001, -0.01, 0);
-		opt.AddStateVariable("dv2", -0.001, -0.01, 0);
+		opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
+		opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
 		opt.AddStateVariable("days", 0.5, 0.1, 1);
-		opt.AddConstraint("A", 42100, 42100, 100);
-		opt.AddConstraint("E", 0, 0.0001);
+		opt.AddConstraint("A",    blue[0].A,          blue[0].A, 100);
+		opt.AddConstraint("E",    blue[0].E + 0.0012, blue[0].E + 0.0012);
+		opt.AddConstraint("I",    blue[0].I,          blue[0].I, 100, 360);
+		opt.AddConstraint("RAAN", blue[0].RAAN,       blue[0].RAAN, 100, 360);
+		opt.AddConstraint("W",    blue[0].W,          blue[0].W, 100, 360);
 		
-		opt.SaveObjectToProcess(red[0]);
+		opt.SaveObjectToProcess(red[1]);
 		opt.LoadEngine();
 		While (opt.IsRunning());
 			opt.UpdateStateVariables();
 			opt.RestoreObjectsInProcess();
 			
-			burn.BurnDirection[0] = opt.GetStateVariableValue("dv1");
-			totalDV = abs(burn.BurnDirection[0]);
-			red[0].Maneuver(burn);
+			burn.BurnDirection = opt.GetStateVariableValues[0:2];
+			totalDV = burn.BurnDirection.Norm;
+			red[1].Maneuver(burn);
 			
-			futureEpoch = red[0].Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
-			WhileStepping red[0] to (red[0].Epoch == futureEpoch);
+			futureEpoch = red[1].Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+			WhileStepping red[1] to (red[1].Epoch == futureEpoch);
 			End;
 			
-			burn.BurnDirection[0] = opt.GetStateVariableValue("dv2");
-			totalDV += abs(burn.BurnDirection[0]);
-			red[0].Maneuver(burn);
+			burn.BurnDirection = opt.GetStateVariableValues[3:5];
+			totalDV += burn.BurnDirection.Norm;
+			red[1].Maneuver(burn);
 			
-			opt.SetConstraintValue("A", red[0].A);
-			opt.SetConstraintValue("E", red[0].E);
+			opt.SetConstraintValue("A", red[1].A);
+			opt.SetConstraintValue("E", red[1].E);
+			opt.SetConstraintValue("I", red[1].I);
+			opt.SetConstraintValue("RAAN", red[1].RAAN);
+			opt.SetConstraintValue("W", red[1].W);
 									 
 			opt.Minimize(totalDV);
 			
@@ -3717,8 +3699,12 @@ Define Procedure DisableScript(Formation red, Formation blue);
 		opt.RestoreObjectsInProcess();
 		
 		Call OpenForWrite("SavedValues/DisableScript_Red2Burn1and2.txt");
-		file.PutLine(opt.GetBestStateVariableValue("dv1").ToString());
-		file.PutLine(opt.GetBestStateVariableValue("dv2").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv11").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv12").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv13").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv21").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv22").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv23").ToString());
 		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
 		file.Close();
 	End;
@@ -3726,21 +3712,25 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	
 	Call OpenForRead("SavedValues/DisableScript_Red2Burn1and2.txt");
 	burn.BurnDirection[0] = file.GetLine().ToVariable();
-	dv2 = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	dv2[0] = file.GetLine().ToVariable();
+	dv2[1] = file.GetLine().ToVariable();
+	dv2[2] = file.GetLine().ToVariable();
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
 	file.Close();
 
-	red[0].Maneuver(burn);
-
+	red[1].Maneuver(burn);
+	burn.BurnDirection *= -1;
+	red[2].Maneuver(burn);
 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
-	burn.BurnDirection[0] = dv2;
-	red[0].Maneuver(burn);
-	burn.AttitudeSystem = 6;
+	burn.BurnDirection = dv2;
+	red[1].Maneuver(burn);
+	burn.BurnDirection *= -1;
+	red[2].Maneuver(burn);
 	
-	
-	
-	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(4);
+	futureEpoch = futureEpoch2;
 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 
 //Block PRESOLVED OPTIMIZATION
