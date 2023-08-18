@@ -214,7 +214,7 @@
                 </DefaultValue>
                 <DoPerformRangeValidation>true</DoPerformRangeValidation>
                 <RangeMinimum units="" displayed_units="">1</RangeMinimum>
-                <RangeMaximum units="" displayed_units="">800</RangeMaximum>
+                <RangeMaximum units="" displayed_units="">850</RangeMaximum>
                 <Decimals units="" displayed_units="">0</Decimals>
                 <Units>seconds</Units>
                 <metadata dim="0" />
@@ -270,11 +270,11 @@ to choose an action, click the blue play button in the top toolbar.</LabelText>
                   </ObjectHolder>
                 </ValueDestination>
                 <Label>Select an action:</Label>
-                <Items dim="5">
+                <Items dim="7">
                   <value>
                     <UIMultiChoiceItem name="OperatorActions_DataElement1_Choice1" isConstant="false" isGlobal="false">
                       <Name>OperatorActions_DataElement1_Choice1</Name>
-                      <Label>Standby (no action)</Label>
+                      <Label>Continue nominal operations</Label>
                       <Value>
                         <DoubleConstant name="OperatorActions_DataElement1_Choice1_:Value" isConstant="false" isGlobal="false">
                           <Name>OperatorActions_DataElement1_Choice1_:Value</Name>
@@ -330,11 +330,39 @@ to choose an action, click the blue play button in the top toolbar.</LabelText>
                   <value>
                     <UIMultiChoiceItem name="OperatorActions_DataElement1_Choice5" isConstant="false" isGlobal="false">
                       <Name>OperatorActions_DataElement1_Choice5</Name>
-                      <Label>Re-evaluate data</Label>
+                      <Label>Jam red comms using ground-based unit</Label>
                       <Value>
                         <DoubleConstant name="OperatorActions_DataElement1_Choice5_:Value" isConstant="false" isGlobal="false">
                           <Name>OperatorActions_DataElement1_Choice5_:Value</Name>
                           <value units="" displayed_units="">4</value>
+                          <metadata dim="0" />
+                        </DoubleConstant>
+                      </Value>
+                      <metadata dim="0" />
+                    </UIMultiChoiceItem>
+                  </value>
+                  <value>
+                    <UIMultiChoiceItem name="OperatorActions_DataElement1_Choice6" isConstant="false" isGlobal="false">
+                      <Name>OperatorActions_DataElement1_Choice6</Name>
+                      <Label>Ready secondary blue comm path</Label>
+                      <Value>
+                        <DoubleConstant name="OperatorActions_DataElement1_Choice6_:Value" isConstant="false" isGlobal="false">
+                          <Name>OperatorActions_DataElement1_Choice6_:Value</Name>
+                          <value units="" displayed_units="">5</value>
+                          <metadata dim="0" />
+                        </DoubleConstant>
+                      </Value>
+                      <metadata dim="0" />
+                    </UIMultiChoiceItem>
+                  </value>
+                  <value>
+                    <UIMultiChoiceItem name="OperatorActions_DataElement1_Choice7" isConstant="false" isGlobal="false">
+                      <Name>OperatorActions_DataElement1_Choice7</Name>
+                      <Label>Re-evaluate data</Label>
+                      <Value>
+                        <DoubleConstant name="OperatorActions_DataElement1_Choice7_:Value" isConstant="false" isGlobal="false">
+                          <Name>OperatorActions_DataElement1_Choice7_:Value</Name>
+                          <value units="" displayed_units="">6</value>
                           <metadata dim="0" />
                         </DoubleConstant>
                       </Value>
@@ -364,7 +392,7 @@ to choose an action, click the blue play button in the top toolbar.</LabelText>
         <Breakpoints />
         <FreeFormScript><![CDATA[//Show MainMenu;
 
-userChoice = 0;
+userChoice = 1;
 simStepSizeSeconds = 850;]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
@@ -632,13 +660,13 @@ red[0].SetKeplerianState({42164,
                           1});
 red[1].SetKeplerianState({42164 - red2and3RadialSeparation,
                           1e-6,
-                          baseI * 0.1,
+                          baseI * 1.0,
                           baseRAAN - red2AngularSeparation * 1.7,
                           1,
                           1});
 red[2].SetKeplerianState({42164 + red2and3RadialSeparation,
                           1e-6,
-                          baseI * 0.1,
+                          baseI * 1.0,
                           baseRAAN + red2AngularSeparation,
                           1,
                           1});
@@ -950,7 +978,7 @@ pwRadiusLongitude.AddSeries(radiusLongitudeR1CurrentLocation);
 pwRadiusLongitude.AddSeries(radiusLongitudeR2CurrentLocation);
 pwRadiusLongitude.AddSeries(radiusLongitudeR3CurrentLocation);
 Call InitializePlotAxisRanges(pwRadiusLongitude, {blue[0].Longitude - 3, blue[0].Longitude + 3}, {42060, 42260});
-pwRadiusLongitude.PointsToUpdate = 10;
+pwRadiusLongitude.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
 pwRadiusLongitude.MaxPoints = tailPoints;
 pwRadiusLongitude.UseMonitorMode = 1;
 pwRadiusLongitude.Legend.Location = 1;
@@ -1373,6 +1401,9 @@ EndProcedure;
 Define Procedure BenignScript(Formation red, Formation blue);
 	Optimizer opt;
 	TimeSpan initialEpoch;
+	Variable totalDV;
+	Variable dv2;
+	
 	
 	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
@@ -1398,32 +1429,76 @@ Define Procedure BenignScript(Formation red, Formation blue);
 	
 	blue[0].Maneuver(burn);
 	
-	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-	Call AdvanceSimUplinkPeriod(red, blue);
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(2);
 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
-//Block PRESOLVED OPTIMIZATION
+	burn.AttitudeSystem = 1;
+	burn.BurnDirection[1] = 0;
+	burn.BurnDirection[2] = 0;
+	
+	//Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
-		Call ComputeStationKeepingManeuver(opt, red[0], 277.3);
-		burn.BurnDirection = opt.GetBestStateVariableValues();
+		opt.Reset(1);
+		opt.AddStateVariable("dv1", -0.001, -0.01, 0);
+		opt.AddStateVariable("dv2", -0.001, -0.01, 0);
+		opt.AddStateVariable("days", 0.5, 0.1, 1);
+		opt.AddConstraint("A", 42100, 42100, 100);
+		opt.AddConstraint("E", 0, 0.0001);
 		
-		Call OpenForWrite("SavedValues/BenignScript_Red1SK1.txt");
-		file.PutLine(burn.BurnDirection[0].ToString());
-		file.PutLine(burn.BurnDirection[1].ToString());
-		file.PutLine(burn.BurnDirection[2].ToString());
+		opt.SaveObjectToProcess(red[0]);
+		opt.LoadEngine();
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			
+			burn.BurnDirection[0] = opt.GetStateVariableValue("dv1");
+			totalDV = abs(burn.BurnDirection[0]);
+			red[0].Maneuver(burn);
+			
+			futureEpoch = red[0].Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+			WhileStepping red[0] to (red[0].Epoch == futureEpoch);
+			End;
+			
+			burn.BurnDirection[0] = opt.GetStateVariableValue("dv2");
+			totalDV += abs(burn.BurnDirection[0]);
+			red[0].Maneuver(burn);
+			
+			opt.SetConstraintValue("A", red[0].A);
+			opt.SetConstraintValue("E", red[0].E);
+									 
+			opt.Minimize(totalDV);
+			
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		Call OpenForWrite("SavedValues/BenignScript_Red1Burn1.txt");
+		file.PutLine(opt.GetBestStateVariableValue("dv1").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv2").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
 		file.Close();
 	End;
 //EndBlock PRESOLVED OPTIMIZATION
-
-	Call OpenForRead("SavedValues/BenignScript_Red1SK1.txt");
+	
+	Call OpenForRead("SavedValues/BenignScript_Red1Burn1.txt");
 	burn.BurnDirection[0] = file.GetLine().ToVariable();
-	burn.BurnDirection[1] = file.GetLine().ToVariable();
-	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	dv2 = file.GetLine().ToVariable();
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
 	file.Close();
-	
+
 	red[0].Maneuver(burn);
+
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
-	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
+	burn.BurnDirection[0] = dv2;
+	red[0].Maneuver(burn);
+	burn.AttitudeSystem = 6;
+	
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(4);
 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 EndProcedure;
@@ -2027,7 +2102,7 @@ End;]]></FreeFormScript>
   </ProjectMissionSequence>
   <ProjectScript><![CDATA[//Show MainMenu;
 
-userChoice = 0;
+userChoice = 1;
 simStepSizeSeconds = 850;
 
 Global TimeSpan simStepSize = TimeSpan.FromSeconds(simStepSizeSeconds);
@@ -2290,13 +2365,13 @@ red[0].SetKeplerianState({42164,
                           1});
 red[1].SetKeplerianState({42164 - red2and3RadialSeparation,
                           1e-6,
-                          baseI * 0.1,
+                          baseI * 1.0,
                           baseRAAN - red2AngularSeparation * 1.7,
                           1,
                           1});
 red[2].SetKeplerianState({42164 + red2and3RadialSeparation,
                           1e-6,
-                          baseI * 0.1,
+                          baseI * 1.0,
                           baseRAAN + red2AngularSeparation,
                           1,
                           1});
@@ -2603,7 +2678,7 @@ pwRadiusLongitude.AddSeries(radiusLongitudeR1CurrentLocation);
 pwRadiusLongitude.AddSeries(radiusLongitudeR2CurrentLocation);
 pwRadiusLongitude.AddSeries(radiusLongitudeR3CurrentLocation);
 Call InitializePlotAxisRanges(pwRadiusLongitude, {blue[0].Longitude - 3, blue[0].Longitude + 3}, {42060, 42260});
-pwRadiusLongitude.PointsToUpdate = 10;
+pwRadiusLongitude.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
 pwRadiusLongitude.MaxPoints = tailPoints;
 pwRadiusLongitude.UseMonitorMode = 1;
 pwRadiusLongitude.Legend.Location = 1;
@@ -3016,6 +3091,9 @@ EndProcedure;
 Define Procedure BenignScript(Formation red, Formation blue);
 	Optimizer opt;
 	TimeSpan initialEpoch;
+	Variable totalDV;
+	Variable dv2;
+	
 	
 	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
@@ -3041,32 +3119,76 @@ Define Procedure BenignScript(Formation red, Formation blue);
 	
 	blue[0].Maneuver(burn);
 	
-	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-	Call AdvanceSimUplinkPeriod(red, blue);
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(2);
 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
-//Block PRESOLVED OPTIMIZATION
+	burn.AttitudeSystem = 1;
+	burn.BurnDirection[1] = 0;
+	burn.BurnDirection[2] = 0;
+	
+	//Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
-		Call ComputeStationKeepingManeuver(opt, red[0], 277.3);
-		burn.BurnDirection = opt.GetBestStateVariableValues();
+		opt.Reset(1);
+		opt.AddStateVariable("dv1", -0.001, -0.01, 0);
+		opt.AddStateVariable("dv2", -0.001, -0.01, 0);
+		opt.AddStateVariable("days", 0.5, 0.1, 1);
+		opt.AddConstraint("A", 42100, 42100, 100);
+		opt.AddConstraint("E", 0, 0.0001);
 		
-		Call OpenForWrite("SavedValues/BenignScript_Red1SK1.txt");
-		file.PutLine(burn.BurnDirection[0].ToString());
-		file.PutLine(burn.BurnDirection[1].ToString());
-		file.PutLine(burn.BurnDirection[2].ToString());
+		opt.SaveObjectToProcess(red[0]);
+		opt.LoadEngine();
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			
+			burn.BurnDirection[0] = opt.GetStateVariableValue("dv1");
+			totalDV = abs(burn.BurnDirection[0]);
+			red[0].Maneuver(burn);
+			
+			futureEpoch = red[0].Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+			WhileStepping red[0] to (red[0].Epoch == futureEpoch);
+			End;
+			
+			burn.BurnDirection[0] = opt.GetStateVariableValue("dv2");
+			totalDV += abs(burn.BurnDirection[0]);
+			red[0].Maneuver(burn);
+			
+			opt.SetConstraintValue("A", red[0].A);
+			opt.SetConstraintValue("E", red[0].E);
+									 
+			opt.Minimize(totalDV);
+			
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		Call OpenForWrite("SavedValues/BenignScript_Red1Burn1.txt");
+		file.PutLine(opt.GetBestStateVariableValue("dv1").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv2").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
 		file.Close();
 	End;
 //EndBlock PRESOLVED OPTIMIZATION
-
-	Call OpenForRead("SavedValues/BenignScript_Red1SK1.txt");
+	
+	Call OpenForRead("SavedValues/BenignScript_Red1Burn1.txt");
 	burn.BurnDirection[0] = file.GetLine().ToVariable();
-	burn.BurnDirection[1] = file.GetLine().ToVariable();
-	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	dv2 = file.GetLine().ToVariable();
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
 	file.Close();
-	
+
 	red[0].Maneuver(burn);
+
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
-	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
+	burn.BurnDirection[0] = dv2;
+	red[0].Maneuver(burn);
+	burn.AttitudeSystem = 6;
+	
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(4);
 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch, 0);
 	
 EndProcedure;
