@@ -1194,13 +1194,21 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 	overlayDateTime.Shapes[0].TextOptions.Text = blue[0].Epoch.ConvertToCalendarDate("Mmm DD YYYY  hh:mm");
 
 	Variable dataReadoutIsJammed = redJammerState;
+	
+	// If backup comms are active, no effect from jamming
+	If (blueBackupCommsState == 2);
+		dataReadoutIsJammed = 0;
+	End;
+	
+	// Give a chance for data to come through sporadically when jamming is active
 	RandomNumberGenerator rng;
-	If (redJammerState == 1);
+	If (dataReadoutIsJammed == 1);
 		If (rng.IntegerUniformDistribution(0, 5) == 1);
 			dataReadoutIsJammed = 0;
 		End;
 	End;
 	
+	// If data is not jammed, do regular update. Otherwise, update with null values.
 	If (dataReadoutIsJammed == 0);
 		// update angle/range data R1
 		Call ComputeRangeAndAngleFromPayload(blue[0], red[0], rangeB1_R1, angle);
@@ -1273,7 +1281,7 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 			rangeR1Predict,
 			angleFromPayloadR1Predict,
 			radiusLongitudeR1Predict,
-			rangeB1_R1 > aheadPredictRangeUpdateLimit or redJammerState);
+			rangeB1_R1 > aheadPredictRangeUpdateLimit);
 		Call ComputePredict(
 			blue[0],
 			red[1],
@@ -1283,7 +1291,7 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 			rangeR2Predict,
 			angleFromPayloadR2Predict,
 			radiusLongitudeR2Predict,
-			rangeB1_R2 > aheadPredictRangeUpdateLimit or redJammerState);
+			rangeB1_R2 > aheadPredictRangeUpdateLimit);
 		Call ComputePredict(
 			blue[0],
 			red[2],
@@ -1293,7 +1301,7 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 			rangeR3Predict,
 			angleFromPayloadR3Predict,
 			radiusLongitudeR3Predict,
-			rangeB1_R3 > aheadPredictRangeUpdateLimit or redJammerState);
+			rangeB1_R3 > aheadPredictRangeUpdateLimit);
 	Else;
 		viewUplink.InsertLineBreak();
 		viewPayload.InsertLineBreak();
@@ -1434,7 +1442,13 @@ Define Procedure AdvanceSimUplinkPeriod(Formation red, Formation blue);
 	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(0.5));
 	viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 0);
 EndProcedure;
-
+]]></FreeFormScript>
+      </FreeForm>
+      <FreeForm enabled="true">
+        <Label>Game Scripts</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[
 Define Procedure DisplayModeScript(Formation red, Formation blue);
 	Optimizer opt;
 	TimeSpan initialEpoch;
@@ -1814,10 +1828,6 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	Array dv2(3);
 	TimeSpan futureEpoch2;
 	
-//	red[1].SetKeplerianState(blue[0].GetKeplerianState());
-//	red[1].E += 0.0012;
-//	red[1].I += 0.01;
-	
 	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
@@ -1906,7 +1916,7 @@ Define Procedure DisableScript(Formation red, Formation blue);
 		Call PostBlueStepSubroutine(red, blue);
 	End;
 	
-	//Block PRESOLVED OPTIMIZATION
+//Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
 		opt.Reset(1);
 		opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
@@ -1973,7 +1983,13 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	dv2[2] = file.GetLine().ToVariable();
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
 	file.Close();
+	
+	Call SetRedJammerState(1, red);
 
+	Array kepStateRed2 = red[1].GetKeplerianState();
+	Array kepStateRed3 = red[2].GetKeplerianState();
+	
+	
 	red[1].Maneuver(burn);
 	burn.BurnDirection *= -1;
 	red[2].Maneuver(burn);
@@ -1984,7 +2000,6 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	burn.BurnDirection *= -1;
 	red[2].Maneuver(burn);
 	
-	Call SetRedJammerState(1, red);
 	
 	futureEpoch = futureEpoch2;
 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
@@ -2275,6 +2290,86 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	file.Close();
 	
 	red[0].Maneuver(burn);
+	
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		opt.Reset(1);
+		opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
+		opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
+		opt.AddStateVariable("days", 0.5, 0.1, 1);
+		opt.AddConstraint("A",    kepStateRed2[0], kepStateRed2[0]);
+		opt.AddConstraint("E",    kepStateRed2[1], kepStateRed2[1]);
+		opt.AddConstraint("I",    kepStateRed2[2], kepStateRed2[2]);
+		opt.AddConstraint("RAAN", kepStateRed2[3], kepStateRed2[3]);
+		opt.AddConstraint("W",    kepStateRed2[4], kepStateRed2[4]);
+		
+		opt.SaveObjectToProcess(red[1]);
+		opt.LoadEngine();
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			
+			burn.BurnDirection = opt.GetStateVariableValues[0:2];
+			totalDV = burn.BurnDirection.Norm;
+			red[1].Maneuver(burn);
+			
+			futureEpoch = red[1].Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+			WhileStepping red[1] to (red[1].Epoch == futureEpoch);
+			End;
+			
+			burn.BurnDirection = opt.GetStateVariableValues[3:5];
+			totalDV += burn.BurnDirection.Norm;
+			red[1].Maneuver(burn);
+			
+			opt.SetConstraintValue("A", red[1].A);
+			opt.SetConstraintValue("E", red[1].E);
+			opt.SetConstraintValue("I", red[1].I);
+			opt.SetConstraintValue("RAAN", red[1].RAAN);
+			opt.SetConstraintValue("W", red[1].W);
+									 
+			opt.Minimize(totalDV);
+			
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		Call OpenForWrite("SavedValues/DisableScript_Red2Burn3and4.txt");
+		file.PutLine(opt.GetBestStateVariableValue("dv11").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv12").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv13").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv21").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv22").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv23").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+	
+	Call OpenForRead("SavedValues/DisableScript_Red2Burn3and4.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	dv2[0] = file.GetLine().ToVariable();
+	dv2[1] = file.GetLine().ToVariable();
+	dv2[2] = file.GetLine().ToVariable();
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
+	file.Close();
+	
+	Call SetRedJammerState(0, red);
+	
+	red[1].Maneuver(burn);
+	burn.BurnDirection *= -1;
+	red[2].Maneuver(burn);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+	burn.BurnDirection = dv2;
+	red[1].Maneuver(burn);
+	burn.BurnDirection *= -1;
+	red[2].Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
@@ -3234,13 +3329,21 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 	overlayDateTime.Shapes[0].TextOptions.Text = blue[0].Epoch.ConvertToCalendarDate("Mmm DD YYYY  hh:mm");
 
 	Variable dataReadoutIsJammed = redJammerState;
+	
+	// If backup comms are active, no effect from jamming
+	If (blueBackupCommsState == 2);
+		dataReadoutIsJammed = 0;
+	End;
+	
+	// Give a chance for data to come through sporadically when jamming is active
 	RandomNumberGenerator rng;
-	If (redJammerState == 1);
+	If (dataReadoutIsJammed == 1);
 		If (rng.IntegerUniformDistribution(0, 5) == 1);
 			dataReadoutIsJammed = 0;
 		End;
 	End;
 	
+	// If data is not jammed, do regular update. Otherwise, update with null values.
 	If (dataReadoutIsJammed == 0);
 		// update angle/range data R1
 		Call ComputeRangeAndAngleFromPayload(blue[0], red[0], rangeB1_R1, angle);
@@ -3313,7 +3416,7 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 			rangeR1Predict,
 			angleFromPayloadR1Predict,
 			radiusLongitudeR1Predict,
-			rangeB1_R1 > aheadPredictRangeUpdateLimit or redJammerState);
+			rangeB1_R1 > aheadPredictRangeUpdateLimit);
 		Call ComputePredict(
 			blue[0],
 			red[1],
@@ -3323,7 +3426,7 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 			rangeR2Predict,
 			angleFromPayloadR2Predict,
 			radiusLongitudeR2Predict,
-			rangeB1_R2 > aheadPredictRangeUpdateLimit or redJammerState);
+			rangeB1_R2 > aheadPredictRangeUpdateLimit);
 		Call ComputePredict(
 			blue[0],
 			red[2],
@@ -3333,7 +3436,7 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 			rangeR3Predict,
 			angleFromPayloadR3Predict,
 			radiusLongitudeR3Predict,
-			rangeB1_R3 > aheadPredictRangeUpdateLimit or redJammerState);
+			rangeB1_R3 > aheadPredictRangeUpdateLimit);
 	Else;
 		viewUplink.InsertLineBreak();
 		viewPayload.InsertLineBreak();
@@ -3474,6 +3577,7 @@ Define Procedure AdvanceSimUplinkPeriod(Formation red, Formation blue);
 	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(0.5));
 	viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 0);
 EndProcedure;
+
 
 Define Procedure DisplayModeScript(Formation red, Formation blue);
 	Optimizer opt;
@@ -3854,10 +3958,6 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	Array dv2(3);
 	TimeSpan futureEpoch2;
 	
-//	red[1].SetKeplerianState(blue[0].GetKeplerianState());
-//	red[1].E += 0.0012;
-//	red[1].I += 0.01;
-	
 	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
@@ -3946,7 +4046,7 @@ Define Procedure DisableScript(Formation red, Formation blue);
 		Call PostBlueStepSubroutine(red, blue);
 	End;
 	
-	//Block PRESOLVED OPTIMIZATION
+//Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
 		opt.Reset(1);
 		opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
@@ -4013,7 +4113,13 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	dv2[2] = file.GetLine().ToVariable();
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
 	file.Close();
+	
+	Call SetRedJammerState(1, red);
 
+	Array kepStateRed2 = red[1].GetKeplerianState();
+	Array kepStateRed3 = red[2].GetKeplerianState();
+	
+	
 	red[1].Maneuver(burn);
 	burn.BurnDirection *= -1;
 	red[2].Maneuver(burn);
@@ -4024,7 +4130,6 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	burn.BurnDirection *= -1;
 	red[2].Maneuver(burn);
 	
-	Call SetRedJammerState(1, red);
 	
 	futureEpoch = futureEpoch2;
 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
@@ -4315,6 +4420,86 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	file.Close();
 	
 	red[0].Maneuver(burn);
+	
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		opt.Reset(1);
+		opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
+		opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
+		opt.AddStateVariable("days", 0.5, 0.1, 1);
+		opt.AddConstraint("A",    kepStateRed2[0], kepStateRed2[0]);
+		opt.AddConstraint("E",    kepStateRed2[1], kepStateRed2[1]);
+		opt.AddConstraint("I",    kepStateRed2[2], kepStateRed2[2]);
+		opt.AddConstraint("RAAN", kepStateRed2[3], kepStateRed2[3]);
+		opt.AddConstraint("W",    kepStateRed2[4], kepStateRed2[4]);
+		
+		opt.SaveObjectToProcess(red[1]);
+		opt.LoadEngine();
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			
+			burn.BurnDirection = opt.GetStateVariableValues[0:2];
+			totalDV = burn.BurnDirection.Norm;
+			red[1].Maneuver(burn);
+			
+			futureEpoch = red[1].Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+			WhileStepping red[1] to (red[1].Epoch == futureEpoch);
+			End;
+			
+			burn.BurnDirection = opt.GetStateVariableValues[3:5];
+			totalDV += burn.BurnDirection.Norm;
+			red[1].Maneuver(burn);
+			
+			opt.SetConstraintValue("A", red[1].A);
+			opt.SetConstraintValue("E", red[1].E);
+			opt.SetConstraintValue("I", red[1].I);
+			opt.SetConstraintValue("RAAN", red[1].RAAN);
+			opt.SetConstraintValue("W", red[1].W);
+									 
+			opt.Minimize(totalDV);
+			
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		Call OpenForWrite("SavedValues/DisableScript_Red2Burn3and4.txt");
+		file.PutLine(opt.GetBestStateVariableValue("dv11").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv12").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv13").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv21").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv22").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv23").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+	
+	Call OpenForRead("SavedValues/DisableScript_Red2Burn3and4.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	dv2[0] = file.GetLine().ToVariable();
+	dv2[1] = file.GetLine().ToVariable();
+	dv2[2] = file.GetLine().ToVariable();
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
+	file.Close();
+	
+	Call SetRedJammerState(0, red);
+	
+	red[1].Maneuver(burn);
+	burn.BurnDirection *= -1;
+	red[2].Maneuver(burn);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+	burn.BurnDirection = dv2;
+	red[1].Maneuver(burn);
+	burn.BurnDirection *= -1;
+	red[2].Maneuver(burn);
 	
 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);

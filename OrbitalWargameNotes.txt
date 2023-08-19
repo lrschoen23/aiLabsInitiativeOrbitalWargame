@@ -2,10 +2,6 @@ Mission Plan Notes;
 
 
 
-- more jamming info/visualizations to react to
-
-- allow for inspecting output before making decision
-
 
 
 EM/RF people: Billy Gonzolez, scott donel
