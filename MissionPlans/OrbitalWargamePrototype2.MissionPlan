@@ -449,30 +449,60 @@ viewPayload.CurrentViewpoint.SensorView.Source = blue[0].Sensors[sensorIndexPayl
 
 Global Variable blueBackupCommsState = 0; // 0 is inactive, 1 is ready, 2 is active
 Global Variable blueJammerState = 0; // 0 is inactive, 1 is ready, 2 is active
+Global Variable redJammerState = 0;
 
-// 0 is inactive, 1 is ready, 2 is active
+// jammerState = 0 is inactive, 1 is ready, 2 is active
 Define Procedure SetBlueJammerState(Variable jammerState);
 	blueJammerState = jammerState;
 	If (blueJammerState == 0);
 		blueJammer.DisplayName = "Ship-based Jammer (Inactive)";
-		viewMain3D.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerInactiveIcon.png");
-		viewUplink.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerInactiveIcon.png");
+		viewMain3D.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerInactiveIcon.png");
+		viewUplink.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerInactiveIcon.png");
 		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerInactiveIcon.png");
 	ElseIf (blueJammerState == 1);
 		blueJammer.DisplayName = "Ship-based Jammer (Standing By)";
-		viewMain3D.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerReadyIcon.png");
-		viewUplink.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerReadyIcon.png");
+		viewMain3D.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerReadyIcon.png");
+		viewUplink.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerReadyIcon.png");
 		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerReadyIcon.png");
-		
 	ElseIf (blueJammerState == 2);
 		blueJammer.DisplayName = "Ship-based Jammer (Active)";
-		viewMain3D.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerActiveIcon.png");
-		viewUplink.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerActiveIcon.png");
+		viewMain3D.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerActiveIcon.png");
+		viewUplink.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerActiveIcon.png");
 		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerActiveIcon.png");
 	End;
 EndProcedure;
 
+// jammerState = 0 is inactive, 1 is active
+Define Procedure SetRedJammerState(Variable jammerState, Formation red);
+	redJammerState = jammerState;
+	If (redJammerState == 0);
+		viewMain3D.SetShowIcon(red[1].ObjectId,  0);
+		viewUplink.SetShowIcon(red[1].ObjectId,  0);
+		viewPayload.SetShowIcon(red[1].ObjectId, 0);
+		
+		viewMain3D.SetShowIcon(red[2].ObjectId,  0);
+		viewUplink.SetShowIcon(red[2].ObjectId,  0);
+		viewPayload.SetShowIcon(red[2].ObjectId, 0);
+	ElseIf (redJammerState == 1);
+		viewMain3D.SetShowIcon(red[1].ObjectId,  1);
+		viewUplink.SetShowIcon(red[1].ObjectId,  1);
+		viewPayload.SetShowIcon(red[1].ObjectId, 1);
+		
+		viewMain3D.SetShowIcon(red[2].ObjectId,  1);
+		viewUplink.SetShowIcon(red[2].ObjectId,  1);
+		viewPayload.SetShowIcon(red[2].ObjectId, 1);
+	End;
+EndProcedure;
+
 Call SetBlueJammerState(0);
+
+viewMain3D.SetObjectIcon(red[1].ObjectId,  "Icons/jammingWarning.png");
+viewUplink.SetObjectIcon(red[1].ObjectId,  "Icons/jammingWarning.png");
+viewPayload.SetObjectIcon(red[1].ObjectId, "Icons/jammingWarning.png");
+
+viewMain3D.SetObjectIcon(red[2].ObjectId,  "Icons/jammingWarning.png");
+viewUplink.SetObjectIcon(red[2].ObjectId,  "Icons/jammingWarning.png");
+viewPayload.SetObjectIcon(red[2].ObjectId, "Icons/jammingWarning.png");
 
 Global ImpulsiveBurn burn;
 burn.AttitudeSystem = 6;
@@ -549,7 +579,7 @@ red[2].SetKeplerianState({42164 + red2and3RadialSeparation,
                           baseI * 1.01,
                           baseRAAN,
                           1,
-                          1 + red2AngularSeparation + 0.8});
+                          1 + red2AngularSeparation + 0.77});
                           
 red[0].Color = colorRed1;
 red[1].Color = colorRed2;
@@ -946,6 +976,13 @@ Define Procedure BuildOperatorActionsMenu();
 	String msg = @"To re-evaluate the data readouts and 3D views before making a selection,\nchoose 'Re-evaluate data' from the list above. Then, when you are ready\nto choose an action, click the blue play button in the top toolbar.";
 	OperatorActions.AddLabel(msg);
 	OperatorActions.AddSeparator("", 1);
+	
+	If (redJammerState == 1);
+		msg = "Warning: Primary comms path is currently disrupted.";
+		OperatorActions.AddLabel(msg);
+		OperatorActions.AddSeparator("", 1);
+	End;
+	
 	Variable multiChoiceID = OperatorActions.AddMultiChoice("userChoice", "Select an action:", "I", 1);
 	OperatorActions.AddMultiChoiceItem(multiChoiceID, "I",   "Continue nominal operations");
 	
@@ -957,7 +994,9 @@ Define Procedure BuildOperatorActionsMenu();
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "II",  "Switch to primary blue comm path");
 	End;
 	
-	OperatorActions.AddMultiChoiceItem(multiChoiceID, "III", "Slew payload away from closest red spacecraft");
+	If (redJammerState == 0);
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "III", "Slew payload away from closest red spacecraft");
+	End;
 	
 	If (blueJammerState == 0); // inactive
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "IV",  "Ready ground-based jamming unit");
@@ -967,7 +1006,10 @@ Define Procedure BuildOperatorActionsMenu();
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "IV",  "De-activate ground-based jamming unit");
 	End;
 	
-	OperatorActions.AddMultiChoiceItem(multiChoiceID, "V",   "Perform evasive maneuver");
+	If (redJammerState == 0);
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "V",   "Perform evasive maneuver");
+	End;
+	
 	OperatorActions.AddMultiChoiceItem(multiChoiceID, "VI",  "Re-evaluate data");
 EndProcedure;
 
@@ -1151,98 +1193,202 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 	
 	overlayDateTime.Shapes[0].TextOptions.Text = blue[0].Epoch.ConvertToCalendarDate("Mmm DD YYYY  hh:mm");
 
-	// update angle/range data R1
-	Call ComputeRangeAndAngleFromPayload(blue[0], red[0], rangeB1_R1, angle);
-	rangeAngleFromPayloadR1.AddPoints(angle, rangeB1_R1);
-	rangeAngleFromPayloadR1CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR1.Data[rangeAngleFromPayloadR1.Data.RowCount - 1, 0:1];
-	
-	rangeR1.AddPoints(0, rangeB1_R1);
-	For i = 0 to rangeR1.Data.RowCount - 1;
-		rangeR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+	Variable dataReadoutIsJammed = redJammerState;
+	RandomNumberGenerator rng;
+	If (redJammerState == 1);
+		If (rng.IntegerUniformDistribution(0, 5) == 1);
+			dataReadoutIsJammed = 0;
+		End;
 	End;
-	rangeR1CurrentLocation.Data[0, 0:1] = rangeR1.Data[rangeR1.Data.RowCount - 1, 0:1];
 	
-	angleFromPayloadR1.AddPoints(0, angle);
-	For i = 0 to angleFromPayloadR1.Data.RowCount - 1;
-		angleFromPayloadR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
-	End;
-	angleFromPayloadR1CurrentLocation.Data[0, 0:1] = angleFromPayloadR1.Data[angleFromPayloadR1.Data.RowCount - 1, 0:1];
-	
-	// update angle/range data R2
-	Call ComputeRangeAndAngleFromPayload(blue[0], red[1], rangeB1_R2, angle);
-	rangeAngleFromPayloadR2.AddPoints(angle, rangeB1_R2);
-	rangeAngleFromPayloadR2CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR2.Data[rangeAngleFromPayloadR2.Data.RowCount - 1, 0:1];
-	
-	rangeR2.AddPoints(0, rangeB1_R2);
-	For i = 0 to rangeR2.Data.RowCount - 1;
-		rangeR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
-	End;
-	rangeR2CurrentLocation.Data[0, 0:1] = rangeR2.Data[rangeR2.Data.RowCount - 1, 0:1];
-	
-	angleFromPayloadR2.AddPoints(0, angle);
-	For i = 0 to angleFromPayloadR2.Data.RowCount - 1;
-		angleFromPayloadR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
-	End;
-	angleFromPayloadR2CurrentLocation.Data[0, 0:1] = angleFromPayloadR2.Data[angleFromPayloadR2.Data.RowCount - 1, 0:1];
-	
-	// update angle/range data R3
-	Call ComputeRangeAndAngleFromPayload(blue[0], red[2], rangeB1_R3, angle);
-	rangeAngleFromPayloadR3.AddPoints(angle, rangeB1_R3);
-	rangeAngleFromPayloadR3CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR3.Data[rangeAngleFromPayloadR3.Data.RowCount - 1, 0:1];
-	
-	rangeR3.AddPoints(0, rangeB1_R3);
-	For i = 0 to rangeR3.Data.RowCount - 1;
-		rangeR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
-	End;
-	rangeR3CurrentLocation.Data[0, 0:1] = rangeR3.Data[rangeR3.Data.RowCount - 1, 0:1];
-	
-	angleFromPayloadR3.AddPoints(0, angle);
-	For i = 0 to angleFromPayloadR3.Data.RowCount - 1;
-		angleFromPayloadR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
-	End;
-	angleFromPayloadR3CurrentLocation.Data[0, 0:1] = angleFromPayloadR3.Data[angleFromPayloadR3.Data.RowCount - 1, 0:1];
+	If (dataReadoutIsJammed == 0);
+		// update angle/range data R1
+		Call ComputeRangeAndAngleFromPayload(blue[0], red[0], rangeB1_R1, angle);
+		rangeAngleFromPayloadR1.AddPoints(angle, rangeB1_R1);
+		rangeAngleFromPayloadR1CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR1.Data[rangeAngleFromPayloadR1.Data.RowCount - 1, 0:1];
+		
+		rangeR1.AddPoints(0, rangeB1_R1);
+		For i = 0 to rangeR1.Data.RowCount - 1;
+			rangeR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR1CurrentLocation.Data[0, 0:1] = rangeR1.Data[rangeR1.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR1.AddPoints(0, angle);
+		For i = 0 to angleFromPayloadR1.Data.RowCount - 1;
+			angleFromPayloadR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR1CurrentLocation.Data[0, 0:1] = angleFromPayloadR1.Data[angleFromPayloadR1.Data.RowCount - 1, 0:1];
+		
+		// update angle/range data R2
+		Call ComputeRangeAndAngleFromPayload(blue[0], red[1], rangeB1_R2, angle);
+		rangeAngleFromPayloadR2.AddPoints(angle, rangeB1_R2);
+		rangeAngleFromPayloadR2CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR2.Data[rangeAngleFromPayloadR2.Data.RowCount - 1, 0:1];
+		
+		rangeR2.AddPoints(0, rangeB1_R2);
+		For i = 0 to rangeR2.Data.RowCount - 1;
+			rangeR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR2CurrentLocation.Data[0, 0:1] = rangeR2.Data[rangeR2.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR2.AddPoints(0, angle);
+		For i = 0 to angleFromPayloadR2.Data.RowCount - 1;
+			angleFromPayloadR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR2CurrentLocation.Data[0, 0:1] = angleFromPayloadR2.Data[angleFromPayloadR2.Data.RowCount - 1, 0:1];
+		
+		// update angle/range data R3
+		Call ComputeRangeAndAngleFromPayload(blue[0], red[2], rangeB1_R3, angle);
+		rangeAngleFromPayloadR3.AddPoints(angle, rangeB1_R3);
+		rangeAngleFromPayloadR3CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR3.Data[rangeAngleFromPayloadR3.Data.RowCount - 1, 0:1];
+		
+		rangeR3.AddPoints(0, rangeB1_R3);
+		For i = 0 to rangeR3.Data.RowCount - 1;
+			rangeR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR3CurrentLocation.Data[0, 0:1] = rangeR3.Data[rangeR3.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR3.AddPoints(0, angle);
+		For i = 0 to angleFromPayloadR3.Data.RowCount - 1;
+			angleFromPayloadR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR3CurrentLocation.Data[0, 0:1] = angleFromPayloadR3.Data[angleFromPayloadR3.Data.RowCount - 1, 0:1];
 
-	// update longitude vs radius data
-	radiusLongitudeB1.AddPoints(blue[0].Longitude, blue[0].Radius);
-	radiusLongitudeR1.AddPoints(red[0].Longitude, red[0].Radius);
-	radiusLongitudeR2.AddPoints(red[1].Longitude, red[1].Radius);
-	radiusLongitudeR3.AddPoints(red[2].Longitude, red[2].Radius);
-	radiusLongitudeB1CurrentLocation.Data[0, 0:1] = radiusLongitudeB1.Data[radiusLongitudeB1.Data.RowCount - 1, 0:1];
-	radiusLongitudeR1CurrentLocation.Data[0, 0:1] = radiusLongitudeR1.Data[radiusLongitudeR1.Data.RowCount - 1, 0:1];
-	radiusLongitudeR2CurrentLocation.Data[0, 0:1] = radiusLongitudeR2.Data[radiusLongitudeR2.Data.RowCount - 1, 0:1];
-	radiusLongitudeR3CurrentLocation.Data[0, 0:1] = radiusLongitudeR3.Data[radiusLongitudeR3.Data.RowCount - 1, 0:1];
+		// update longitude vs radius data
+		radiusLongitudeB1.AddPoints(blue[0].Longitude, blue[0].Radius);
+		radiusLongitudeR1.AddPoints(red[0].Longitude, red[0].Radius);
+		radiusLongitudeR2.AddPoints(red[1].Longitude, red[1].Radius);
+		radiusLongitudeR3.AddPoints(red[2].Longitude, red[2].Radius);
+		radiusLongitudeB1CurrentLocation.Data[0, 0:1] = radiusLongitudeB1.Data[radiusLongitudeB1.Data.RowCount - 1, 0:1];
+		radiusLongitudeR1CurrentLocation.Data[0, 0:1] = radiusLongitudeR1.Data[radiusLongitudeR1.Data.RowCount - 1, 0:1];
+		radiusLongitudeR2CurrentLocation.Data[0, 0:1] = radiusLongitudeR2.Data[radiusLongitudeR2.Data.RowCount - 1, 0:1];
+		radiusLongitudeR3CurrentLocation.Data[0, 0:1] = radiusLongitudeR3.Data[radiusLongitudeR3.Data.RowCount - 1, 0:1];
+		
+		// update predict data
+		Call ComputePredict(
+			blue[0],
+			red[0],
+			aheadPredictTime,
+			overlayRed1Future,
+			rangeAngleFromPayloadR1Predict,
+			rangeR1Predict,
+			angleFromPayloadR1Predict,
+			radiusLongitudeR1Predict,
+			rangeB1_R1 > aheadPredictRangeUpdateLimit or redJammerState);
+		Call ComputePredict(
+			blue[0],
+			red[1],
+			aheadPredictTime,
+			overlayRed2Future,
+			rangeAngleFromPayloadR2Predict,
+			rangeR2Predict,
+			angleFromPayloadR2Predict,
+			radiusLongitudeR2Predict,
+			rangeB1_R2 > aheadPredictRangeUpdateLimit or redJammerState);
+		Call ComputePredict(
+			blue[0],
+			red[2],
+			aheadPredictTime,
+			overlayRed3Future,
+			rangeAngleFromPayloadR3Predict,
+			rangeR3Predict,
+			angleFromPayloadR3Predict,
+			radiusLongitudeR3Predict,
+			rangeB1_R3 > aheadPredictRangeUpdateLimit or redJammerState);
+	Else;
+		viewUplink.InsertLineBreak();
+		viewPayload.InsertLineBreak();
+		viewMain3D.InsertLineBreak();
+		radiusLongitudeB1.AddPoints(blue[0].Longitude, blue[0].Radius);
+		radiusLongitudeB1CurrentLocation.Data[0, 0:1] = radiusLongitudeB1.Data[radiusLongitudeB1.Data.RowCount - 1, 0:1];
 	
-	// update predict data
-	Call ComputePredict(
-		blue[0],
-		red[0],
-		aheadPredictTime,
-		overlayRed1Future,
-		rangeAngleFromPayloadR1Predict,
-		rangeR1Predict,
-		angleFromPayloadR1Predict,
-		radiusLongitudeR1Predict,
-		rangeB1_R1 > aheadPredictRangeUpdateLimit);
-	Call ComputePredict(
-		blue[0],
-		red[1],
-		aheadPredictTime,
-		overlayRed2Future,
-		rangeAngleFromPayloadR2Predict,
-		rangeR2Predict,
-		angleFromPayloadR2Predict,
-		radiusLongitudeR2Predict,
-		rangeB1_R2 > aheadPredictRangeUpdateLimit);
-	Call ComputePredict(
-		blue[0],
-		red[2],
-		aheadPredictTime,
-		overlayRed3Future,
-		rangeAngleFromPayloadR3Predict,
-		rangeR3Predict,
-		angleFromPayloadR3Predict,
-		radiusLongitudeR3Predict,
-		rangeB1_R3 > aheadPredictRangeUpdateLimit);
+		// update angle/range data R1
+		rangeAngleFromPayloadR1.AddPoints(angle, -999);
+		rangeAngleFromPayloadR1CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR1.Data[rangeAngleFromPayloadR1.Data.RowCount - 1, 0:1];
+		
+		rangeR1.AddPoints(0, -999);
+		For i = 0 to rangeR1.Data.RowCount - 1;
+			rangeR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR1CurrentLocation.Data[0, 0:1] = rangeR1.Data[rangeR1.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR1.AddPoints(0, -999);
+		For i = 0 to angleFromPayloadR1.Data.RowCount - 1;
+			angleFromPayloadR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR1CurrentLocation.Data[0, 0:1] = angleFromPayloadR1.Data[angleFromPayloadR1.Data.RowCount - 1, 0:1];
+		
+		// update angle/range data R2
+		rangeAngleFromPayloadR2.AddPoints(angle, -999);
+		rangeAngleFromPayloadR2CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR2.Data[rangeAngleFromPayloadR2.Data.RowCount - 1, 0:1];
+		
+		rangeR2.AddPoints(0, -999);
+		For i = 0 to rangeR2.Data.RowCount - 1;
+			rangeR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR2CurrentLocation.Data[0, 0:1] = rangeR2.Data[rangeR2.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR2.AddPoints(0, -999);
+		For i = 0 to angleFromPayloadR2.Data.RowCount - 1;
+			angleFromPayloadR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR2CurrentLocation.Data[0, 0:1] = angleFromPayloadR2.Data[angleFromPayloadR2.Data.RowCount - 1, 0:1];
+		
+		// update angle/range data R3
+		rangeAngleFromPayloadR3.AddPoints(angle, -999);
+		rangeAngleFromPayloadR3CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR3.Data[rangeAngleFromPayloadR3.Data.RowCount - 1, 0:1];
+		
+		rangeR3.AddPoints(0, -999);
+		For i = 0 to rangeR3.Data.RowCount - 1;
+			rangeR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR3CurrentLocation.Data[0, 0:1] = rangeR3.Data[rangeR3.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR3.AddPoints(0, -999);
+		For i = 0 to angleFromPayloadR3.Data.RowCount - 1;
+			angleFromPayloadR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR3CurrentLocation.Data[0, 0:1] = angleFromPayloadR3.Data[angleFromPayloadR3.Data.RowCount - 1, 0:1];
+
+		// update longitude vs radius data
+		radiusLongitudeR1.AddPoints(red[0].Longitude, -999);
+		radiusLongitudeR2.AddPoints(red[1].Longitude, -999);
+		radiusLongitudeR3.AddPoints(red[2].Longitude, -999);
+		radiusLongitudeR1CurrentLocation.Data[0, 0:1] = radiusLongitudeR1.Data[radiusLongitudeR1.Data.RowCount - 1, 0:1];
+		radiusLongitudeR2CurrentLocation.Data[0, 0:1] = radiusLongitudeR2.Data[radiusLongitudeR2.Data.RowCount - 1, 0:1];
+		radiusLongitudeR3CurrentLocation.Data[0, 0:1] = radiusLongitudeR3.Data[radiusLongitudeR3.Data.RowCount - 1, 0:1];
+		
+		// Erase predicts
+		Call ComputePredict(
+			blue[0],
+			red[0],
+			aheadPredictTime,
+			overlayRed1Future,
+			rangeAngleFromPayloadR1Predict,
+			rangeR1Predict,
+			angleFromPayloadR1Predict,
+			radiusLongitudeR1Predict,
+			1);
+		Call ComputePredict(
+			blue[0],
+			red[1],
+			aheadPredictTime,
+			overlayRed2Future,
+			rangeAngleFromPayloadR2Predict,
+			rangeR2Predict,
+			angleFromPayloadR2Predict,
+			radiusLongitudeR2Predict,
+			1);
+		Call ComputePredict(
+			blue[0],
+			red[2],
+			aheadPredictTime,
+			overlayRed3Future,
+			rangeAngleFromPayloadR3Predict,
+			rangeR3Predict,
+			angleFromPayloadR3Predict,
+			radiusLongitudeR3Predict,
+			1);	
+	End;
 	
 	viewMain3D.Update();
 	viewUplink.Update();
@@ -1837,6 +1983,8 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	red[1].Maneuver(burn);
 	burn.BurnDirection *= -1;
 	red[2].Maneuver(burn);
+	
+	Call SetRedJammerState(1, red);
 	
 	futureEpoch = futureEpoch2;
 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
@@ -2361,30 +2509,60 @@ viewPayload.CurrentViewpoint.SensorView.Source = blue[0].Sensors[sensorIndexPayl
 
 Global Variable blueBackupCommsState = 0; // 0 is inactive, 1 is ready, 2 is active
 Global Variable blueJammerState = 0; // 0 is inactive, 1 is ready, 2 is active
+Global Variable redJammerState = 0;
 
-// 0 is inactive, 1 is ready, 2 is active
+// jammerState = 0 is inactive, 1 is ready, 2 is active
 Define Procedure SetBlueJammerState(Variable jammerState);
 	blueJammerState = jammerState;
 	If (blueJammerState == 0);
 		blueJammer.DisplayName = "Ship-based Jammer (Inactive)";
-		viewMain3D.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerInactiveIcon.png");
-		viewUplink.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerInactiveIcon.png");
+		viewMain3D.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerInactiveIcon.png");
+		viewUplink.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerInactiveIcon.png");
 		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerInactiveIcon.png");
 	ElseIf (blueJammerState == 1);
 		blueJammer.DisplayName = "Ship-based Jammer (Standing By)";
-		viewMain3D.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerReadyIcon.png");
-		viewUplink.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerReadyIcon.png");
+		viewMain3D.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerReadyIcon.png");
+		viewUplink.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerReadyIcon.png");
 		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerReadyIcon.png");
-		
 	ElseIf (blueJammerState == 2);
 		blueJammer.DisplayName = "Ship-based Jammer (Active)";
-		viewMain3D.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerActiveIcon.png");
-		viewUplink.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerActiveIcon.png");
+		viewMain3D.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerActiveIcon.png");
+		viewUplink.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerActiveIcon.png");
 		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerActiveIcon.png");
 	End;
 EndProcedure;
 
+// jammerState = 0 is inactive, 1 is active
+Define Procedure SetRedJammerState(Variable jammerState, Formation red);
+	redJammerState = jammerState;
+	If (redJammerState == 0);
+		viewMain3D.SetShowIcon(red[1].ObjectId,  0);
+		viewUplink.SetShowIcon(red[1].ObjectId,  0);
+		viewPayload.SetShowIcon(red[1].ObjectId, 0);
+		
+		viewMain3D.SetShowIcon(red[2].ObjectId,  0);
+		viewUplink.SetShowIcon(red[2].ObjectId,  0);
+		viewPayload.SetShowIcon(red[2].ObjectId, 0);
+	ElseIf (redJammerState == 1);
+		viewMain3D.SetShowIcon(red[1].ObjectId,  1);
+		viewUplink.SetShowIcon(red[1].ObjectId,  1);
+		viewPayload.SetShowIcon(red[1].ObjectId, 1);
+		
+		viewMain3D.SetShowIcon(red[2].ObjectId,  1);
+		viewUplink.SetShowIcon(red[2].ObjectId,  1);
+		viewPayload.SetShowIcon(red[2].ObjectId, 1);
+	End;
+EndProcedure;
+
 Call SetBlueJammerState(0);
+
+viewMain3D.SetObjectIcon(red[1].ObjectId,  "Icons/jammingWarning.png");
+viewUplink.SetObjectIcon(red[1].ObjectId,  "Icons/jammingWarning.png");
+viewPayload.SetObjectIcon(red[1].ObjectId, "Icons/jammingWarning.png");
+
+viewMain3D.SetObjectIcon(red[2].ObjectId,  "Icons/jammingWarning.png");
+viewUplink.SetObjectIcon(red[2].ObjectId,  "Icons/jammingWarning.png");
+viewPayload.SetObjectIcon(red[2].ObjectId, "Icons/jammingWarning.png");
 
 Global ImpulsiveBurn burn;
 burn.AttitudeSystem = 6;
@@ -2461,7 +2639,7 @@ red[2].SetKeplerianState({42164 + red2and3RadialSeparation,
                           baseI * 1.01,
                           baseRAAN,
                           1,
-                          1 + red2AngularSeparation + 0.8});
+                          1 + red2AngularSeparation + 0.77});
                           
 red[0].Color = colorRed1;
 red[1].Color = colorRed2;
@@ -2848,6 +3026,13 @@ Define Procedure BuildOperatorActionsMenu();
 	String msg = @"To re-evaluate the data readouts and 3D views before making a selection,\nchoose 'Re-evaluate data' from the list above. Then, when you are ready\nto choose an action, click the blue play button in the top toolbar.";
 	OperatorActions.AddLabel(msg);
 	OperatorActions.AddSeparator("", 1);
+	
+	If (redJammerState == 1);
+		msg = "Warning: Primary comms path is currently disrupted.";
+		OperatorActions.AddLabel(msg);
+		OperatorActions.AddSeparator("", 1);
+	End;
+	
 	Variable multiChoiceID = OperatorActions.AddMultiChoice("userChoice", "Select an action:", "I", 1);
 	OperatorActions.AddMultiChoiceItem(multiChoiceID, "I",   "Continue nominal operations");
 	
@@ -2859,7 +3044,9 @@ Define Procedure BuildOperatorActionsMenu();
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "II",  "Switch to primary blue comm path");
 	End;
 	
-	OperatorActions.AddMultiChoiceItem(multiChoiceID, "III", "Slew payload away from closest red spacecraft");
+	If (redJammerState == 0);
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "III", "Slew payload away from closest red spacecraft");
+	End;
 	
 	If (blueJammerState == 0); // inactive
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "IV",  "Ready ground-based jamming unit");
@@ -2869,7 +3056,10 @@ Define Procedure BuildOperatorActionsMenu();
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "IV",  "De-activate ground-based jamming unit");
 	End;
 	
-	OperatorActions.AddMultiChoiceItem(multiChoiceID, "V",   "Perform evasive maneuver");
+	If (redJammerState == 0);
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "V",   "Perform evasive maneuver");
+	End;
+	
 	OperatorActions.AddMultiChoiceItem(multiChoiceID, "VI",  "Re-evaluate data");
 EndProcedure;
 
@@ -3043,98 +3233,202 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 	
 	overlayDateTime.Shapes[0].TextOptions.Text = blue[0].Epoch.ConvertToCalendarDate("Mmm DD YYYY  hh:mm");
 
-	// update angle/range data R1
-	Call ComputeRangeAndAngleFromPayload(blue[0], red[0], rangeB1_R1, angle);
-	rangeAngleFromPayloadR1.AddPoints(angle, rangeB1_R1);
-	rangeAngleFromPayloadR1CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR1.Data[rangeAngleFromPayloadR1.Data.RowCount - 1, 0:1];
-	
-	rangeR1.AddPoints(0, rangeB1_R1);
-	For i = 0 to rangeR1.Data.RowCount - 1;
-		rangeR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+	Variable dataReadoutIsJammed = redJammerState;
+	RandomNumberGenerator rng;
+	If (redJammerState == 1);
+		If (rng.IntegerUniformDistribution(0, 5) == 1);
+			dataReadoutIsJammed = 0;
+		End;
 	End;
-	rangeR1CurrentLocation.Data[0, 0:1] = rangeR1.Data[rangeR1.Data.RowCount - 1, 0:1];
 	
-	angleFromPayloadR1.AddPoints(0, angle);
-	For i = 0 to angleFromPayloadR1.Data.RowCount - 1;
-		angleFromPayloadR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
-	End;
-	angleFromPayloadR1CurrentLocation.Data[0, 0:1] = angleFromPayloadR1.Data[angleFromPayloadR1.Data.RowCount - 1, 0:1];
-	
-	// update angle/range data R2
-	Call ComputeRangeAndAngleFromPayload(blue[0], red[1], rangeB1_R2, angle);
-	rangeAngleFromPayloadR2.AddPoints(angle, rangeB1_R2);
-	rangeAngleFromPayloadR2CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR2.Data[rangeAngleFromPayloadR2.Data.RowCount - 1, 0:1];
-	
-	rangeR2.AddPoints(0, rangeB1_R2);
-	For i = 0 to rangeR2.Data.RowCount - 1;
-		rangeR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
-	End;
-	rangeR2CurrentLocation.Data[0, 0:1] = rangeR2.Data[rangeR2.Data.RowCount - 1, 0:1];
-	
-	angleFromPayloadR2.AddPoints(0, angle);
-	For i = 0 to angleFromPayloadR2.Data.RowCount - 1;
-		angleFromPayloadR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
-	End;
-	angleFromPayloadR2CurrentLocation.Data[0, 0:1] = angleFromPayloadR2.Data[angleFromPayloadR2.Data.RowCount - 1, 0:1];
-	
-	// update angle/range data R3
-	Call ComputeRangeAndAngleFromPayload(blue[0], red[2], rangeB1_R3, angle);
-	rangeAngleFromPayloadR3.AddPoints(angle, rangeB1_R3);
-	rangeAngleFromPayloadR3CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR3.Data[rangeAngleFromPayloadR3.Data.RowCount - 1, 0:1];
-	
-	rangeR3.AddPoints(0, rangeB1_R3);
-	For i = 0 to rangeR3.Data.RowCount - 1;
-		rangeR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
-	End;
-	rangeR3CurrentLocation.Data[0, 0:1] = rangeR3.Data[rangeR3.Data.RowCount - 1, 0:1];
-	
-	angleFromPayloadR3.AddPoints(0, angle);
-	For i = 0 to angleFromPayloadR3.Data.RowCount - 1;
-		angleFromPayloadR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
-	End;
-	angleFromPayloadR3CurrentLocation.Data[0, 0:1] = angleFromPayloadR3.Data[angleFromPayloadR3.Data.RowCount - 1, 0:1];
+	If (dataReadoutIsJammed == 0);
+		// update angle/range data R1
+		Call ComputeRangeAndAngleFromPayload(blue[0], red[0], rangeB1_R1, angle);
+		rangeAngleFromPayloadR1.AddPoints(angle, rangeB1_R1);
+		rangeAngleFromPayloadR1CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR1.Data[rangeAngleFromPayloadR1.Data.RowCount - 1, 0:1];
+		
+		rangeR1.AddPoints(0, rangeB1_R1);
+		For i = 0 to rangeR1.Data.RowCount - 1;
+			rangeR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR1CurrentLocation.Data[0, 0:1] = rangeR1.Data[rangeR1.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR1.AddPoints(0, angle);
+		For i = 0 to angleFromPayloadR1.Data.RowCount - 1;
+			angleFromPayloadR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR1CurrentLocation.Data[0, 0:1] = angleFromPayloadR1.Data[angleFromPayloadR1.Data.RowCount - 1, 0:1];
+		
+		// update angle/range data R2
+		Call ComputeRangeAndAngleFromPayload(blue[0], red[1], rangeB1_R2, angle);
+		rangeAngleFromPayloadR2.AddPoints(angle, rangeB1_R2);
+		rangeAngleFromPayloadR2CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR2.Data[rangeAngleFromPayloadR2.Data.RowCount - 1, 0:1];
+		
+		rangeR2.AddPoints(0, rangeB1_R2);
+		For i = 0 to rangeR2.Data.RowCount - 1;
+			rangeR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR2CurrentLocation.Data[0, 0:1] = rangeR2.Data[rangeR2.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR2.AddPoints(0, angle);
+		For i = 0 to angleFromPayloadR2.Data.RowCount - 1;
+			angleFromPayloadR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR2CurrentLocation.Data[0, 0:1] = angleFromPayloadR2.Data[angleFromPayloadR2.Data.RowCount - 1, 0:1];
+		
+		// update angle/range data R3
+		Call ComputeRangeAndAngleFromPayload(blue[0], red[2], rangeB1_R3, angle);
+		rangeAngleFromPayloadR3.AddPoints(angle, rangeB1_R3);
+		rangeAngleFromPayloadR3CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR3.Data[rangeAngleFromPayloadR3.Data.RowCount - 1, 0:1];
+		
+		rangeR3.AddPoints(0, rangeB1_R3);
+		For i = 0 to rangeR3.Data.RowCount - 1;
+			rangeR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR3CurrentLocation.Data[0, 0:1] = rangeR3.Data[rangeR3.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR3.AddPoints(0, angle);
+		For i = 0 to angleFromPayloadR3.Data.RowCount - 1;
+			angleFromPayloadR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR3CurrentLocation.Data[0, 0:1] = angleFromPayloadR3.Data[angleFromPayloadR3.Data.RowCount - 1, 0:1];
 
-	// update longitude vs radius data
-	radiusLongitudeB1.AddPoints(blue[0].Longitude, blue[0].Radius);
-	radiusLongitudeR1.AddPoints(red[0].Longitude, red[0].Radius);
-	radiusLongitudeR2.AddPoints(red[1].Longitude, red[1].Radius);
-	radiusLongitudeR3.AddPoints(red[2].Longitude, red[2].Radius);
-	radiusLongitudeB1CurrentLocation.Data[0, 0:1] = radiusLongitudeB1.Data[radiusLongitudeB1.Data.RowCount - 1, 0:1];
-	radiusLongitudeR1CurrentLocation.Data[0, 0:1] = radiusLongitudeR1.Data[radiusLongitudeR1.Data.RowCount - 1, 0:1];
-	radiusLongitudeR2CurrentLocation.Data[0, 0:1] = radiusLongitudeR2.Data[radiusLongitudeR2.Data.RowCount - 1, 0:1];
-	radiusLongitudeR3CurrentLocation.Data[0, 0:1] = radiusLongitudeR3.Data[radiusLongitudeR3.Data.RowCount - 1, 0:1];
+		// update longitude vs radius data
+		radiusLongitudeB1.AddPoints(blue[0].Longitude, blue[0].Radius);
+		radiusLongitudeR1.AddPoints(red[0].Longitude, red[0].Radius);
+		radiusLongitudeR2.AddPoints(red[1].Longitude, red[1].Radius);
+		radiusLongitudeR3.AddPoints(red[2].Longitude, red[2].Radius);
+		radiusLongitudeB1CurrentLocation.Data[0, 0:1] = radiusLongitudeB1.Data[radiusLongitudeB1.Data.RowCount - 1, 0:1];
+		radiusLongitudeR1CurrentLocation.Data[0, 0:1] = radiusLongitudeR1.Data[radiusLongitudeR1.Data.RowCount - 1, 0:1];
+		radiusLongitudeR2CurrentLocation.Data[0, 0:1] = radiusLongitudeR2.Data[radiusLongitudeR2.Data.RowCount - 1, 0:1];
+		radiusLongitudeR3CurrentLocation.Data[0, 0:1] = radiusLongitudeR3.Data[radiusLongitudeR3.Data.RowCount - 1, 0:1];
+		
+		// update predict data
+		Call ComputePredict(
+			blue[0],
+			red[0],
+			aheadPredictTime,
+			overlayRed1Future,
+			rangeAngleFromPayloadR1Predict,
+			rangeR1Predict,
+			angleFromPayloadR1Predict,
+			radiusLongitudeR1Predict,
+			rangeB1_R1 > aheadPredictRangeUpdateLimit or redJammerState);
+		Call ComputePredict(
+			blue[0],
+			red[1],
+			aheadPredictTime,
+			overlayRed2Future,
+			rangeAngleFromPayloadR2Predict,
+			rangeR2Predict,
+			angleFromPayloadR2Predict,
+			radiusLongitudeR2Predict,
+			rangeB1_R2 > aheadPredictRangeUpdateLimit or redJammerState);
+		Call ComputePredict(
+			blue[0],
+			red[2],
+			aheadPredictTime,
+			overlayRed3Future,
+			rangeAngleFromPayloadR3Predict,
+			rangeR3Predict,
+			angleFromPayloadR3Predict,
+			radiusLongitudeR3Predict,
+			rangeB1_R3 > aheadPredictRangeUpdateLimit or redJammerState);
+	Else;
+		viewUplink.InsertLineBreak();
+		viewPayload.InsertLineBreak();
+		viewMain3D.InsertLineBreak();
+		radiusLongitudeB1.AddPoints(blue[0].Longitude, blue[0].Radius);
+		radiusLongitudeB1CurrentLocation.Data[0, 0:1] = radiusLongitudeB1.Data[radiusLongitudeB1.Data.RowCount - 1, 0:1];
 	
-	// update predict data
-	Call ComputePredict(
-		blue[0],
-		red[0],
-		aheadPredictTime,
-		overlayRed1Future,
-		rangeAngleFromPayloadR1Predict,
-		rangeR1Predict,
-		angleFromPayloadR1Predict,
-		radiusLongitudeR1Predict,
-		rangeB1_R1 > aheadPredictRangeUpdateLimit);
-	Call ComputePredict(
-		blue[0],
-		red[1],
-		aheadPredictTime,
-		overlayRed2Future,
-		rangeAngleFromPayloadR2Predict,
-		rangeR2Predict,
-		angleFromPayloadR2Predict,
-		radiusLongitudeR2Predict,
-		rangeB1_R2 > aheadPredictRangeUpdateLimit);
-	Call ComputePredict(
-		blue[0],
-		red[2],
-		aheadPredictTime,
-		overlayRed3Future,
-		rangeAngleFromPayloadR3Predict,
-		rangeR3Predict,
-		angleFromPayloadR3Predict,
-		radiusLongitudeR3Predict,
-		rangeB1_R3 > aheadPredictRangeUpdateLimit);
+		// update angle/range data R1
+		rangeAngleFromPayloadR1.AddPoints(angle, -999);
+		rangeAngleFromPayloadR1CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR1.Data[rangeAngleFromPayloadR1.Data.RowCount - 1, 0:1];
+		
+		rangeR1.AddPoints(0, -999);
+		For i = 0 to rangeR1.Data.RowCount - 1;
+			rangeR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR1CurrentLocation.Data[0, 0:1] = rangeR1.Data[rangeR1.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR1.AddPoints(0, -999);
+		For i = 0 to angleFromPayloadR1.Data.RowCount - 1;
+			angleFromPayloadR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR1CurrentLocation.Data[0, 0:1] = angleFromPayloadR1.Data[angleFromPayloadR1.Data.RowCount - 1, 0:1];
+		
+		// update angle/range data R2
+		rangeAngleFromPayloadR2.AddPoints(angle, -999);
+		rangeAngleFromPayloadR2CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR2.Data[rangeAngleFromPayloadR2.Data.RowCount - 1, 0:1];
+		
+		rangeR2.AddPoints(0, -999);
+		For i = 0 to rangeR2.Data.RowCount - 1;
+			rangeR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR2CurrentLocation.Data[0, 0:1] = rangeR2.Data[rangeR2.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR2.AddPoints(0, -999);
+		For i = 0 to angleFromPayloadR2.Data.RowCount - 1;
+			angleFromPayloadR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR2CurrentLocation.Data[0, 0:1] = angleFromPayloadR2.Data[angleFromPayloadR2.Data.RowCount - 1, 0:1];
+		
+		// update angle/range data R3
+		rangeAngleFromPayloadR3.AddPoints(angle, -999);
+		rangeAngleFromPayloadR3CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR3.Data[rangeAngleFromPayloadR3.Data.RowCount - 1, 0:1];
+		
+		rangeR3.AddPoints(0, -999);
+		For i = 0 to rangeR3.Data.RowCount - 1;
+			rangeR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR3CurrentLocation.Data[0, 0:1] = rangeR3.Data[rangeR3.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR3.AddPoints(0, -999);
+		For i = 0 to angleFromPayloadR3.Data.RowCount - 1;
+			angleFromPayloadR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR3CurrentLocation.Data[0, 0:1] = angleFromPayloadR3.Data[angleFromPayloadR3.Data.RowCount - 1, 0:1];
+
+		// update longitude vs radius data
+		radiusLongitudeR1.AddPoints(red[0].Longitude, -999);
+		radiusLongitudeR2.AddPoints(red[1].Longitude, -999);
+		radiusLongitudeR3.AddPoints(red[2].Longitude, -999);
+		radiusLongitudeR1CurrentLocation.Data[0, 0:1] = radiusLongitudeR1.Data[radiusLongitudeR1.Data.RowCount - 1, 0:1];
+		radiusLongitudeR2CurrentLocation.Data[0, 0:1] = radiusLongitudeR2.Data[radiusLongitudeR2.Data.RowCount - 1, 0:1];
+		radiusLongitudeR3CurrentLocation.Data[0, 0:1] = radiusLongitudeR3.Data[radiusLongitudeR3.Data.RowCount - 1, 0:1];
+		
+		// Erase predicts
+		Call ComputePredict(
+			blue[0],
+			red[0],
+			aheadPredictTime,
+			overlayRed1Future,
+			rangeAngleFromPayloadR1Predict,
+			rangeR1Predict,
+			angleFromPayloadR1Predict,
+			radiusLongitudeR1Predict,
+			1);
+		Call ComputePredict(
+			blue[0],
+			red[1],
+			aheadPredictTime,
+			overlayRed2Future,
+			rangeAngleFromPayloadR2Predict,
+			rangeR2Predict,
+			angleFromPayloadR2Predict,
+			radiusLongitudeR2Predict,
+			1);
+		Call ComputePredict(
+			blue[0],
+			red[2],
+			aheadPredictTime,
+			overlayRed3Future,
+			rangeAngleFromPayloadR3Predict,
+			rangeR3Predict,
+			angleFromPayloadR3Predict,
+			radiusLongitudeR3Predict,
+			1);	
+	End;
 	
 	viewMain3D.Update();
 	viewUplink.Update();
@@ -3729,6 +4023,8 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	red[1].Maneuver(burn);
 	burn.BurnDirection *= -1;
 	red[2].Maneuver(burn);
+	
+	Call SetRedJammerState(1, red);
 	
 	futureEpoch = futureEpoch2;
 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
