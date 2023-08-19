@@ -237,7 +237,7 @@
         <Breakpoints />
         <FreeFormScript><![CDATA[//Show MainMenu;
 
-userChoice = 3;
+userChoice = 0;
 simStepSizeSeconds = 1500;
 ]]></FreeFormScript>
       </FreeForm>
@@ -282,7 +282,7 @@ blueJammer.Color = colorBlue1;
 blueJammer.Latitude = -10;
 blueJammer.Longitude = -100;
 blueJammer.Speed = 0;
-blueJammer.Height = 500;
+blueJammer.Height = 1000;
 
 Global Constant Variable sensorIndexUplink = 0;
 Global Constant Variable sensorIndexPayload = 1;
@@ -455,17 +455,17 @@ Global Variable redJammerState = 0;
 Define Procedure SetBlueJammerState(Variable jammerState);
 	blueJammerState = jammerState;
 	If (blueJammerState == 0);
-		blueJammer.DisplayName = "Ship-based Jammer (Inactive)";
+		blueJammer.DisplayName = "Jamming Unit (Inactive)";
 		viewMain3D.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerInactiveIcon.png");
 		viewUplink.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerInactiveIcon.png");
 		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerInactiveIcon.png");
 	ElseIf (blueJammerState == 1);
-		blueJammer.DisplayName = "Ship-based Jammer (Standing By)";
+		blueJammer.DisplayName = "Jamming Unit (Standing By)";
 		viewMain3D.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerReadyIcon.png");
 		viewUplink.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerReadyIcon.png");
 		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerReadyIcon.png");
 	ElseIf (blueJammerState == 2);
-		blueJammer.DisplayName = "Ship-based Jammer (Active)";
+		blueJammer.DisplayName = "Jamming Unit (Active)";
 		viewMain3D.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerActiveIcon.png");
 		viewUplink.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerActiveIcon.png");
 		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerActiveIcon.png");
@@ -949,11 +949,23 @@ Call AddSinglePointToPlot(
 	ColorTools.Green,
 	"");
 	
+	
+// set up results bar chart
+Global PlotWindow pwResultsBarChart;
+pwResultsBarChart.WindowTitle = "Game Score";
+Global Variable redObjectiveScore = 100;
+Global Variable blueOperationsScore = 100;
+Global Variable tensionScore = 100;
+Call MakeBarChart(pwResultsBarChart, 1, {1, 2, 3}, {redObjectiveScore, blueOperationsScore, tensionScore}, "", "Score (%)", {0.9, 3.1}, {0, 100}, "Results", "");
 
+Define Procedure UpdateResultsBarChart();
+	
+EndProcedure;
+
+pwRadiusLongitude.EndBatchUpdate();
 pwRange.EndBatchUpdate();
 pwAngleFromPayload.EndBatchUpdate();
-pwAngleRange.EndBatchUpdate();
-pwRadiusLongitude.EndBatchUpdate();]]></FreeFormScript>
+pwAngleRange.EndBatchUpdate();]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
         <Label>OperatorActions menu</Label>
@@ -1038,6 +1050,11 @@ Define Procedure SetWindowRight(Variable ID);
 	OutputLayout.SetWindowSize(ID, 1, 1 - screenSpaceRatio, 1, 1);
 EndProcedure;
 
+Define Procedure SetWindowLeft(Variable ID);
+	OutputLayout.SetWindowPosition(ID, 1, 0, 1, 0);
+	OutputLayout.SetWindowSize(ID, 1, screenSpaceRatio, 1, 1);
+EndProcedure;
+
 Define Procedure SetWindowTopLeft(Variable ID);
 	OutputLayout.SetWindowPosition(ID, 1, 0, 1, 0);
 	OutputLayout.SetWindowSize(ID, 1, screenSpaceRatio, 1, 0.5);
@@ -1048,10 +1065,13 @@ Define Procedure SetWindowBottomLeft(Variable ID);
 	OutputLayout.SetWindowSize(ID, 1, screenSpaceRatio, 1, 0.5);
 EndProcedure;
 
+// TODO: uncomment
+//OutputLayout.SetWorkspaceFullScreenMode(1);
 
-OutputLayout.SetWindowFrameVisibility({viewMain3D.ID, pwRadiusLongitude.ID, pwAngleRange.ID, pwRange.ID, pwAngleFromPayload.ID, viewUplink.ID, viewPayload.ID}, 0);
+OutputLayout.SetWindowFrameVisibility({pwResultsBarChart.ID, viewMain3D.ID, pwRadiusLongitude.ID, pwAngleRange.ID, pwRange.ID, pwAngleFromPayload.ID, viewUplink.ID, viewPayload.ID}, 0);
 
 Call SetWindowTopLeft(pwRadiusLongitude.ID);
+Call SetWindowTopLeft(pwResultsBarChart.ID);
 
 Call SetWindowBottomLeft(pwAngleRange.ID);
 Call SetWindowBottomLeft(pwRange.ID);
@@ -1062,7 +1082,6 @@ Call SetWindowRight(viewMain3D.ID);
 Call SetWindowRight(viewUplink.ID);
 Call SetWindowRight(viewPayload.ID);
 OutputLayout.BringWindowToFront(viewMain3D.ID);
-
 
 OutputLayout.ApplyUpdates();]]></FreeFormScript>
       </FreeForm>
@@ -1442,6 +1461,7 @@ Define Procedure AdvanceSimUplinkPeriod(Formation red, Formation blue);
 	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(0.5));
 	viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 0);
 EndProcedure;
+
 ]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
@@ -1452,6 +1472,24 @@ EndProcedure;
 Define Procedure DisplayModeScript(Formation red, Formation blue);
 	Optimizer opt;
 	TimeSpan initialEpoch;
+	
+	red[1].I += 0.1;
+	red[2].I += 0.1;
+	red[2].RAAN -= 30;
+	red[2].TA += 30;
+	
+	OutputLayout.BringWindowToFront(pwAngleFromPayload.ID);
+	OutputLayout.ApplyUpdates();
+	
+	pwRange.BeginBatchUpdate();
+	(pwRange.Series[0] AsType PlotScatterSeries).AddPoints(0, 0);
+	pwRange.Update();
+//	(pwRange.Series[0] AsType PlotScatterSeries).ClearPoints();
+	pwRange.EndBatchUpdate();
+	OutputLayout.BringWindowToFront(pwRange.ID);
+	
+	viewMain3D.CurrentViewpoint.ThreeDView.RightAscension = 268;
+	viewMain3D.CurrentViewpoint.ThreeDView.Declination = 7;
 	
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
@@ -2397,7 +2435,7 @@ End;]]></FreeFormScript>
   </ProjectMissionSequence>
   <ProjectScript><![CDATA[//Show MainMenu;
 
-userChoice = 3;
+userChoice = 0;
 simStepSizeSeconds = 1500;
 
 
@@ -2437,7 +2475,7 @@ blueJammer.Color = colorBlue1;
 blueJammer.Latitude = -10;
 blueJammer.Longitude = -100;
 blueJammer.Speed = 0;
-blueJammer.Height = 500;
+blueJammer.Height = 1000;
 
 Global Constant Variable sensorIndexUplink = 0;
 Global Constant Variable sensorIndexPayload = 1;
@@ -2610,17 +2648,17 @@ Global Variable redJammerState = 0;
 Define Procedure SetBlueJammerState(Variable jammerState);
 	blueJammerState = jammerState;
 	If (blueJammerState == 0);
-		blueJammer.DisplayName = "Ship-based Jammer (Inactive)";
+		blueJammer.DisplayName = "Jamming Unit (Inactive)";
 		viewMain3D.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerInactiveIcon.png");
 		viewUplink.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerInactiveIcon.png");
 		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerInactiveIcon.png");
 	ElseIf (blueJammerState == 1);
-		blueJammer.DisplayName = "Ship-based Jammer (Standing By)";
+		blueJammer.DisplayName = "Jamming Unit (Standing By)";
 		viewMain3D.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerReadyIcon.png");
 		viewUplink.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerReadyIcon.png");
 		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerReadyIcon.png");
 	ElseIf (blueJammerState == 2);
-		blueJammer.DisplayName = "Ship-based Jammer (Active)";
+		blueJammer.DisplayName = "Jamming Unit (Active)";
 		viewMain3D.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerActiveIcon.png");
 		viewUplink.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerActiveIcon.png");
 		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerActiveIcon.png");
@@ -3099,11 +3137,23 @@ Call AddSinglePointToPlot(
 	ColorTools.Green,
 	"");
 	
+	
+// set up results bar chart
+Global PlotWindow pwResultsBarChart;
+pwResultsBarChart.WindowTitle = "Game Score";
+Global Variable redObjectiveScore = 100;
+Global Variable blueOperationsScore = 100;
+Global Variable tensionScore = 100;
+Call MakeBarChart(pwResultsBarChart, 1, {1, 2, 3}, {redObjectiveScore, blueOperationsScore, tensionScore}, "", "Score (%)", {0.9, 3.1}, {0, 100}, "Results", "");
 
+Define Procedure UpdateResultsBarChart();
+	
+EndProcedure;
+
+pwRadiusLongitude.EndBatchUpdate();
 pwRange.EndBatchUpdate();
 pwAngleFromPayload.EndBatchUpdate();
 pwAngleRange.EndBatchUpdate();
-pwRadiusLongitude.EndBatchUpdate();
 Global UserInterface OperatorActions;
 
 Global Constant Variable I = 1;
@@ -3178,6 +3228,11 @@ Define Procedure SetWindowRight(Variable ID);
 	OutputLayout.SetWindowSize(ID, 1, 1 - screenSpaceRatio, 1, 1);
 EndProcedure;
 
+Define Procedure SetWindowLeft(Variable ID);
+	OutputLayout.SetWindowPosition(ID, 1, 0, 1, 0);
+	OutputLayout.SetWindowSize(ID, 1, screenSpaceRatio, 1, 1);
+EndProcedure;
+
 Define Procedure SetWindowTopLeft(Variable ID);
 	OutputLayout.SetWindowPosition(ID, 1, 0, 1, 0);
 	OutputLayout.SetWindowSize(ID, 1, screenSpaceRatio, 1, 0.5);
@@ -3188,10 +3243,13 @@ Define Procedure SetWindowBottomLeft(Variable ID);
 	OutputLayout.SetWindowSize(ID, 1, screenSpaceRatio, 1, 0.5);
 EndProcedure;
 
+// TODO: uncomment
+//OutputLayout.SetWorkspaceFullScreenMode(1);
 
-OutputLayout.SetWindowFrameVisibility({viewMain3D.ID, pwRadiusLongitude.ID, pwAngleRange.ID, pwRange.ID, pwAngleFromPayload.ID, viewUplink.ID, viewPayload.ID}, 0);
+OutputLayout.SetWindowFrameVisibility({pwResultsBarChart.ID, viewMain3D.ID, pwRadiusLongitude.ID, pwAngleRange.ID, pwRange.ID, pwAngleFromPayload.ID, viewUplink.ID, viewPayload.ID}, 0);
 
 Call SetWindowTopLeft(pwRadiusLongitude.ID);
+Call SetWindowTopLeft(pwResultsBarChart.ID);
 
 Call SetWindowBottomLeft(pwAngleRange.ID);
 Call SetWindowBottomLeft(pwRange.ID);
@@ -3202,7 +3260,6 @@ Call SetWindowRight(viewMain3D.ID);
 Call SetWindowRight(viewUplink.ID);
 Call SetWindowRight(viewPayload.ID);
 OutputLayout.BringWindowToFront(viewMain3D.ID);
-
 
 OutputLayout.ApplyUpdates();
 
@@ -3579,9 +3636,28 @@ Define Procedure AdvanceSimUplinkPeriod(Formation red, Formation blue);
 EndProcedure;
 
 
+
 Define Procedure DisplayModeScript(Formation red, Formation blue);
 	Optimizer opt;
 	TimeSpan initialEpoch;
+	
+	red[1].I += 0.1;
+	red[2].I += 0.1;
+	red[2].RAAN -= 30;
+	red[2].TA += 30;
+	
+	OutputLayout.BringWindowToFront(pwAngleFromPayload.ID);
+	OutputLayout.ApplyUpdates();
+	
+	pwRange.BeginBatchUpdate();
+	(pwRange.Series[0] AsType PlotScatterSeries).AddPoints(0, 0);
+	pwRange.Update();
+//	(pwRange.Series[0] AsType PlotScatterSeries).ClearPoints();
+	pwRange.EndBatchUpdate();
+	OutputLayout.BringWindowToFront(pwRange.ID);
+	
+	viewMain3D.CurrentViewpoint.ThreeDView.RightAscension = 268;
+	viewMain3D.CurrentViewpoint.ThreeDView.Declination = 7;
 	
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);

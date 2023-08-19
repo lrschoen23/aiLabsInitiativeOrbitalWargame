@@ -39,5 +39,8 @@ For briefing packet:
 - explain all data readouts
 - uplinking period before maneuvers/slews happen
 - ready mechanic for ground based jamming, secondary comm path
+- scoring mechanics
+  - using jamming when red is in non-threatening position creates high tension. When red is in threatening position, less so.
+  - off-nominal slews and maneuvers incur fuel/nominal operations cost
 
 
