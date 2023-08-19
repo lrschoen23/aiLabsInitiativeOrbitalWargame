@@ -237,7 +237,7 @@
         <Breakpoints />
         <FreeFormScript><![CDATA[//Show MainMenu;
 
-userChoice = 0;
+userChoice = 3;
 simStepSizeSeconds = 1500;
 ]]></FreeFormScript>
       </FreeForm>
@@ -338,8 +338,11 @@ Global Constant Variable overlayBorderBuffer = 0.013;
 Global WindowOverlay overlayDateTime;
 overlayDateTime.Shapes[0].SetPosition(0, overlayBorderBuffer, overlayBorderBuffer);
 
+Global Variable screenWidth;
+Global Variable screenHeight;
+OutputLayout.GetScreenSize(screenWidth, screenHeight);
 
-Global Constant Variable sensorLegendBoxWidth = 0.21;
+Global Constant Variable sensorLegendBoxWidth = 0.21*0 + 0.26;
 Global Constant Variable sensorLegendBoxHeight = 0.022 + overlayBorderBuffer*2;
 Global WindowOverlay overlaySensorLegend;
 overlaySensorLegend.AddShape();
@@ -450,6 +453,8 @@ viewPayload.CurrentViewpoint.SensorView.Source = blue[0].Sensors[sensorIndexPayl
 Global Variable blueBackupCommsState = 0; // 0 is inactive, 1 is ready, 2 is active
 Global Variable blueJammerState = 0; // 0 is inactive, 1 is ready, 2 is active
 Global Variable redJammerState = 0;
+
+Global Variable blueIsOffNominal = 0;
 
 // jammerState = 0 is inactive, 1 is ready, 2 is active
 Define Procedure SetBlueJammerState(Variable jammerState);
@@ -952,15 +957,32 @@ Call AddSinglePointToPlot(
 	
 // set up results bar chart
 Global PlotWindow pwResultsBarChart;
+pwResultsBarChart.PointsToUpdate = 1;
 pwResultsBarChart.WindowTitle = "Game Score";
 Global Variable redObjectiveScore = 100;
 Global Variable blueOperationsScore = 100;
 Global Variable tensionScore = 100;
 Call MakeBarChart(pwResultsBarChart, 1, {1, 2, 3}, {redObjectiveScore, blueOperationsScore, tensionScore}, "", "Score (%)", {0.9, 3.1}, {0, 100}, "Results", "");
+pwResultsBarChart.SetBackgroundColorPalette("DarkGray");
+pwResultsBarChart.Legend.Visible = 1;
+pwResultsBarChart.Legend.Location = 1;
+(pwResultsBarChart.Series[0] AsType PlotScatterSeries).Label = "Deny Red Objective";
+(pwResultsBarChart.Series[1] AsType PlotScatterSeries).Label = "Blue Operations";
+(pwResultsBarChart.Series[2] AsType PlotScatterSeries).Label = "Red/Blue Tension";
+
+(pwResultsBarChart.Series[0] AsType PlotScatterSeries).LineColor = colorRed1;
+(pwResultsBarChart.Series[1] AsType PlotScatterSeries).LineColor = colorBlue1;
+(pwResultsBarChart.Series[2] AsType PlotScatterSeries).LineColor = ColorTools.Purple;
+
 
 Define Procedure UpdateResultsBarChart();
-	
+	pwResultsBarChart.BeginBatchUpdate();
+	(pwResultsBarChart.Series[0] AsType PlotScatterSeries).Data[1, 1] = redObjectiveScore;
+	(pwResultsBarChart.Series[1] AsType PlotScatterSeries).Data[1, 1] = blueOperationsScore;
+	(pwResultsBarChart.Series[2] AsType PlotScatterSeries).Data[1, 1] = tensionScore;
+	pwResultsBarChart.EndBatchUpdate();
 EndProcedure;
+
 
 pwRadiusLongitude.EndBatchUpdate();
 pwRange.EndBatchUpdate();
@@ -973,13 +995,13 @@ pwAngleRange.EndBatchUpdate();]]></FreeFormScript>
         <Breakpoints />
         <FreeFormScript><![CDATA[Global UserInterface OperatorActions;
 
-Global Constant Variable I = 1;
-Global Constant Variable II = 2;
-Global Constant Variable III = 3;
-Global Constant Variable IV = 4;
-Global Constant Variable V = 5;
-Global Constant Variable VI = 6;
-Global Constant Variable VII = 7;
+Global Constant Variable choice_nominal = 1;
+Global Constant Variable choice_secondaryComms = 2;
+Global Constant Variable choice_slew = 3;
+Global Constant Variable choice_jam = 4;
+Global Constant Variable choice_evasive = 5;
+Global Constant Variable choice_returnToNominal = 6;
+Global Constant Variable choice_reevaluate = 7;
 
 
 Define Procedure BuildOperatorActionsMenu();
@@ -995,43 +1017,81 @@ Define Procedure BuildOperatorActionsMenu();
 		OperatorActions.AddSeparator("", 1);
 	End;
 	
-	Variable multiChoiceID = OperatorActions.AddMultiChoice("userChoice", "Select an action:", "I", 1);
-	OperatorActions.AddMultiChoiceItem(multiChoiceID, "I",   "Continue nominal operations");
+	Variable multiChoiceID = OperatorActions.AddMultiChoice("userChoice", "Select an action:", "choice_nominal", 1);
+	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_nominal",   "Continue nominal operations");
 	
 	If (blueBackupCommsState == 0); // inactive
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "II",  "Ready secondary blue comms path");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Ready secondary blue comms path");
 	ElseIf (blueBackupCommsState == 1); // ready
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "II",  "Switch to secondary blue comms path");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to secondary blue comms path");
 	ElseIf (blueBackupCommsState == 2); // active
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "II",  "Switch to primary blue comm path");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to primary blue comm path");
 	End;
 	
 	If (redJammerState == 0);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "III", "Slew payload away from closest red spacecraft");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_slew", "Slew payload away from closest red spacecraft");
 	End;
 	
 	If (blueJammerState == 0); // inactive
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "IV",  "Ready ground-based jamming unit");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Ready ground-based jamming unit");
 	ElseIf (blueBackupCommsState == 1); // ready
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "IV",  "Activate ground-based jamming unit");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Activate ground-based jamming unit");
 	ElseIf (blueBackupCommsState == 2); // active
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "IV",  "De-activate ground-based jamming unit");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "De-activate ground-based jamming unit");
 	End;
 	
 	If (redJammerState == 0);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "V",   "Perform evasive maneuver");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_evasive",   "Perform evasive maneuver");
 	End;
 	
-	OperatorActions.AddMultiChoiceItem(multiChoiceID, "VI",  "Re-evaluate data");
+	If (blueIsOffNominal);
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_returnToNominal",   "Return BlueSat to nominal attitude/location");
+	End;
+	
+	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_reevaluate",  "Re-evaluate data");
 EndProcedure;
 
 Define Procedure ShowOperatorActionsMenu();
 	Call BuildOperatorActionsMenu();
 	Show OperatorActions;
 	
-	While (userChoice == VI);
+	While (userChoice == choice_reevaluate);
 		Pause;
 		Show OperatorActions;
+	End;
+	
+	If (userChoice == choice_slew or userChoice == choice_evasive);
+		blueIsOffNominal = 1;
+	End;
+	
+	If (userChoice == choice_returnToNominal);
+		blueIsOffNominal = 0;
+	End;
+	
+	If (userChoice == choice_secondaryComms);
+		If (blueBackupCommsState == 0); // inactive
+			blueBackupCommsState = 2;
+		ElseIf (blueBackupCommsState == 1); // ready
+			Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
+		ElseIf (blueBackupCommsState == 2); // active
+			blueBackupCommsState = 0;
+			blueOperationsScore -= 3;
+		End;
+	End;
+	
+	If (userChoice == choice_jam);
+		If (blueJammerState == 0); // inactive
+			Call SetBlueJammerState(1);
+			blueOperationsScore -= 5;
+		ElseIf (blueBackupCommsState == 1); // ready
+			Call SetBlueJammerState(2);
+		ElseIf (blueBackupCommsState == 2); // active
+			Call SetBlueJammerState(1);
+		End;
+	End;
+	
+	If (userChoice == choice_evasive);
+		blueOperationsScore -= 10;
 	End;
 EndProcedure;
 
@@ -1201,6 +1261,8 @@ EndProcedure;
 Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 	Variable angle;
 	Variable i;
+	
+	Call UpdateResultsBarChart();
 
 	pwAngleRange.BeginBatchUpdate();
 	pwRadiusLongitude.BeginBatchUpdate();
@@ -1437,6 +1499,10 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue);
 	
 	cameraSc.Epoch = blue[0].Epoch;
 	cameraSc.SetCartesianState(blue[0].GetCartesianState());
+	
+	If (blueIsOffNominal);
+		blueOperationsScore -= 0.1 * blue[0].Propagator.StepSize.ToHours();
+	End;
 	
 	Call UpdateDataReadouts(red, blue);
 EndProcedure;
@@ -1761,7 +1827,7 @@ Define Procedure ObservationScript(Formation red, Formation blue);
 	file.Close();
 
 	red[0].Maneuver(burn);
-
+	
 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 
@@ -1890,9 +1956,6 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	
 	blue[0].Maneuver(burn);
 	
-	
-	
-	
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
 		desiredRelativePosLVC = {0, 4, 2};
@@ -1949,6 +2012,13 @@ Define Procedure DisableScript(Formation red, Formation blue);
 
 	red[0].Maneuver(burn);
 	futureEpoch2 = blue[0].Epoch + TimeSpan.FromDays(4);
+	
+	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(1));
+	
+	Call ShowOperatorActionsMenu();
+	If (userChoice == choice_evasive);
+		
+	End;
 
 	WhileStepping blue[0] to (blue[0].Longitude < red[1].Longitude);
 		Call PostBlueStepSubroutine(red, blue);
@@ -2435,7 +2505,7 @@ End;]]></FreeFormScript>
   </ProjectMissionSequence>
   <ProjectScript><![CDATA[//Show MainMenu;
 
-userChoice = 0;
+userChoice = 3;
 simStepSizeSeconds = 1500;
 
 
@@ -2531,8 +2601,11 @@ Global Constant Variable overlayBorderBuffer = 0.013;
 Global WindowOverlay overlayDateTime;
 overlayDateTime.Shapes[0].SetPosition(0, overlayBorderBuffer, overlayBorderBuffer);
 
+Global Variable screenWidth;
+Global Variable screenHeight;
+OutputLayout.GetScreenSize(screenWidth, screenHeight);
 
-Global Constant Variable sensorLegendBoxWidth = 0.21;
+Global Constant Variable sensorLegendBoxWidth = 0.21*0 + 0.26;
 Global Constant Variable sensorLegendBoxHeight = 0.022 + overlayBorderBuffer*2;
 Global WindowOverlay overlaySensorLegend;
 overlaySensorLegend.AddShape();
@@ -2643,6 +2716,8 @@ viewPayload.CurrentViewpoint.SensorView.Source = blue[0].Sensors[sensorIndexPayl
 Global Variable blueBackupCommsState = 0; // 0 is inactive, 1 is ready, 2 is active
 Global Variable blueJammerState = 0; // 0 is inactive, 1 is ready, 2 is active
 Global Variable redJammerState = 0;
+
+Global Variable blueIsOffNominal = 0;
 
 // jammerState = 0 is inactive, 1 is ready, 2 is active
 Define Procedure SetBlueJammerState(Variable jammerState);
@@ -3140,15 +3215,32 @@ Call AddSinglePointToPlot(
 	
 // set up results bar chart
 Global PlotWindow pwResultsBarChart;
+pwResultsBarChart.PointsToUpdate = 1;
 pwResultsBarChart.WindowTitle = "Game Score";
 Global Variable redObjectiveScore = 100;
 Global Variable blueOperationsScore = 100;
 Global Variable tensionScore = 100;
 Call MakeBarChart(pwResultsBarChart, 1, {1, 2, 3}, {redObjectiveScore, blueOperationsScore, tensionScore}, "", "Score (%)", {0.9, 3.1}, {0, 100}, "Results", "");
+pwResultsBarChart.SetBackgroundColorPalette("DarkGray");
+pwResultsBarChart.Legend.Visible = 1;
+pwResultsBarChart.Legend.Location = 1;
+(pwResultsBarChart.Series[0] AsType PlotScatterSeries).Label = "Deny Red Objective";
+(pwResultsBarChart.Series[1] AsType PlotScatterSeries).Label = "Blue Operations";
+(pwResultsBarChart.Series[2] AsType PlotScatterSeries).Label = "Red/Blue Tension";
+
+(pwResultsBarChart.Series[0] AsType PlotScatterSeries).LineColor = colorRed1;
+(pwResultsBarChart.Series[1] AsType PlotScatterSeries).LineColor = colorBlue1;
+(pwResultsBarChart.Series[2] AsType PlotScatterSeries).LineColor = ColorTools.Purple;
+
 
 Define Procedure UpdateResultsBarChart();
-	
+	pwResultsBarChart.BeginBatchUpdate();
+	(pwResultsBarChart.Series[0] AsType PlotScatterSeries).Data[1, 1] = redObjectiveScore;
+	(pwResultsBarChart.Series[1] AsType PlotScatterSeries).Data[1, 1] = blueOperationsScore;
+	(pwResultsBarChart.Series[2] AsType PlotScatterSeries).Data[1, 1] = tensionScore;
+	pwResultsBarChart.EndBatchUpdate();
 EndProcedure;
+
 
 pwRadiusLongitude.EndBatchUpdate();
 pwRange.EndBatchUpdate();
@@ -3156,13 +3248,13 @@ pwAngleFromPayload.EndBatchUpdate();
 pwAngleRange.EndBatchUpdate();
 Global UserInterface OperatorActions;
 
-Global Constant Variable I = 1;
-Global Constant Variable II = 2;
-Global Constant Variable III = 3;
-Global Constant Variable IV = 4;
-Global Constant Variable V = 5;
-Global Constant Variable VI = 6;
-Global Constant Variable VII = 7;
+Global Constant Variable choice_nominal = 1;
+Global Constant Variable choice_secondaryComms = 2;
+Global Constant Variable choice_slew = 3;
+Global Constant Variable choice_jam = 4;
+Global Constant Variable choice_evasive = 5;
+Global Constant Variable choice_returnToNominal = 6;
+Global Constant Variable choice_reevaluate = 7;
 
 
 Define Procedure BuildOperatorActionsMenu();
@@ -3178,43 +3270,81 @@ Define Procedure BuildOperatorActionsMenu();
 		OperatorActions.AddSeparator("", 1);
 	End;
 	
-	Variable multiChoiceID = OperatorActions.AddMultiChoice("userChoice", "Select an action:", "I", 1);
-	OperatorActions.AddMultiChoiceItem(multiChoiceID, "I",   "Continue nominal operations");
+	Variable multiChoiceID = OperatorActions.AddMultiChoice("userChoice", "Select an action:", "choice_nominal", 1);
+	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_nominal",   "Continue nominal operations");
 	
 	If (blueBackupCommsState == 0); // inactive
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "II",  "Ready secondary blue comms path");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Ready secondary blue comms path");
 	ElseIf (blueBackupCommsState == 1); // ready
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "II",  "Switch to secondary blue comms path");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to secondary blue comms path");
 	ElseIf (blueBackupCommsState == 2); // active
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "II",  "Switch to primary blue comm path");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to primary blue comm path");
 	End;
 	
 	If (redJammerState == 0);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "III", "Slew payload away from closest red spacecraft");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_slew", "Slew payload away from closest red spacecraft");
 	End;
 	
 	If (blueJammerState == 0); // inactive
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "IV",  "Ready ground-based jamming unit");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Ready ground-based jamming unit");
 	ElseIf (blueBackupCommsState == 1); // ready
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "IV",  "Activate ground-based jamming unit");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Activate ground-based jamming unit");
 	ElseIf (blueBackupCommsState == 2); // active
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "IV",  "De-activate ground-based jamming unit");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "De-activate ground-based jamming unit");
 	End;
 	
 	If (redJammerState == 0);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "V",   "Perform evasive maneuver");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_evasive",   "Perform evasive maneuver");
 	End;
 	
-	OperatorActions.AddMultiChoiceItem(multiChoiceID, "VI",  "Re-evaluate data");
+	If (blueIsOffNominal);
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_returnToNominal",   "Return BlueSat to nominal attitude/location");
+	End;
+	
+	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_reevaluate",  "Re-evaluate data");
 EndProcedure;
 
 Define Procedure ShowOperatorActionsMenu();
 	Call BuildOperatorActionsMenu();
 	Show OperatorActions;
 	
-	While (userChoice == VI);
+	While (userChoice == choice_reevaluate);
 		Pause;
 		Show OperatorActions;
+	End;
+	
+	If (userChoice == choice_slew or userChoice == choice_evasive);
+		blueIsOffNominal = 1;
+	End;
+	
+	If (userChoice == choice_returnToNominal);
+		blueIsOffNominal = 0;
+	End;
+	
+	If (userChoice == choice_secondaryComms);
+		If (blueBackupCommsState == 0); // inactive
+			blueBackupCommsState = 2;
+		ElseIf (blueBackupCommsState == 1); // ready
+			Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
+		ElseIf (blueBackupCommsState == 2); // active
+			blueBackupCommsState = 0;
+			blueOperationsScore -= 3;
+		End;
+	End;
+	
+	If (userChoice == choice_jam);
+		If (blueJammerState == 0); // inactive
+			Call SetBlueJammerState(1);
+			blueOperationsScore -= 5;
+		ElseIf (blueBackupCommsState == 1); // ready
+			Call SetBlueJammerState(2);
+		ElseIf (blueBackupCommsState == 2); // active
+			Call SetBlueJammerState(1);
+		End;
+	End;
+	
+	If (userChoice == choice_evasive);
+		blueOperationsScore -= 10;
 	End;
 EndProcedure;
 
@@ -3374,6 +3504,8 @@ EndProcedure;
 Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 	Variable angle;
 	Variable i;
+	
+	Call UpdateResultsBarChart();
 
 	pwAngleRange.BeginBatchUpdate();
 	pwRadiusLongitude.BeginBatchUpdate();
@@ -3610,6 +3742,10 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue);
 	
 	cameraSc.Epoch = blue[0].Epoch;
 	cameraSc.SetCartesianState(blue[0].GetCartesianState());
+	
+	If (blueIsOffNominal);
+		blueOperationsScore -= 0.1 * blue[0].Propagator.StepSize.ToHours();
+	End;
 	
 	Call UpdateDataReadouts(red, blue);
 EndProcedure;
@@ -3929,7 +4065,7 @@ Define Procedure ObservationScript(Formation red, Formation blue);
 	file.Close();
 
 	red[0].Maneuver(burn);
-
+	
 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
 	
 
@@ -4058,9 +4194,6 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	
 	blue[0].Maneuver(burn);
 	
-	
-	
-	
 //Block PRESOLVED OPTIMIZATION
 	If (doOptimizationAndSaveValues);
 		desiredRelativePosLVC = {0, 4, 2};
@@ -4117,6 +4250,13 @@ Define Procedure DisableScript(Formation red, Formation blue);
 
 	red[0].Maneuver(burn);
 	futureEpoch2 = blue[0].Epoch + TimeSpan.FromDays(4);
+	
+	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(1));
+	
+	Call ShowOperatorActionsMenu();
+	If (userChoice == choice_evasive);
+		
+	End;
 
 	WhileStepping blue[0] to (blue[0].Longitude < red[1].Longitude);
 		Call PostBlueStepSubroutine(red, blue);
