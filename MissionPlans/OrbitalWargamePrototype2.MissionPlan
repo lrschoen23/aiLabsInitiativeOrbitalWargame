@@ -1450,9 +1450,11 @@ EndProcedure;
 
 Define Procedure AdvanceSimToFutureEpochWithBlueSlew(Formation red, Formation blue, TimeSpan futureEpoch, Variable slewAngle);
 	Variable slewRateDegPerSecond = slewAngle / (futureEpoch - blue[0].Epoch).ToSeconds();
+	Variable initialAngle = blue[0].EulerAngles[0];
+	TimeSpan initialEpoch = blue[0].Epoch;
 	
-	WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);	
-		blue[0].EulerAngles[0] += slewRateDegPerSecond * blue[0].Propagator.StepSize.ToSeconds();	
+	WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+		blue[0].EulerAngles[0] = initialAngle + slewRateDegPerSecond * (blue[0].Epoch - initialEpoch).ToSeconds();	
 		Call PostBlueStepSubroutine(red, blue);
 	End;
 EndProcedure;
@@ -1583,6 +1585,48 @@ Define Procedure TargetNewOrbitAndAdvanceSim(
 	Call TargetNewOrbit(sc, kepState, longitude, timeBoundsDays, doOptimization, solutionFileLabel, dv1, dv2, interBurnTime);
 	Call AdvanceSimToTargetedNewOrbit(sc, dv1, dv2, interBurnTime, red, blue);
 EndProcedure;
+
+
+Define Procedure ComputeSlewAngle(Formation red, Formation blue, Variable slewAngle);
+	Variable redIndex = 0;
+	Variable i = 0;
+	For i = 0 to red.Count - 1;
+		If (blue[0].Range(red[i]) < blue[0].Range(red[redIndex]));
+			redIndex = i;
+		End;
+	End;
+	
+	Optimizer opt;
+	
+	Variable initialEulerAngle = blue[0].EulerAngles[0];
+	opt.AddStateVariable("angle", initialEulerAngle+90, 0, 360, 100);
+	
+	Variable range;
+	Variable angle;
+	opt.MaximumNominalEvaluationCount = 50;
+	opt.LoadEngine();
+	
+	While (opt.IsRunning());
+		opt.UpdateStateVariables();
+		
+		blue[0].EulerAngles[0] = opt.GetStateVariableValue(0);
+		Call ComputeRangeAndAngleFromPayload(blue[0], red[redIndex], range, angle);
+		opt.Maximize(angle);
+			
+//		If (opt.OptimizationPhase == 1);
+//			Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource, blue[0].EulerAngles[0];
+//		End;
+	End;
+	
+	blue[0].EulerAngles[0] = initialEulerAngle;
+	slewAngle = opt.GetBestStateVariableValue("angle") - blue[0].EulerAngles[0];
+EndProcedure;
+
+Define Procedure ComputeAndExecuteBlueSlew(Formation red, Formation blue);
+	Variable slewAngle;
+	Call ComputeSlewAngle(red, blue, slewAngle);
+	Call AdvanceSimToFutureEpochWithBlueSlew(red, blue, blue[0].Epoch + TimeSpan.FromHours(10), slewAngle);
+EndProcedure;
 ]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
@@ -1662,6 +1706,10 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 	
 	If (userChoice == choice_slew or userChoice == choice_evasive);
 		blueIsOffNominal = 1;
+	End;
+	
+	If (userChoice == choice_slew);
+		Call ComputeAndExecuteBlueSlew(red, blue);
 	End;
 	
 	If (userChoice == choice_returnToNominal);
@@ -3920,9 +3968,11 @@ EndProcedure;
 
 Define Procedure AdvanceSimToFutureEpochWithBlueSlew(Formation red, Formation blue, TimeSpan futureEpoch, Variable slewAngle);
 	Variable slewRateDegPerSecond = slewAngle / (futureEpoch - blue[0].Epoch).ToSeconds();
+	Variable initialAngle = blue[0].EulerAngles[0];
+	TimeSpan initialEpoch = blue[0].Epoch;
 	
-	WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);	
-		blue[0].EulerAngles[0] += slewRateDegPerSecond * blue[0].Propagator.StepSize.ToSeconds();	
+	WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+		blue[0].EulerAngles[0] = initialAngle + slewRateDegPerSecond * (blue[0].Epoch - initialEpoch).ToSeconds();	
 		Call PostBlueStepSubroutine(red, blue);
 	End;
 EndProcedure;
@@ -4054,6 +4104,48 @@ Define Procedure TargetNewOrbitAndAdvanceSim(
 	Call AdvanceSimToTargetedNewOrbit(sc, dv1, dv2, interBurnTime, red, blue);
 EndProcedure;
 
+
+Define Procedure ComputeSlewAngle(Formation red, Formation blue, Variable slewAngle);
+	Variable redIndex = 0;
+	Variable i = 0;
+	For i = 0 to red.Count - 1;
+		If (blue[0].Range(red[i]) < blue[0].Range(red[redIndex]));
+			redIndex = i;
+		End;
+	End;
+	
+	Optimizer opt;
+	
+	Variable initialEulerAngle = blue[0].EulerAngles[0];
+	opt.AddStateVariable("angle", initialEulerAngle+90, 0, 360, 100);
+	
+	Variable range;
+	Variable angle;
+	opt.MaximumNominalEvaluationCount = 50;
+	opt.LoadEngine();
+	
+	While (opt.IsRunning());
+		opt.UpdateStateVariables();
+		
+		blue[0].EulerAngles[0] = opt.GetStateVariableValue(0);
+		Call ComputeRangeAndAngleFromPayload(blue[0], red[redIndex], range, angle);
+		opt.Maximize(angle);
+			
+//		If (opt.OptimizationPhase == 1);
+//			Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource, blue[0].EulerAngles[0];
+//		End;
+	End;
+	
+	blue[0].EulerAngles[0] = initialEulerAngle;
+	slewAngle = opt.GetBestStateVariableValue("angle") - blue[0].EulerAngles[0];
+EndProcedure;
+
+Define Procedure ComputeAndExecuteBlueSlew(Formation red, Formation blue);
+	Variable slewAngle;
+	Call ComputeSlewAngle(red, blue, slewAngle);
+	Call AdvanceSimToFutureEpochWithBlueSlew(red, blue, blue[0].Epoch + TimeSpan.FromHours(10), slewAngle);
+EndProcedure;
+
 Global UserInterface OperatorActions;
 
 Global Constant Variable choice_nominal = 1;
@@ -4127,6 +4219,10 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 	
 	If (userChoice == choice_slew or userChoice == choice_evasive);
 		blueIsOffNominal = 1;
+	End;
+	
+	If (userChoice == choice_slew);
+		Call ComputeAndExecuteBlueSlew(red, blue);
 	End;
 	
 	If (userChoice == choice_returnToNominal);
