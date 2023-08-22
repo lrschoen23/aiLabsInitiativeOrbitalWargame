@@ -797,13 +797,14 @@ Call InitializePlotPredictSeries(rangeR2Predict, "Red2 Predict", colorRed2);
 Call InitializePlotPredictSeries(rangeR3Predict, "Red3 Predict", colorRed3);
 
 // rangeKeepOutArea_TimeRangePlot
+Global Constant Variable rangeKeepOutValue = 30;
 rangeKeepOutArea_TimeRangePlot.LineColor = ColorTools.Orange;
 rangeKeepOutArea_TimeRangePlot.LineWidth = 3;
 rangeKeepOutArea_TimeRangePlot.LineStyle = 0;
 rangeKeepOutArea_TimeRangePlot.Label = "Range Keep Out Zone";
 rangeKeepOutArea_TimeRangePlot.AddPoints(
 	{pwRange.XAxis.MinimumValue, pwRange.XAxis.MinimumValue, pwRange.XAxis.MaximumValue, pwRange.XAxis.MaximumValue},
-	{0, 30, 30, 0});
+	{0, rangeKeepOutValue, rangeKeepOutValue, 0});
 rangeKeepOutArea_TimeRangePlot.AddPoints(rangeKeepOutArea_TimeRangePlot.Data[0,:]);
 
 
@@ -859,11 +860,14 @@ Call InitializePlotPredictSeries(rangeAngleFromPayloadR2Predict, "Red2 Predict",
 Call InitializePlotPredictSeries(rangeAngleFromPayloadR3Predict, "Red3 Predict", colorRed3);
 
 // rangeAngleKeepOutArea
+Global Constant Variable payloadKeepOutRange = 80;
+Global Constant Variable payloadKeepOutAngle1 = 30;
+Global Constant Variable payloadKeepOutAngle2 = 70;
 rangeAngleKeepOutArea.LineColor = ColorTools.Yellow;
 rangeAngleKeepOutArea.LineWidth = 3;
 rangeAngleKeepOutArea.LineStyle = 0;
 rangeAngleKeepOutArea.Label = "Payload Keep Out Zone";
-rangeAngleKeepOutArea.AddPoints({0, 0, 30, 70}, {0, 80, 80, 0});
+rangeAngleKeepOutArea.AddPoints({0, 0, payloadKeepOutAngle1, payloadKeepOutAngle2}, {0, payloadKeepOutRange, payloadKeepOutRange, 0});
 rangeAngleKeepOutArea.AddPoints(rangeAngleKeepOutArea.Data[0,:]);
 
 // rangeKeepOutArea_AngleRangePlot
@@ -871,7 +875,7 @@ rangeKeepOutArea_AngleRangePlot.LineColor = ColorTools.Orange;
 rangeKeepOutArea_AngleRangePlot.LineWidth = 3;
 rangeKeepOutArea_AngleRangePlot.LineStyle = 0;
 rangeKeepOutArea_AngleRangePlot.Label = "Range Keep Out Zone";
-rangeKeepOutArea_AngleRangePlot.AddPoints({0, 0, 180, 180}, {0, 30, 30, 0});
+rangeKeepOutArea_AngleRangePlot.AddPoints({0, 0, 180, 180}, {0, rangeKeepOutValue, rangeKeepOutValue, 0});
 rangeKeepOutArea_AngleRangePlot.AddPoints(rangeKeepOutArea_AngleRangePlot.Data[0,:]);
 
 
@@ -1091,7 +1095,7 @@ Define Procedure ShowOperatorActionsMenu();
 	End;
 	
 	If (userChoice == choice_evasive);
-		blueOperationsScore -= 10;
+		blueOperationsScore -= 20;
 	End;
 EndProcedure;
 
@@ -1493,7 +1497,22 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 
 EndProcedure;
 
+Global Constant Variable _m = (payloadKeepOutAngle2 - payloadKeepOutAngle1) / -payloadKeepOutRange;
+Global Constant Variable _b = -_m * payloadKeepOutAngle2;
+	
+Define Procedure IsInsidePayloadKeepOutZone(Variable range, Variable angle, Variable result);
+	result = 0;
+	If (range < payloadKeepOutRange);
+		If (angle < payloadKeepOutAngle1 or range < _m * angle + _b);
+			result = 1;
+		End;
+	End;
+EndProcedure;
+
 Define Procedure PostBlueStepSubroutine(Formation red, Formation blue);
+	Variable range;
+	Variable angle;
+	Variable isInsidePayloadKeepOutZone;
 	red.StepToEpoch(blue[0].Epoch);
 	blueJammer.StepToEpoch(blue[0].Epoch);
 	
@@ -1502,6 +1521,20 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue);
 	
 	If (blueIsOffNominal);
 		blueOperationsScore -= 0.1 * blue[0].Propagator.StepSize.ToHours();
+	End;
+	
+	If (blueJammerState == 2);
+		tensionScore -= 0.1 * blue[0].Propagator.StepSize.ToHours();
+	End;
+	
+	Call ComputeRangeAndAngleFromPayload(blue[0], red[0], range, angle);
+	Call IsInsidePayloadKeepOutZone(range, angle, isInsidePayloadKeepOutZone);
+	If (isInsidePayloadKeepOutZone);
+		redObjectiveScore -= 1 * blue[0].Propagator.StepSize.ToHours();
+	End;
+	
+	If (range < rangeKeepOutValue);
+		redObjectiveScore -= 1 * blue[0].Propagator.StepSize.ToHours();
 	End;
 	
 	Call UpdateDataReadouts(red, blue);
@@ -2017,9 +2050,16 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	
 	Call ShowOperatorActionsMenu();
 	If (userChoice == choice_evasive);
-		
+		// compute new red trajectory
 	End;
-
+	
+	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(10));
+	
+	Call ShowOperatorActionsMenu();
+	If (userChoice == choice_evasive);
+		// red pulls back
+	End;
+	
 	WhileStepping blue[0] to (blue[0].Longitude < red[1].Longitude);
 		Call PostBlueStepSubroutine(red, blue);
 	End;
@@ -3055,13 +3095,14 @@ Call InitializePlotPredictSeries(rangeR2Predict, "Red2 Predict", colorRed2);
 Call InitializePlotPredictSeries(rangeR3Predict, "Red3 Predict", colorRed3);
 
 // rangeKeepOutArea_TimeRangePlot
+Global Constant Variable rangeKeepOutValue = 30;
 rangeKeepOutArea_TimeRangePlot.LineColor = ColorTools.Orange;
 rangeKeepOutArea_TimeRangePlot.LineWidth = 3;
 rangeKeepOutArea_TimeRangePlot.LineStyle = 0;
 rangeKeepOutArea_TimeRangePlot.Label = "Range Keep Out Zone";
 rangeKeepOutArea_TimeRangePlot.AddPoints(
 	{pwRange.XAxis.MinimumValue, pwRange.XAxis.MinimumValue, pwRange.XAxis.MaximumValue, pwRange.XAxis.MaximumValue},
-	{0, 30, 30, 0});
+	{0, rangeKeepOutValue, rangeKeepOutValue, 0});
 rangeKeepOutArea_TimeRangePlot.AddPoints(rangeKeepOutArea_TimeRangePlot.Data[0,:]);
 
 
@@ -3117,11 +3158,14 @@ Call InitializePlotPredictSeries(rangeAngleFromPayloadR2Predict, "Red2 Predict",
 Call InitializePlotPredictSeries(rangeAngleFromPayloadR3Predict, "Red3 Predict", colorRed3);
 
 // rangeAngleKeepOutArea
+Global Constant Variable payloadKeepOutRange = 80;
+Global Constant Variable payloadKeepOutAngle1 = 30;
+Global Constant Variable payloadKeepOutAngle2 = 70;
 rangeAngleKeepOutArea.LineColor = ColorTools.Yellow;
 rangeAngleKeepOutArea.LineWidth = 3;
 rangeAngleKeepOutArea.LineStyle = 0;
 rangeAngleKeepOutArea.Label = "Payload Keep Out Zone";
-rangeAngleKeepOutArea.AddPoints({0, 0, 30, 70}, {0, 80, 80, 0});
+rangeAngleKeepOutArea.AddPoints({0, 0, payloadKeepOutAngle1, payloadKeepOutAngle2}, {0, payloadKeepOutRange, payloadKeepOutRange, 0});
 rangeAngleKeepOutArea.AddPoints(rangeAngleKeepOutArea.Data[0,:]);
 
 // rangeKeepOutArea_AngleRangePlot
@@ -3129,7 +3173,7 @@ rangeKeepOutArea_AngleRangePlot.LineColor = ColorTools.Orange;
 rangeKeepOutArea_AngleRangePlot.LineWidth = 3;
 rangeKeepOutArea_AngleRangePlot.LineStyle = 0;
 rangeKeepOutArea_AngleRangePlot.Label = "Range Keep Out Zone";
-rangeKeepOutArea_AngleRangePlot.AddPoints({0, 0, 180, 180}, {0, 30, 30, 0});
+rangeKeepOutArea_AngleRangePlot.AddPoints({0, 0, 180, 180}, {0, rangeKeepOutValue, rangeKeepOutValue, 0});
 rangeKeepOutArea_AngleRangePlot.AddPoints(rangeKeepOutArea_AngleRangePlot.Data[0,:]);
 
 
@@ -3344,7 +3388,7 @@ Define Procedure ShowOperatorActionsMenu();
 	End;
 	
 	If (userChoice == choice_evasive);
-		blueOperationsScore -= 10;
+		blueOperationsScore -= 20;
 	End;
 EndProcedure;
 
@@ -3736,7 +3780,22 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 
 EndProcedure;
 
+Global Constant Variable _m = (payloadKeepOutAngle2 - payloadKeepOutAngle1) / -payloadKeepOutRange;
+Global Constant Variable _b = -_m * payloadKeepOutAngle2;
+	
+Define Procedure IsInsidePayloadKeepOutZone(Variable range, Variable angle, Variable result);
+	result = 0;
+	If (range < payloadKeepOutRange);
+		If (angle < payloadKeepOutAngle1 or range < _m * angle + _b);
+			result = 1;
+		End;
+	End;
+EndProcedure;
+
 Define Procedure PostBlueStepSubroutine(Formation red, Formation blue);
+	Variable range;
+	Variable angle;
+	Variable isInsidePayloadKeepOutZone;
 	red.StepToEpoch(blue[0].Epoch);
 	blueJammer.StepToEpoch(blue[0].Epoch);
 	
@@ -3745,6 +3804,20 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue);
 	
 	If (blueIsOffNominal);
 		blueOperationsScore -= 0.1 * blue[0].Propagator.StepSize.ToHours();
+	End;
+	
+	If (blueJammerState == 2);
+		tensionScore -= 0.1 * blue[0].Propagator.StepSize.ToHours();
+	End;
+	
+	Call ComputeRangeAndAngleFromPayload(blue[0], red[0], range, angle);
+	Call IsInsidePayloadKeepOutZone(range, angle, isInsidePayloadKeepOutZone);
+	If (isInsidePayloadKeepOutZone);
+		redObjectiveScore -= 1 * blue[0].Propagator.StepSize.ToHours();
+	End;
+	
+	If (range < rangeKeepOutValue);
+		redObjectiveScore -= 1 * blue[0].Propagator.StepSize.ToHours();
 	End;
 	
 	Call UpdateDataReadouts(red, blue);
@@ -4255,9 +4328,16 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	
 	Call ShowOperatorActionsMenu();
 	If (userChoice == choice_evasive);
-		
+		// compute new red trajectory
 	End;
-
+	
+	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(10));
+	
+	Call ShowOperatorActionsMenu();
+	If (userChoice == choice_evasive);
+		// red pulls back
+	End;
+	
 	WhileStepping blue[0] to (blue[0].Longitude < red[1].Longitude);
 		Call PostBlueStepSubroutine(red, blue);
 	End;
