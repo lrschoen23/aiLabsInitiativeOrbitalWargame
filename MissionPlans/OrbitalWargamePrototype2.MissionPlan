@@ -390,7 +390,7 @@ Variable uploadingLogWidth = 0.4;
 Variable uploadingLogHeight = 0.07;
 overlayUploadingLog.Shapes[0].SetPosition(0, (1 - uploadingLogWidth) / 2, 1 - uploadingLogHeight - overlayBorderBuffer);
 overlayUploadingLog.Shapes[0].SetSize(0, uploadingLogWidth, uploadingLogHeight);
-overlayUploadingLog.Shapes[0].TextOptions.Font.Size = 35;
+overlayUploadingLog.Shapes[0].TextOptions.Font.Size = 35*0 + 22;
 overlayUploadingLog.Shapes[0].TextOptions.Text = "UPLINKING DATA...";
 
 overlayUploadingLog.AddShape();
@@ -1436,7 +1436,7 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue);
 	End;
 	
 	If (range < rangeKeepOutValue);
-		redObjectiveScore -= 1 * blue[0].Propagator.StepSize.ToHours();
+		redObjectiveScore -= 5 * blue[0].Propagator.StepSize.ToHours();
 	End;
 	
 	Call UpdateDataReadouts(red, blue);
@@ -1627,6 +1627,7 @@ Define Procedure ComputeAndExecuteBlueSlew(Formation red, Formation blue);
 	Call ComputeSlewAngle(red, blue, slewAngle);
 	Call AdvanceSimToFutureEpochWithBlueSlew(red, blue, blue[0].Epoch + TimeSpan.FromHours(10), slewAngle);
 EndProcedure;
+
 ]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
@@ -1674,9 +1675,9 @@ Define Procedure BuildOperatorActionsMenu();
 	
 	If (blueJammerState == 0); // inactive
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Ready ground-based jamming unit");
-	ElseIf (blueBackupCommsState == 1); // ready
+	ElseIf (blueJammerState == 1); // ready
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Activate ground-based jamming unit");
-	ElseIf (blueBackupCommsState == 2); // active
+	ElseIf (blueJammerState == 2); // active
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "De-activate ground-based jamming unit");
 	End;
 	
@@ -1709,6 +1710,7 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 	End;
 	
 	If (userChoice == choice_slew);
+		Call AdvanceSimUplinkPeriod(red, blue);
 		Call ComputeAndExecuteBlueSlew(red, blue);
 	End;
 	
@@ -1729,42 +1731,57 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 	If (userChoice == choice_jam);
 		If (blueJammerState == 0); // inactive
 			Call SetBlueJammerState(1);
-			blueOperationsScore -= 5;
-		ElseIf (blueBackupCommsState == 1); // ready
+			blueOperationsScore -= 3;
+		ElseIf (blueJammerState == 1); // ready
 			Call SetBlueJammerState(2);
-		ElseIf (blueBackupCommsState == 2); // active
+		ElseIf (blueJammerState == 2); // active
 			Call SetBlueJammerState(1);
 		End;
 	End;
 	
 	If (userChoice == choice_evasive);
-		blueOperationsScore -= 20;
+		blueOperationsScore -= 8;
 		
+		Call AdvanceSimUplinkPeriod(red, blue);
 		Call TargetNewOrbitAndAdvanceSim(
 			blue[0], initialKepStateBlue1,
-			blue[0].Longitude + 0.5, {0.1, 0.5},
+			blue[0].Longitude + 0.3, {0.1, 0.5},
 			doOptimizationAndSaveValues,
-			"BlueSatEvasiveManeuver", red, blue);
+			"BlueSatEvasiveManeuver_" + numberOfBlueEvasiveManeuvers.ToString(), red, blue);
 		
 		numberOfBlueEvasiveManeuvers += 1;
 	End;
 	
 	If (userChoice == choice_returnToNominal);
 		If (numberOfBlueEvasiveManeuvers > 0);
-			blueOperationsScore -= 20;
+			blueOperationsScore -= 8;
 			
+			Call AdvanceSimUplinkPeriod(red, blue);
 			Call TargetNewOrbitAndAdvanceSim(
 				blue[0], initialKepStateBlue1,
 				initialLongitudeBlue1, {0.1, 1},
 				doOptimizationAndSaveValues,
 				"BlueSatReturnToSlot_" + numberOfBlueEvasiveManeuvers.ToString(),
 				red, blue);
+			numberOfBlueEvasiveManeuvers = 0;
 		End;
 	End;
 EndProcedure;
 
 
 ]]></FreeFormScript>
+      </FreeForm>
+      <FreeForm enabled="true">
+        <Label>More Procedures</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[
+Define Procedure AdvanceSimUntilBlueIsNominal(Formation red, Formation blue);
+	While (blueIsOffNominal);
+		Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(5));
+		Call ShowOperatorActionsMenu(red, blue);
+	End;
+EndProcedure;]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
         <Label>Game Scripts</Label>
@@ -2264,10 +2281,7 @@ Define Procedure DisableScript(Formation red, Formation blue);
 		
 		Call AdvanceSimToTargetedNewOrbit(red[0], dv1, dv2, interBurnTime, red, blue);
 		
-		While (blueIsOffNominal);
-			Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(5));
-			Call ShowOperatorActionsMenu(red, blue);
-		End;
+		Call AdvanceSimUntilBlueIsNominal(red, blue);
 		ExitProcedure;
 	End;
 	
@@ -2282,73 +2296,16 @@ Define Procedure DisableScript(Formation red, Formation blue);
 		Call PostBlueStepSubroutine(red, blue);
 	End;
 	
-////Block PRESOLVED OPTIMIZATION
-//	If (doOptimizationAndSaveValues+1);
-//		opt.Reset(1);
-//		opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
-//		opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
-//		opt.AddStateVariable("days", 0.5, 0.1, 1);
-//		opt.AddConstraint("A",    blue[0].A,          blue[0].A, 100);
-//		opt.AddConstraint("E",    blue[0].E + 0.0012, blue[0].E + 0.0012);
-//		opt.AddConstraint("I",    blue[0].I,          blue[0].I, 100, 360);
-//		opt.AddConstraint("RAAN", blue[0].RAAN,       blue[0].RAAN, 100, 360);
-//		opt.AddConstraint("W",    blue[0].W,          blue[0].W, 100, 360);
-//		
-//		opt.SaveObjectToProcess(red[1]);
-//		opt.LoadEngine();
-//		While (opt.IsRunning());
-//			opt.UpdateStateVariables();
-//			opt.RestoreObjectsInProcess();
-//			
-//			burn.BurnDirection = opt.GetStateVariableValues[0:2];
-//			totalDV = burn.BurnDirection.Norm;
-//			red[1].Maneuver(burn);
-//			
-//			futureEpoch = red[1].Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
-//			WhileStepping red[1] to (red[1].Epoch == futureEpoch);
-//			End;
-//			
-//			burn.BurnDirection = opt.GetStateVariableValues[3:5];
-//			totalDV += burn.BurnDirection.Norm;
-//			red[1].Maneuver(burn);
-//			
-//			opt.SetConstraintValue("A", red[1].A);
-//			opt.SetConstraintValue("E", red[1].E);
-//			opt.SetConstraintValue("I", red[1].I);
-//			opt.SetConstraintValue("RAAN", red[1].RAAN);
-//			opt.SetConstraintValue("W", red[1].W);
-//									 
-//			opt.Minimize(totalDV);
-//			
-//			If (opt.OptimizationPhase == 1);
-//				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
-//			End;
-//		End;
-//		
-//		Report opt.ReturnString;
-//		opt.RestoreObjectsInProcess();
-//		
-//		Call OpenForWrite("SavedValues/DisableScript_Red2Burn1and2.txt");
-//		file.PutLine(opt.GetBestStateVariableValue("dv11").ToString());
-//		file.PutLine(opt.GetBestStateVariableValue("dv12").ToString());
-//		file.PutLine(opt.GetBestStateVariableValue("dv13").ToString());
-//		file.PutLine(opt.GetBestStateVariableValue("dv21").ToString());
-//		file.PutLine(opt.GetBestStateVariableValue("dv22").ToString());
-//		file.PutLine(opt.GetBestStateVariableValue("dv23").ToString());
-//		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
-//		file.Close();
-//	End;
-////EndBlock PRESOLVED OPTIMIZATION
-//	
-//	Call OpenForRead("SavedValues/DisableScript_Red2Burn1and2.txt");
-//	burn.BurnDirection[0] = file.GetLine().ToVariable();
-//	burn.BurnDirection[1] = file.GetLine().ToVariable();
-//	burn.BurnDirection[2] = file.GetLine().ToVariable();
-//	dv2[0] = file.GetLine().ToVariable();
-//	dv2[1] = file.GetLine().ToVariable();
-//	dv2[2] = file.GetLine().ToVariable();
-//	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
-//	file.Close();
+	Variable i;
+	If (blueJammerState == 2);
+		For i = 0 to 2;
+			Call ShowOperatorActionsMenu(red, blue);
+			Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(10));
+		End;
+		
+		Call AdvanceSimUntilBlueIsNominal(red, blue);		
+		ExitProcedure;
+	End;
 	
 	kepState = blue[0].GetKeplerianState();
 	kepState[1] += 0.0012;
@@ -2923,7 +2880,7 @@ Variable uploadingLogWidth = 0.4;
 Variable uploadingLogHeight = 0.07;
 overlayUploadingLog.Shapes[0].SetPosition(0, (1 - uploadingLogWidth) / 2, 1 - uploadingLogHeight - overlayBorderBuffer);
 overlayUploadingLog.Shapes[0].SetSize(0, uploadingLogWidth, uploadingLogHeight);
-overlayUploadingLog.Shapes[0].TextOptions.Font.Size = 35;
+overlayUploadingLog.Shapes[0].TextOptions.Font.Size = 35*0 + 22;
 overlayUploadingLog.Shapes[0].TextOptions.Text = "UPLINKING DATA...";
 
 overlayUploadingLog.AddShape();
@@ -3954,7 +3911,7 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue);
 	End;
 	
 	If (range < rangeKeepOutValue);
-		redObjectiveScore -= 1 * blue[0].Propagator.StepSize.ToHours();
+		redObjectiveScore -= 5 * blue[0].Propagator.StepSize.ToHours();
 	End;
 	
 	Call UpdateDataReadouts(red, blue);
@@ -4146,6 +4103,7 @@ Define Procedure ComputeAndExecuteBlueSlew(Formation red, Formation blue);
 	Call AdvanceSimToFutureEpochWithBlueSlew(red, blue, blue[0].Epoch + TimeSpan.FromHours(10), slewAngle);
 EndProcedure;
 
+
 Global UserInterface OperatorActions;
 
 Global Constant Variable choice_nominal = 1;
@@ -4187,9 +4145,9 @@ Define Procedure BuildOperatorActionsMenu();
 	
 	If (blueJammerState == 0); // inactive
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Ready ground-based jamming unit");
-	ElseIf (blueBackupCommsState == 1); // ready
+	ElseIf (blueJammerState == 1); // ready
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Activate ground-based jamming unit");
-	ElseIf (blueBackupCommsState == 2); // active
+	ElseIf (blueJammerState == 2); // active
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "De-activate ground-based jamming unit");
 	End;
 	
@@ -4222,6 +4180,7 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 	End;
 	
 	If (userChoice == choice_slew);
+		Call AdvanceSimUplinkPeriod(red, blue);
 		Call ComputeAndExecuteBlueSlew(red, blue);
 	End;
 	
@@ -4242,42 +4201,52 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 	If (userChoice == choice_jam);
 		If (blueJammerState == 0); // inactive
 			Call SetBlueJammerState(1);
-			blueOperationsScore -= 5;
-		ElseIf (blueBackupCommsState == 1); // ready
+			blueOperationsScore -= 3;
+		ElseIf (blueJammerState == 1); // ready
 			Call SetBlueJammerState(2);
-		ElseIf (blueBackupCommsState == 2); // active
+		ElseIf (blueJammerState == 2); // active
 			Call SetBlueJammerState(1);
 		End;
 	End;
 	
 	If (userChoice == choice_evasive);
-		blueOperationsScore -= 20;
+		blueOperationsScore -= 8;
 		
+		Call AdvanceSimUplinkPeriod(red, blue);
 		Call TargetNewOrbitAndAdvanceSim(
 			blue[0], initialKepStateBlue1,
-			blue[0].Longitude + 0.5, {0.1, 0.5},
+			blue[0].Longitude + 0.3, {0.1, 0.5},
 			doOptimizationAndSaveValues,
-			"BlueSatEvasiveManeuver", red, blue);
+			"BlueSatEvasiveManeuver_" + numberOfBlueEvasiveManeuvers.ToString(), red, blue);
 		
 		numberOfBlueEvasiveManeuvers += 1;
 	End;
 	
 	If (userChoice == choice_returnToNominal);
 		If (numberOfBlueEvasiveManeuvers > 0);
-			blueOperationsScore -= 20;
+			blueOperationsScore -= 8;
 			
+			Call AdvanceSimUplinkPeriod(red, blue);
 			Call TargetNewOrbitAndAdvanceSim(
 				blue[0], initialKepStateBlue1,
 				initialLongitudeBlue1, {0.1, 1},
 				doOptimizationAndSaveValues,
 				"BlueSatReturnToSlot_" + numberOfBlueEvasiveManeuvers.ToString(),
 				red, blue);
+			numberOfBlueEvasiveManeuvers = 0;
 		End;
 	End;
 EndProcedure;
 
 
 
+
+Define Procedure AdvanceSimUntilBlueIsNominal(Formation red, Formation blue);
+	While (blueIsOffNominal);
+		Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(5));
+		Call ShowOperatorActionsMenu(red, blue);
+	End;
+EndProcedure;
 
 Define Procedure DisplayModeScript(Formation red, Formation blue);
 	Optimizer opt;
@@ -4772,10 +4741,7 @@ Define Procedure DisableScript(Formation red, Formation blue);
 		
 		Call AdvanceSimToTargetedNewOrbit(red[0], dv1, dv2, interBurnTime, red, blue);
 		
-		While (blueIsOffNominal);
-			Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(5));
-			Call ShowOperatorActionsMenu(red, blue);
-		End;
+		Call AdvanceSimUntilBlueIsNominal(red, blue);
 		ExitProcedure;
 	End;
 	
@@ -4790,73 +4756,16 @@ Define Procedure DisableScript(Formation red, Formation blue);
 		Call PostBlueStepSubroutine(red, blue);
 	End;
 	
-////Block PRESOLVED OPTIMIZATION
-//	If (doOptimizationAndSaveValues+1);
-//		opt.Reset(1);
-//		opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
-//		opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
-//		opt.AddStateVariable("days", 0.5, 0.1, 1);
-//		opt.AddConstraint("A",    blue[0].A,          blue[0].A, 100);
-//		opt.AddConstraint("E",    blue[0].E + 0.0012, blue[0].E + 0.0012);
-//		opt.AddConstraint("I",    blue[0].I,          blue[0].I, 100, 360);
-//		opt.AddConstraint("RAAN", blue[0].RAAN,       blue[0].RAAN, 100, 360);
-//		opt.AddConstraint("W",    blue[0].W,          blue[0].W, 100, 360);
-//		
-//		opt.SaveObjectToProcess(red[1]);
-//		opt.LoadEngine();
-//		While (opt.IsRunning());
-//			opt.UpdateStateVariables();
-//			opt.RestoreObjectsInProcess();
-//			
-//			burn.BurnDirection = opt.GetStateVariableValues[0:2];
-//			totalDV = burn.BurnDirection.Norm;
-//			red[1].Maneuver(burn);
-//			
-//			futureEpoch = red[1].Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
-//			WhileStepping red[1] to (red[1].Epoch == futureEpoch);
-//			End;
-//			
-//			burn.BurnDirection = opt.GetStateVariableValues[3:5];
-//			totalDV += burn.BurnDirection.Norm;
-//			red[1].Maneuver(burn);
-//			
-//			opt.SetConstraintValue("A", red[1].A);
-//			opt.SetConstraintValue("E", red[1].E);
-//			opt.SetConstraintValue("I", red[1].I);
-//			opt.SetConstraintValue("RAAN", red[1].RAAN);
-//			opt.SetConstraintValue("W", red[1].W);
-//									 
-//			opt.Minimize(totalDV);
-//			
-//			If (opt.OptimizationPhase == 1);
-//				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
-//			End;
-//		End;
-//		
-//		Report opt.ReturnString;
-//		opt.RestoreObjectsInProcess();
-//		
-//		Call OpenForWrite("SavedValues/DisableScript_Red2Burn1and2.txt");
-//		file.PutLine(opt.GetBestStateVariableValue("dv11").ToString());
-//		file.PutLine(opt.GetBestStateVariableValue("dv12").ToString());
-//		file.PutLine(opt.GetBestStateVariableValue("dv13").ToString());
-//		file.PutLine(opt.GetBestStateVariableValue("dv21").ToString());
-//		file.PutLine(opt.GetBestStateVariableValue("dv22").ToString());
-//		file.PutLine(opt.GetBestStateVariableValue("dv23").ToString());
-//		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
-//		file.Close();
-//	End;
-////EndBlock PRESOLVED OPTIMIZATION
-//	
-//	Call OpenForRead("SavedValues/DisableScript_Red2Burn1and2.txt");
-//	burn.BurnDirection[0] = file.GetLine().ToVariable();
-//	burn.BurnDirection[1] = file.GetLine().ToVariable();
-//	burn.BurnDirection[2] = file.GetLine().ToVariable();
-//	dv2[0] = file.GetLine().ToVariable();
-//	dv2[1] = file.GetLine().ToVariable();
-//	dv2[2] = file.GetLine().ToVariable();
-//	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
-//	file.Close();
+	Variable i;
+	If (blueJammerState == 2);
+		For i = 0 to 2;
+			Call ShowOperatorActionsMenu(red, blue);
+			Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(10));
+		End;
+		
+		Call AdvanceSimUntilBlueIsNominal(red, blue);		
+		ExitProcedure;
+	End;
 	
 	kepState = blue[0].GetKeplerianState();
 	kepState[1] += 0.0012;

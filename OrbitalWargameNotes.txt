@@ -42,5 +42,7 @@ For briefing packet:
 - scoring mechanics
   - using jamming when red is in non-threatening position creates high tension. When red is in threatening position, less so.
   - off-nominal slews and maneuvers incur fuel/nominal operations cost
+  - constant drain on objective for as long as off-nominal state persists
+- blueSat must be in nominal state to end game
 
 
