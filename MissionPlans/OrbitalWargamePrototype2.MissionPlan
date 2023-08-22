@@ -616,6 +616,10 @@ End;
 Global Array initialKepStateRed1 = red[0].GetKeplerianState();
 Global Variable initialLongitudeRed1 = red[0].Longitude;
 
+Global Array initialKepStateBlue1 = blue[0].GetKeplerianState();
+Global Variable initialLongitudeBlue1 = blue[0].Longitude;
+
+Global Variable numberOfBlueEvasiveManeuvers = 0;
 ]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
@@ -995,119 +999,6 @@ pwRadiusLongitude.EndBatchUpdate();
 pwRange.EndBatchUpdate();
 pwAngleFromPayload.EndBatchUpdate();
 pwAngleRange.EndBatchUpdate();]]></FreeFormScript>
-      </FreeForm>
-      <FreeForm enabled="true">
-        <Label>OperatorActions menu</Label>
-        <Bookmarks />
-        <Breakpoints />
-        <FreeFormScript><![CDATA[Global UserInterface OperatorActions;
-
-Global Constant Variable choice_nominal = 1;
-Global Constant Variable choice_secondaryComms = 2;
-Global Constant Variable choice_slew = 3;
-Global Constant Variable choice_jam = 4;
-Global Constant Variable choice_evasive = 5;
-Global Constant Variable choice_returnToNominal = 6;
-Global Constant Variable choice_reevaluate = 7;
-
-
-Define Procedure BuildOperatorActionsMenu();
-	OperatorActions.ClearElements();
-	OperatorActions.Title = "Operator Actions";
-	String msg = @"To re-evaluate the data readouts and 3D views before making a selection,\nchoose 'Re-evaluate data' from the list above. Then, when you are ready\nto choose an action, click the blue play button in the top toolbar.";
-	OperatorActions.AddLabel(msg);
-	OperatorActions.AddSeparator("", 1);
-	
-	If (redJammerState == 1);
-		msg = "Warning: Primary comms path is currently disrupted.";
-		OperatorActions.AddLabel(msg);
-		OperatorActions.AddSeparator("", 1);
-	End;
-	
-	Variable multiChoiceID = OperatorActions.AddMultiChoice("userChoice", "Select an action:", "choice_nominal", 1);
-	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_nominal",   "Continue nominal operations");
-	
-	If (blueBackupCommsState == 0); // inactive
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Ready secondary blue comms path");
-	ElseIf (blueBackupCommsState == 1); // ready
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to secondary blue comms path");
-	ElseIf (blueBackupCommsState == 2); // active
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to primary blue comm path");
-	End;
-	
-	If (redJammerState == 0);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_slew", "Slew payload away from closest red spacecraft");
-	End;
-	
-	If (blueJammerState == 0); // inactive
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Ready ground-based jamming unit");
-	ElseIf (blueBackupCommsState == 1); // ready
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Activate ground-based jamming unit");
-	ElseIf (blueBackupCommsState == 2); // active
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "De-activate ground-based jamming unit");
-	End;
-	
-	If (redJammerState == 0);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_evasive",   "Perform evasive maneuver");
-	End;
-	
-	If (blueIsOffNominal);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_returnToNominal",   "Return BlueSat to nominal attitude/location");
-	End;
-	
-	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_reevaluate",  "Re-evaluate data");
-EndProcedure;
-
-Define Procedure ShowOperatorActionsMenu();
-	If (autoChooseNominalOperation);
-		userChoice = choice_nominal;
-	Else;
-		Call BuildOperatorActionsMenu();
-		Show OperatorActions;
-	End;
-	
-	While (userChoice == choice_reevaluate);
-		Pause;
-		Show OperatorActions;
-	End;
-	
-	If (userChoice == choice_slew or userChoice == choice_evasive);
-		blueIsOffNominal = 1;
-	End;
-	
-	If (userChoice == choice_returnToNominal);
-		blueIsOffNominal = 0;
-	End;
-	
-	If (userChoice == choice_secondaryComms);
-		If (blueBackupCommsState == 0); // inactive
-			blueBackupCommsState = 2;
-		ElseIf (blueBackupCommsState == 1); // ready
-			Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
-		ElseIf (blueBackupCommsState == 2); // active
-			blueBackupCommsState = 0;
-			blueOperationsScore -= ;
-		End;
-	End;
-	
-	If (userChoice == choice_jam);
-		If (blueJammerState == 0); // inactive
-			Call SetBlueJammerState(1);
-			blueOperationsScore -= 5;
-		ElseIf (blueBackupCommsState == 1); // ready
-			Call SetBlueJammerState(2);
-		ElseIf (blueBackupCommsState == 2); // active
-			Call SetBlueJammerState(1);
-		End;
-	End;
-	
-	If (userChoice == choice_evasive);
-		blueOperationsScore -= 30;
-	End;
-EndProcedure;
-
-
-]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
         <Label>Output Configuration</Label>
@@ -1574,7 +1465,6 @@ EndProcedure;
 
 
 Define Procedure TargetNewOrbit(
-		Optimizer opt,
 		Spacecraft sc,
 		Array kepState,
 		Variable longitude,
@@ -1587,6 +1477,7 @@ Define Procedure TargetNewOrbit(
 	Variable totalDV;
 	TimeSpan futureEpoch;
 	Variable addLongitudeConstraint;
+	Optimizer opt;
 	
 	If (doOptimization);
 		opt.Reset(1);
@@ -1596,12 +1487,13 @@ Define Procedure TargetNewOrbit(
 		opt.AddConstraint("A",    kepState[0], kepState[0], 100);
 		opt.AddConstraint("E",    kepState[1], kepState[1]);
 		opt.AddConstraint("I",    kepState[2], kepState[2], 100, 360);
-//		opt.AddConstraint("RAAN", kepState[3], kepState[3], 100, 360);
-//		opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
 		
 		addLongitudeConstraint = longitude != -999;
 		If (addLongitudeConstraint);
 			opt.AddConstraint("lon",   longitude, longitude, 100, 360);
+		Else;
+			opt.AddConstraint("RAAN", kepState[3], kepState[3], 100, 360);
+			opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
 		End;
 		
 		opt.SaveObjectToProcess(sc);
@@ -1626,10 +1518,12 @@ Define Procedure TargetNewOrbit(
 			opt.SetConstraintValue("A", sc.A);
 			opt.SetConstraintValue("E", sc.E);
 			opt.SetConstraintValue("I", sc.I);
-//			opt.SetConstraintValue("RAAN", sc.RAAN);
-//			opt.SetConstraintValue("W", sc.W);
+
 			If (addLongitudeConstraint);
 				opt.SetConstraintValue("lon", sc.Longitude);
+			Else;
+				opt.SetConstraintValue("RAAN", sc.RAAN);
+				opt.SetConstraintValue("W", sc.W);
 			End;
 									 
 			opt.Minimize(totalDV);
@@ -1671,6 +1565,156 @@ Define Procedure AdvanceSimToTargetedNewOrbit(Spacecraft sc, Array dv1, Array dv
 	burn.BurnDirection = dv2;
 	sc.Maneuver(burn);
 EndProcedure;
+
+
+Define Procedure TargetNewOrbitAndAdvanceSim(
+		Spacecraft sc,
+		Array kepState,
+		Variable longitude,
+		Array timeBoundsDays,
+		Variable doOptimization,
+		String solutionFileLabel,
+		Formation red,
+		Formation blue);
+	
+	Array dv1(3);
+	Array dv2(3);
+	TimeSpan interBurnTime;
+	Call TargetNewOrbit(sc, kepState, longitude, timeBoundsDays, doOptimization, solutionFileLabel, dv1, dv2, interBurnTime);
+	Call AdvanceSimToTargetedNewOrbit(sc, dv1, dv2, interBurnTime, red, blue);
+EndProcedure;
+]]></FreeFormScript>
+      </FreeForm>
+      <FreeForm enabled="true">
+        <Label>OperatorActions menu</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[Global UserInterface OperatorActions;
+
+Global Constant Variable choice_nominal = 1;
+Global Constant Variable choice_secondaryComms = 2;
+Global Constant Variable choice_slew = 3;
+Global Constant Variable choice_jam = 4;
+Global Constant Variable choice_evasive = 5;
+Global Constant Variable choice_returnToNominal = 6;
+Global Constant Variable choice_reevaluate = 7;
+
+
+Define Procedure BuildOperatorActionsMenu();
+	OperatorActions.ClearElements();
+	OperatorActions.Title = "Operator Actions";
+	String msg = @"To re-evaluate the data readouts and 3D views before making a selection,\nchoose 'Re-evaluate data' from the list above. Then, when you are ready\nto choose an action, click the blue play button in the top toolbar.";
+	OperatorActions.AddLabel(msg);
+	OperatorActions.AddSeparator("", 1);
+	
+	If (redJammerState == 1);
+		msg = "Warning: Primary comms path is currently disrupted.";
+		OperatorActions.AddLabel(msg);
+		OperatorActions.AddSeparator("", 1);
+	End;
+	
+	Variable multiChoiceID = OperatorActions.AddMultiChoice("userChoice", "Select an action:", "choice_nominal", 1);
+	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_nominal",   "Continue nominal operations");
+	
+	If (blueBackupCommsState == 0); // inactive
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Ready secondary blue comms path");
+	ElseIf (blueBackupCommsState == 1); // ready
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to secondary blue comms path");
+	ElseIf (blueBackupCommsState == 2); // active
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to primary blue comm path");
+	End;
+	
+	If (redJammerState == 0);
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_slew", "Slew payload away from closest red spacecraft");
+	End;
+	
+	If (blueJammerState == 0); // inactive
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Ready ground-based jamming unit");
+	ElseIf (blueBackupCommsState == 1); // ready
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Activate ground-based jamming unit");
+	ElseIf (blueBackupCommsState == 2); // active
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "De-activate ground-based jamming unit");
+	End;
+	
+	If (redJammerState == 0);
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_evasive",   "Perform evasive maneuver");
+	End;
+	
+	If (blueIsOffNominal);
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_returnToNominal",   "Return BlueSat to nominal attitude/location");
+	End;
+	
+	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_reevaluate",  "Re-evaluate data");
+EndProcedure;
+
+Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
+	If (autoChooseNominalOperation);
+		userChoice = choice_nominal;
+	Else;
+		Call BuildOperatorActionsMenu();
+		Show OperatorActions;
+	End;
+	
+	While (userChoice == choice_reevaluate);
+		Pause;
+		Show OperatorActions;
+	End;
+	
+	If (userChoice == choice_slew or userChoice == choice_evasive);
+		blueIsOffNominal = 1;
+	End;
+	
+	If (userChoice == choice_returnToNominal);
+		blueIsOffNominal = 0;
+	End;
+	
+	If (userChoice == choice_secondaryComms);
+		If (blueBackupCommsState == 0); // inactive
+			blueBackupCommsState = 2;
+		ElseIf (blueBackupCommsState == 1); // ready
+			Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
+		ElseIf (blueBackupCommsState == 2); // active
+			blueBackupCommsState = 0;
+		End;
+	End;
+	
+	If (userChoice == choice_jam);
+		If (blueJammerState == 0); // inactive
+			Call SetBlueJammerState(1);
+			blueOperationsScore -= 5;
+		ElseIf (blueBackupCommsState == 1); // ready
+			Call SetBlueJammerState(2);
+		ElseIf (blueBackupCommsState == 2); // active
+			Call SetBlueJammerState(1);
+		End;
+	End;
+	
+	If (userChoice == choice_evasive);
+		blueOperationsScore -= 20;
+		
+		Call TargetNewOrbitAndAdvanceSim(
+			blue[0], initialKepStateBlue1,
+			blue[0].Longitude + 0.5, {0.1, 0.5},
+			doOptimizationAndSaveValues,
+			"BlueSatEvasiveManeuver", red, blue);
+		
+		numberOfBlueEvasiveManeuvers += 1;
+	End;
+	
+	If (userChoice == choice_returnToNominal);
+		If (numberOfBlueEvasiveManeuvers > 0);
+			blueOperationsScore -= 20;
+			
+			Call TargetNewOrbitAndAdvanceSim(
+				blue[0], initialKepStateBlue1,
+				initialLongitudeBlue1, {0.1, 1},
+				doOptimizationAndSaveValues,
+				"BlueSatReturnToSlot_" + numberOfBlueEvasiveManeuvers.ToString(),
+				red, blue);
+		End;
+	End;
+EndProcedure;
+
 
 ]]></FreeFormScript>
       </FreeForm>
@@ -2161,23 +2205,27 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	
 	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(10));
 	
-	Call ShowOperatorActionsMenu();
+	Call ShowOperatorActionsMenu(red, blue);
 	If (userChoice == choice_evasive);
 		Call TargetNewOrbit(
-			opt, red[0], initialKepStateRed1,
+			red[0], initialKepStateRed1,
 			initialLongitudeRed1, {0.1, 5},
-			doOptimizationAndSaveValues+1,
+			doOptimizationAndSaveValues,
 			"DisableScript_Red1ReturnToSlot1",
 			dv1, dv2, interBurnTime);
 		
 		Call AdvanceSimToTargetedNewOrbit(red[0], dv1, dv2, interBurnTime, red, blue);
-		Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(5));
+		
+		While (blueIsOffNominal);
+			Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(5));
+			Call ShowOperatorActionsMenu(red, blue);
+		End;
 		ExitProcedure;
 	End;
 	
 	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(10));
 	
-	Call ShowOperatorActionsMenu();
+	Call ShowOperatorActionsMenu(red, blue);
 	If (userChoice == choice_evasive);
 		// red pulls back
 	End;
@@ -2257,7 +2305,7 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	kepState = blue[0].GetKeplerianState();
 	kepState[1] += 0.0012;
 	Call TargetNewOrbit(
-		opt, red[1], kepState,
+		red[1], kepState,
 		-999, {0.4, 0.6},
 		doOptimizationAndSaveValues,
 		"DisableScript_Red2Burn1and2",
@@ -3053,6 +3101,10 @@ End;
 Global Array initialKepStateRed1 = red[0].GetKeplerianState();
 Global Variable initialLongitudeRed1 = red[0].Longitude;
 
+Global Array initialKepStateBlue1 = blue[0].GetKeplerianState();
+Global Variable initialLongitudeBlue1 = blue[0].Longitude;
+
+Global Variable numberOfBlueEvasiveManeuvers = 0;
 
 Define Procedure InitializePlotPredictSeries(PlotScatterSeries series, String label, Variable color);
 	series.Label = label;
@@ -3427,114 +3479,6 @@ pwRadiusLongitude.EndBatchUpdate();
 pwRange.EndBatchUpdate();
 pwAngleFromPayload.EndBatchUpdate();
 pwAngleRange.EndBatchUpdate();
-Global UserInterface OperatorActions;
-
-Global Constant Variable choice_nominal = 1;
-Global Constant Variable choice_secondaryComms = 2;
-Global Constant Variable choice_slew = 3;
-Global Constant Variable choice_jam = 4;
-Global Constant Variable choice_evasive = 5;
-Global Constant Variable choice_returnToNominal = 6;
-Global Constant Variable choice_reevaluate = 7;
-
-
-Define Procedure BuildOperatorActionsMenu();
-	OperatorActions.ClearElements();
-	OperatorActions.Title = "Operator Actions";
-	String msg = @"To re-evaluate the data readouts and 3D views before making a selection,\nchoose 'Re-evaluate data' from the list above. Then, when you are ready\nto choose an action, click the blue play button in the top toolbar.";
-	OperatorActions.AddLabel(msg);
-	OperatorActions.AddSeparator("", 1);
-	
-	If (redJammerState == 1);
-		msg = "Warning: Primary comms path is currently disrupted.";
-		OperatorActions.AddLabel(msg);
-		OperatorActions.AddSeparator("", 1);
-	End;
-	
-	Variable multiChoiceID = OperatorActions.AddMultiChoice("userChoice", "Select an action:", "choice_nominal", 1);
-	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_nominal",   "Continue nominal operations");
-	
-	If (blueBackupCommsState == 0); // inactive
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Ready secondary blue comms path");
-	ElseIf (blueBackupCommsState == 1); // ready
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to secondary blue comms path");
-	ElseIf (blueBackupCommsState == 2); // active
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to primary blue comm path");
-	End;
-	
-	If (redJammerState == 0);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_slew", "Slew payload away from closest red spacecraft");
-	End;
-	
-	If (blueJammerState == 0); // inactive
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Ready ground-based jamming unit");
-	ElseIf (blueBackupCommsState == 1); // ready
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Activate ground-based jamming unit");
-	ElseIf (blueBackupCommsState == 2); // active
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "De-activate ground-based jamming unit");
-	End;
-	
-	If (redJammerState == 0);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_evasive",   "Perform evasive maneuver");
-	End;
-	
-	If (blueIsOffNominal);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_returnToNominal",   "Return BlueSat to nominal attitude/location");
-	End;
-	
-	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_reevaluate",  "Re-evaluate data");
-EndProcedure;
-
-Define Procedure ShowOperatorActionsMenu();
-	If (autoChooseNominalOperation);
-		userChoice = choice_nominal;
-	Else;
-		Call BuildOperatorActionsMenu();
-		Show OperatorActions;
-	End;
-	
-	While (userChoice == choice_reevaluate);
-		Pause;
-		Show OperatorActions;
-	End;
-	
-	If (userChoice == choice_slew or userChoice == choice_evasive);
-		blueIsOffNominal = 1;
-	End;
-	
-	If (userChoice == choice_returnToNominal);
-		blueIsOffNominal = 0;
-	End;
-	
-	If (userChoice == choice_secondaryComms);
-		If (blueBackupCommsState == 0); // inactive
-			blueBackupCommsState = 2;
-		ElseIf (blueBackupCommsState == 1); // ready
-			Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
-		ElseIf (blueBackupCommsState == 2); // active
-			blueBackupCommsState = 0;
-			blueOperationsScore -= ;
-		End;
-	End;
-	
-	If (userChoice == choice_jam);
-		If (blueJammerState == 0); // inactive
-			Call SetBlueJammerState(1);
-			blueOperationsScore -= 5;
-		ElseIf (blueBackupCommsState == 1); // ready
-			Call SetBlueJammerState(2);
-		ElseIf (blueBackupCommsState == 2); // active
-			Call SetBlueJammerState(1);
-		End;
-	End;
-	
-	If (userChoice == choice_evasive);
-		blueOperationsScore -= 30;
-	End;
-EndProcedure;
-
-
-
 
 Global Constant Variable screenSpaceRatio = 0.5;
 
@@ -3991,7 +3935,6 @@ EndProcedure;
 
 
 Define Procedure TargetNewOrbit(
-		Optimizer opt,
 		Spacecraft sc,
 		Array kepState,
 		Variable longitude,
@@ -4004,6 +3947,7 @@ Define Procedure TargetNewOrbit(
 	Variable totalDV;
 	TimeSpan futureEpoch;
 	Variable addLongitudeConstraint;
+	Optimizer opt;
 	
 	If (doOptimization);
 		opt.Reset(1);
@@ -4013,12 +3957,13 @@ Define Procedure TargetNewOrbit(
 		opt.AddConstraint("A",    kepState[0], kepState[0], 100);
 		opt.AddConstraint("E",    kepState[1], kepState[1]);
 		opt.AddConstraint("I",    kepState[2], kepState[2], 100, 360);
-//		opt.AddConstraint("RAAN", kepState[3], kepState[3], 100, 360);
-//		opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
 		
 		addLongitudeConstraint = longitude != -999;
 		If (addLongitudeConstraint);
 			opt.AddConstraint("lon",   longitude, longitude, 100, 360);
+		Else;
+			opt.AddConstraint("RAAN", kepState[3], kepState[3], 100, 360);
+			opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
 		End;
 		
 		opt.SaveObjectToProcess(sc);
@@ -4043,10 +3988,12 @@ Define Procedure TargetNewOrbit(
 			opt.SetConstraintValue("A", sc.A);
 			opt.SetConstraintValue("E", sc.E);
 			opt.SetConstraintValue("I", sc.I);
-//			opt.SetConstraintValue("RAAN", sc.RAAN);
-//			opt.SetConstraintValue("W", sc.W);
+
 			If (addLongitudeConstraint);
 				opt.SetConstraintValue("lon", sc.Longitude);
+			Else;
+				opt.SetConstraintValue("RAAN", sc.RAAN);
+				opt.SetConstraintValue("W", sc.W);
 			End;
 									 
 			opt.Minimize(totalDV);
@@ -4088,6 +4035,151 @@ Define Procedure AdvanceSimToTargetedNewOrbit(Spacecraft sc, Array dv1, Array dv
 	burn.BurnDirection = dv2;
 	sc.Maneuver(burn);
 EndProcedure;
+
+
+Define Procedure TargetNewOrbitAndAdvanceSim(
+		Spacecraft sc,
+		Array kepState,
+		Variable longitude,
+		Array timeBoundsDays,
+		Variable doOptimization,
+		String solutionFileLabel,
+		Formation red,
+		Formation blue);
+	
+	Array dv1(3);
+	Array dv2(3);
+	TimeSpan interBurnTime;
+	Call TargetNewOrbit(sc, kepState, longitude, timeBoundsDays, doOptimization, solutionFileLabel, dv1, dv2, interBurnTime);
+	Call AdvanceSimToTargetedNewOrbit(sc, dv1, dv2, interBurnTime, red, blue);
+EndProcedure;
+
+Global UserInterface OperatorActions;
+
+Global Constant Variable choice_nominal = 1;
+Global Constant Variable choice_secondaryComms = 2;
+Global Constant Variable choice_slew = 3;
+Global Constant Variable choice_jam = 4;
+Global Constant Variable choice_evasive = 5;
+Global Constant Variable choice_returnToNominal = 6;
+Global Constant Variable choice_reevaluate = 7;
+
+
+Define Procedure BuildOperatorActionsMenu();
+	OperatorActions.ClearElements();
+	OperatorActions.Title = "Operator Actions";
+	String msg = @"To re-evaluate the data readouts and 3D views before making a selection,\nchoose 'Re-evaluate data' from the list above. Then, when you are ready\nto choose an action, click the blue play button in the top toolbar.";
+	OperatorActions.AddLabel(msg);
+	OperatorActions.AddSeparator("", 1);
+	
+	If (redJammerState == 1);
+		msg = "Warning: Primary comms path is currently disrupted.";
+		OperatorActions.AddLabel(msg);
+		OperatorActions.AddSeparator("", 1);
+	End;
+	
+	Variable multiChoiceID = OperatorActions.AddMultiChoice("userChoice", "Select an action:", "choice_nominal", 1);
+	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_nominal",   "Continue nominal operations");
+	
+	If (blueBackupCommsState == 0); // inactive
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Ready secondary blue comms path");
+	ElseIf (blueBackupCommsState == 1); // ready
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to secondary blue comms path");
+	ElseIf (blueBackupCommsState == 2); // active
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to primary blue comm path");
+	End;
+	
+	If (redJammerState == 0);
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_slew", "Slew payload away from closest red spacecraft");
+	End;
+	
+	If (blueJammerState == 0); // inactive
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Ready ground-based jamming unit");
+	ElseIf (blueBackupCommsState == 1); // ready
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Activate ground-based jamming unit");
+	ElseIf (blueBackupCommsState == 2); // active
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "De-activate ground-based jamming unit");
+	End;
+	
+	If (redJammerState == 0);
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_evasive",   "Perform evasive maneuver");
+	End;
+	
+	If (blueIsOffNominal);
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_returnToNominal",   "Return BlueSat to nominal attitude/location");
+	End;
+	
+	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_reevaluate",  "Re-evaluate data");
+EndProcedure;
+
+Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
+	If (autoChooseNominalOperation);
+		userChoice = choice_nominal;
+	Else;
+		Call BuildOperatorActionsMenu();
+		Show OperatorActions;
+	End;
+	
+	While (userChoice == choice_reevaluate);
+		Pause;
+		Show OperatorActions;
+	End;
+	
+	If (userChoice == choice_slew or userChoice == choice_evasive);
+		blueIsOffNominal = 1;
+	End;
+	
+	If (userChoice == choice_returnToNominal);
+		blueIsOffNominal = 0;
+	End;
+	
+	If (userChoice == choice_secondaryComms);
+		If (blueBackupCommsState == 0); // inactive
+			blueBackupCommsState = 2;
+		ElseIf (blueBackupCommsState == 1); // ready
+			Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
+		ElseIf (blueBackupCommsState == 2); // active
+			blueBackupCommsState = 0;
+		End;
+	End;
+	
+	If (userChoice == choice_jam);
+		If (blueJammerState == 0); // inactive
+			Call SetBlueJammerState(1);
+			blueOperationsScore -= 5;
+		ElseIf (blueBackupCommsState == 1); // ready
+			Call SetBlueJammerState(2);
+		ElseIf (blueBackupCommsState == 2); // active
+			Call SetBlueJammerState(1);
+		End;
+	End;
+	
+	If (userChoice == choice_evasive);
+		blueOperationsScore -= 20;
+		
+		Call TargetNewOrbitAndAdvanceSim(
+			blue[0], initialKepStateBlue1,
+			blue[0].Longitude + 0.5, {0.1, 0.5},
+			doOptimizationAndSaveValues,
+			"BlueSatEvasiveManeuver", red, blue);
+		
+		numberOfBlueEvasiveManeuvers += 1;
+	End;
+	
+	If (userChoice == choice_returnToNominal);
+		If (numberOfBlueEvasiveManeuvers > 0);
+			blueOperationsScore -= 20;
+			
+			Call TargetNewOrbitAndAdvanceSim(
+				blue[0], initialKepStateBlue1,
+				initialLongitudeBlue1, {0.1, 1},
+				doOptimizationAndSaveValues,
+				"BlueSatReturnToSlot_" + numberOfBlueEvasiveManeuvers.ToString(),
+				red, blue);
+		End;
+	End;
+EndProcedure;
+
 
 
 
@@ -4573,23 +4665,27 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	
 	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(10));
 	
-	Call ShowOperatorActionsMenu();
+	Call ShowOperatorActionsMenu(red, blue);
 	If (userChoice == choice_evasive);
 		Call TargetNewOrbit(
-			opt, red[0], initialKepStateRed1,
+			red[0], initialKepStateRed1,
 			initialLongitudeRed1, {0.1, 5},
-			doOptimizationAndSaveValues+1,
+			doOptimizationAndSaveValues,
 			"DisableScript_Red1ReturnToSlot1",
 			dv1, dv2, interBurnTime);
 		
 		Call AdvanceSimToTargetedNewOrbit(red[0], dv1, dv2, interBurnTime, red, blue);
-		Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(5));
+		
+		While (blueIsOffNominal);
+			Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(5));
+			Call ShowOperatorActionsMenu(red, blue);
+		End;
 		ExitProcedure;
 	End;
 	
 	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(10));
 	
-	Call ShowOperatorActionsMenu();
+	Call ShowOperatorActionsMenu(red, blue);
 	If (userChoice == choice_evasive);
 		// red pulls back
 	End;
@@ -4669,7 +4765,7 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	kepState = blue[0].GetKeplerianState();
 	kepState[1] += 0.0012;
 	Call TargetNewOrbit(
-		opt, red[1], kepState,
+		red[1], kepState,
 		-999, {0.4, 0.6},
 		doOptimizationAndSaveValues,
 		"DisableScript_Red2Burn1and2",
