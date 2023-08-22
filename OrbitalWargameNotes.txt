@@ -1,7 +1,7 @@
 Mission Plan Notes;
 
 
-
+- change axis formats on plots
 
 
 EM/RF people: Billy Gonzolez, scott donel

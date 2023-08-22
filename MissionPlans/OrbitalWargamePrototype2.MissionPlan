@@ -239,6 +239,8 @@
 
 userChoice = 3;
 simStepSizeSeconds = 1500;
+
+Global Constant Variable autoChooseNominalOperation = 0;
 ]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
@@ -612,6 +614,7 @@ End;
 
 
 Global Array initialKepStateRed1 = red[0].GetKeplerianState();
+Global Variable initialLongitudeRed1 = red[0].Longitude;
 
 ]]></FreeFormScript>
       </FreeForm>
@@ -1056,8 +1059,12 @@ Define Procedure BuildOperatorActionsMenu();
 EndProcedure;
 
 Define Procedure ShowOperatorActionsMenu();
-	Call BuildOperatorActionsMenu();
-	Show OperatorActions;
+	If (autoChooseNominalOperation);
+		userChoice = choice_nominal;
+	Else;
+		Call BuildOperatorActionsMenu();
+		Show OperatorActions;
+	End;
 	
 	While (userChoice == choice_reevaluate);
 		Pause;
@@ -1079,7 +1086,7 @@ Define Procedure ShowOperatorActionsMenu();
 			Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
 		ElseIf (blueBackupCommsState == 2); // active
 			blueBackupCommsState = 0;
-			blueOperationsScore -= 3;
+			blueOperationsScore -= ;
 		End;
 	End;
 	
@@ -1095,7 +1102,7 @@ Define Procedure ShowOperatorActionsMenu();
 	End;
 	
 	If (userChoice == choice_evasive);
-		blueOperationsScore -= 20;
+		blueOperationsScore -= 30;
 	End;
 EndProcedure;
 
@@ -1527,6 +1534,10 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue);
 		tensionScore -= 0.1 * blue[0].Propagator.StepSize.ToHours();
 	End;
 	
+	If (blueBackupCommsState == 2);
+		blueOperationsScore -= 0.05 * blue[0].Propagator.StepSize.ToHours();
+	End;
+	
 	Call ComputeRangeAndAngleFromPayload(blue[0], red[0], range, angle);
 	Call IsInsidePayloadKeepOutZone(range, angle, isInsidePayloadKeepOutZone);
 	If (isInsidePayloadKeepOutZone);
@@ -1585,15 +1596,16 @@ Define Procedure TargetNewOrbit(
 		opt.AddConstraint("A",    kepState[0], kepState[0], 100);
 		opt.AddConstraint("E",    kepState[1], kepState[1]);
 		opt.AddConstraint("I",    kepState[2], kepState[2], 100, 360);
-		opt.AddConstraint("RAAN", kepState[3], kepState[3], 100, 360);
-		opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
+//		opt.AddConstraint("RAAN", kepState[3], kepState[3], 100, 360);
+//		opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
 		
 		addLongitudeConstraint = longitude != -999;
-		If (addTrueAnomalyConstraint);
+		If (addLongitudeConstraint);
 			opt.AddConstraint("lon",   longitude, longitude, 100, 360);
 		End;
 		
 		opt.SaveObjectToProcess(sc);
+		opt.MaximumNominalEvaluationCount = 1000;
 		opt.LoadEngine();
 		While (opt.IsRunning());
 			opt.UpdateStateVariables();
@@ -1614,8 +1626,8 @@ Define Procedure TargetNewOrbit(
 			opt.SetConstraintValue("A", sc.A);
 			opt.SetConstraintValue("E", sc.E);
 			opt.SetConstraintValue("I", sc.I);
-			opt.SetConstraintValue("RAAN", sc.RAAN);
-			opt.SetConstraintValue("W", sc.W);
+//			opt.SetConstraintValue("RAAN", sc.RAAN);
+//			opt.SetConstraintValue("W", sc.W);
 			If (addLongitudeConstraint);
 				opt.SetConstraintValue("lon", sc.Longitude);
 			End;
@@ -1650,6 +1662,14 @@ Define Procedure TargetNewOrbit(
 	dv2[2] = file.GetLine().ToVariable();
 	interBurnTime = TimeSpan.FromDays(file.GetLine().ToVariable());
 	file.Close();
+EndProcedure;
+
+Define Procedure AdvanceSimToTargetedNewOrbit(Spacecraft sc, Array dv1, Array dv2, TimeSpan interBurnTime, Formation red, Formation blue);
+	burn.BurnDirection = dv1;
+	sc.Maneuver(burn);
+	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + interBurnTime);
+	burn.BurnDirection = dv2;
+	sc.Maneuver(burn);
 EndProcedure;
 
 ]]></FreeFormScript>
@@ -2139,11 +2159,20 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	red[0].Maneuver(burn);
 	futureEpoch2 = blue[0].Epoch + TimeSpan.FromDays(4);
 	
-	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(1));
+	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(10));
 	
 	Call ShowOperatorActionsMenu();
 	If (userChoice == choice_evasive);
-		// compute new red trajectory
+		Call TargetNewOrbit(
+			opt, red[0], initialKepStateRed1,
+			initialLongitudeRed1, {0.1, 5},
+			doOptimizationAndSaveValues+1,
+			"DisableScript_Red1ReturnToSlot1",
+			dv1, dv2, interBurnTime);
+		
+		Call AdvanceSimToTargetedNewOrbit(red[0], dv1, dv2, interBurnTime, red, blue);
+		Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(5));
+		ExitProcedure;
 	End;
 	
 	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(10));
@@ -2228,7 +2257,8 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	kepState = blue[0].GetKeplerianState();
 	kepState[1] += 0.0012;
 	Call TargetNewOrbit(
-		opt, red[1], kepState, {0.4, 0.6},
+		opt, red[1], kepState,
+		-999, {0.4, 0.6},
 		doOptimizationAndSaveValues,
 		"DisableScript_Red2Burn1and2",
 		dv1, dv2, interBurnTime);
@@ -2652,6 +2682,8 @@ End;]]></FreeFormScript>
 userChoice = 3;
 simStepSizeSeconds = 1500;
 
+Global Constant Variable autoChooseNominalOperation = 0;
+
 
 Global TimeSpan simStepSize = TimeSpan.FromSeconds(simStepSizeSeconds);
 
@@ -3019,6 +3051,7 @@ End;
 
 
 Global Array initialKepStateRed1 = red[0].GetKeplerianState();
+Global Variable initialLongitudeRed1 = red[0].Longitude;
 
 
 Define Procedure InitializePlotPredictSeries(PlotScatterSeries series, String label, Variable color);
@@ -3453,8 +3486,12 @@ Define Procedure BuildOperatorActionsMenu();
 EndProcedure;
 
 Define Procedure ShowOperatorActionsMenu();
-	Call BuildOperatorActionsMenu();
-	Show OperatorActions;
+	If (autoChooseNominalOperation);
+		userChoice = choice_nominal;
+	Else;
+		Call BuildOperatorActionsMenu();
+		Show OperatorActions;
+	End;
 	
 	While (userChoice == choice_reevaluate);
 		Pause;
@@ -3476,7 +3513,7 @@ Define Procedure ShowOperatorActionsMenu();
 			Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
 		ElseIf (blueBackupCommsState == 2); // active
 			blueBackupCommsState = 0;
-			blueOperationsScore -= 3;
+			blueOperationsScore -= ;
 		End;
 	End;
 	
@@ -3492,7 +3529,7 @@ Define Procedure ShowOperatorActionsMenu();
 	End;
 	
 	If (userChoice == choice_evasive);
-		blueOperationsScore -= 20;
+		blueOperationsScore -= 30;
 	End;
 EndProcedure;
 
@@ -3914,6 +3951,10 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue);
 		tensionScore -= 0.1 * blue[0].Propagator.StepSize.ToHours();
 	End;
 	
+	If (blueBackupCommsState == 2);
+		blueOperationsScore -= 0.05 * blue[0].Propagator.StepSize.ToHours();
+	End;
+	
 	Call ComputeRangeAndAngleFromPayload(blue[0], red[0], range, angle);
 	Call IsInsidePayloadKeepOutZone(range, angle, isInsidePayloadKeepOutZone);
 	If (isInsidePayloadKeepOutZone);
@@ -3972,15 +4013,16 @@ Define Procedure TargetNewOrbit(
 		opt.AddConstraint("A",    kepState[0], kepState[0], 100);
 		opt.AddConstraint("E",    kepState[1], kepState[1]);
 		opt.AddConstraint("I",    kepState[2], kepState[2], 100, 360);
-		opt.AddConstraint("RAAN", kepState[3], kepState[3], 100, 360);
-		opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
+//		opt.AddConstraint("RAAN", kepState[3], kepState[3], 100, 360);
+//		opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
 		
 		addLongitudeConstraint = longitude != -999;
-		If (addTrueAnomalyConstraint);
+		If (addLongitudeConstraint);
 			opt.AddConstraint("lon",   longitude, longitude, 100, 360);
 		End;
 		
 		opt.SaveObjectToProcess(sc);
+		opt.MaximumNominalEvaluationCount = 1000;
 		opt.LoadEngine();
 		While (opt.IsRunning());
 			opt.UpdateStateVariables();
@@ -4001,8 +4043,8 @@ Define Procedure TargetNewOrbit(
 			opt.SetConstraintValue("A", sc.A);
 			opt.SetConstraintValue("E", sc.E);
 			opt.SetConstraintValue("I", sc.I);
-			opt.SetConstraintValue("RAAN", sc.RAAN);
-			opt.SetConstraintValue("W", sc.W);
+//			opt.SetConstraintValue("RAAN", sc.RAAN);
+//			opt.SetConstraintValue("W", sc.W);
 			If (addLongitudeConstraint);
 				opt.SetConstraintValue("lon", sc.Longitude);
 			End;
@@ -4037,6 +4079,14 @@ Define Procedure TargetNewOrbit(
 	dv2[2] = file.GetLine().ToVariable();
 	interBurnTime = TimeSpan.FromDays(file.GetLine().ToVariable());
 	file.Close();
+EndProcedure;
+
+Define Procedure AdvanceSimToTargetedNewOrbit(Spacecraft sc, Array dv1, Array dv2, TimeSpan interBurnTime, Formation red, Formation blue);
+	burn.BurnDirection = dv1;
+	sc.Maneuver(burn);
+	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + interBurnTime);
+	burn.BurnDirection = dv2;
+	sc.Maneuver(burn);
 EndProcedure;
 
 
@@ -4521,11 +4571,20 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	red[0].Maneuver(burn);
 	futureEpoch2 = blue[0].Epoch + TimeSpan.FromDays(4);
 	
-	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(1));
+	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(10));
 	
 	Call ShowOperatorActionsMenu();
 	If (userChoice == choice_evasive);
-		// compute new red trajectory
+		Call TargetNewOrbit(
+			opt, red[0], initialKepStateRed1,
+			initialLongitudeRed1, {0.1, 5},
+			doOptimizationAndSaveValues+1,
+			"DisableScript_Red1ReturnToSlot1",
+			dv1, dv2, interBurnTime);
+		
+		Call AdvanceSimToTargetedNewOrbit(red[0], dv1, dv2, interBurnTime, red, blue);
+		Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(5));
+		ExitProcedure;
 	End;
 	
 	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(10));
@@ -4610,7 +4669,8 @@ Define Procedure DisableScript(Formation red, Formation blue);
 	kepState = blue[0].GetKeplerianState();
 	kepState[1] += 0.0012;
 	Call TargetNewOrbit(
-		opt, red[1], kepState, {0.4, 0.6},
+		opt, red[1], kepState,
+		-999, {0.4, 0.6},
 		doOptimizationAndSaveValues,
 		"DisableScript_Red2Burn1and2",
 		dv1, dv2, interBurnTime);
