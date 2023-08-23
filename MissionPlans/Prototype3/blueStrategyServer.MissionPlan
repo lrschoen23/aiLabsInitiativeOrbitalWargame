@@ -74,7 +74,7 @@
         <WordWrap>false</WordWrap>
         <CurrentTextColor>0</CurrentTextColor>
         <BackColor>16777215</BackColor>
-        <Dimension units="" displayed_units="">50</Dimension>
+        <Dimension units="" displayed_units="">70</Dimension>
         <DockMode>3</DockMode>
         <CurrentFontType>0</CurrentFontType>
         <UseStdOut>false</UseStdOut>
@@ -83,13 +83,13 @@
       </ConsoleWindow>
     </Object>
     <Object>
-      <ConsoleWindow name="ConsoleSolver" isConstant="false" isGlobal="false">
+      <ConsoleWindow name="ConsoleSolver" isConstant="false" isGlobal="true">
         <Name>ConsoleSolver</Name>
         <WindowTitle>Console</WindowTitle>
         <WordWrap>false</WordWrap>
         <CurrentTextColor>0</CurrentTextColor>
         <BackColor>16777215</BackColor>
-        <Dimension units="" displayed_units="">50</Dimension>
+        <Dimension units="" displayed_units="">70</Dimension>
         <DockMode>4</DockMode>
         <CurrentFontType>0</CurrentFontType>
         <UseStdOut>false</UseStdOut>
@@ -164,6 +164,7 @@ Define Procedure TargetNewOrbit(
 		opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
 	End;
 	
+	Report sc.GetCartesianState().ToColumnMatrix, sc.Epoch;
 	opt.SaveObjectToProcess(sc);
 	opt.MaximumNominalEvaluationCount = 1000;
 	opt.LoadEngine();
@@ -196,16 +197,16 @@ Define Procedure TargetNewOrbit(
 								 
 		opt.Minimize(totalDV);
 		
-		If (opt.OptimizationPhase == 1);
-			Report opt.NominalEvaluationCount, "   ",
-			opt.ObjectiveFunctionValue, "   ",
-			opt.MaximumInfeasibility, "   ",
-			opt.MaximumInfeasibilitySource to Console;
-		End;
+//		If (opt.OptimizationPhase == 1);
+//			Report opt.NominalEvaluationCount, "   ",
+//			opt.ObjectiveFunctionValue, "   ",
+//			opt.MaximumInfeasibility, "   ",
+//			opt.MaximumInfeasibilitySource to ConsoleSolver;
+//		End;
 		
 	End;
 	
-	Report opt.ReturnString to Console;
+	Report opt.ReturnString to ConsoleSolver;
 	opt.RestoreObjectsInProcess();
 		
 	
@@ -228,43 +229,59 @@ connection.SocketType = "server";
 connection.PortNumber = 5115;
 connection.SocketTimeout = -1;
 
-Report "Listening on port ", connection.PortNumber.ToString(), "..." to Console;
-Open connection;
-Report "Connected" to Console;
 
-Variable clientIsRunning = 1;
+Variable stepSizeSeconds;
 
-While (clientIsRunning);
-	Receive strategyRequest from connection;
-	Report "" to Console;
-	Report "Recieved request: " to Console;
-	If (strategyRequest == blueStrategyRequest_orbitChange);
-		Report "Orbit Change" to Console;
-		Receive initialCartState,
-				initialEpochDays,
-				desiredKepState,
-				desiredLongitude,
-				interBurnTimeBoundsDays,
-				computationDelayHours from connection;
+
+While (1);	
+	Report "Listening on port ", connection.PortNumber.ToString(), "..." to Console;
+	Open connection;
+	Console.Clear();
+	ConsoleSolver.Clear();
+	Report "Connected" to Console;
 	
-		sc.Epoch = TimeSpan.FromDays(initialEpochDays);
-		sc.SetCartesianState(initialCartState);
-		sc.StepToEpoch(sc.Epoch + TimeSpan.FromHours(computationDelayHours));
-		Call TargetNewOrbit(
-			sc,
-			desiredKepState,
-			desiredLongitude,
-			interBurnTimeBoundsDays,
-			dv1,
-			dv2,
-			interBurnTime);
-		
-		Send dv1, dv2, interBurnTime.ToDays() to connection;
-	ElseIf (strategyRequest == blueStrategyRequest_slew);
-		Report "Slew" to Console;
-	ElseIf (strategyRequest == blueStrategyRequest_disconnectServer);
-		clientIsRunning = 0;
+	Receive stepSizeSeconds from connection;
+	sc.Propagator.StepSize = TimeSpan.FromSeconds(stepSizeSeconds);
+	
+	Try;
+		While (1);
+			Receive strategyRequest from connection;
+			Report "" to Console;
+			Report "Recieved request: " to Console;
+			
+			If (strategyRequest == blueStrategyRequest_orbitChange);
+				Report "Orbit Change" to Console;
+				Receive initialCartState,
+						initialEpochDays,
+						desiredKepState,
+						desiredLongitude,
+						interBurnTimeBoundsDays,
+						computationDelayHours from connection;
+			
+				sc.Epoch = TimeSpan.FromDays(initialEpochDays);
+				sc.SetCartesianState(initialCartState);
+				sc.StepToEpoch(sc.Epoch + TimeSpan.FromHours(computationDelayHours));
+				Call TargetNewOrbit(
+					sc,
+					desiredKepState,
+					desiredLongitude,
+					interBurnTimeBoundsDays,
+					dv1,
+					dv2,
+					interBurnTime);
+				
+				Report "Sending data..." to Console;
+				Send dv1, dv2, interBurnTime.ToDays() to connection;
+				Report "Data transfer complete" to Console;
+			ElseIf (strategyRequest == blueStrategyRequest_slew);
+				Report "Slew" to Console;
+			End;
+		End;
 	End;
+	
+	Close connection;
+	Report "Disconnected" to Console;
+	Report "" to Console;
 End;]]></FreeFormScript>
       </FreeForm>
     </ProjectCommands>
@@ -323,6 +340,7 @@ Define Procedure TargetNewOrbit(
 		opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
 	End;
 	
+	Report sc.GetCartesianState().ToColumnMatrix, sc.Epoch;
 	opt.SaveObjectToProcess(sc);
 	opt.MaximumNominalEvaluationCount = 1000;
 	opt.LoadEngine();
@@ -355,16 +373,16 @@ Define Procedure TargetNewOrbit(
 								 
 		opt.Minimize(totalDV);
 		
-		If (opt.OptimizationPhase == 1);
-			Report opt.NominalEvaluationCount, "   ",
-			opt.ObjectiveFunctionValue, "   ",
-			opt.MaximumInfeasibility, "   ",
-			opt.MaximumInfeasibilitySource to Console;
-		End;
+//		If (opt.OptimizationPhase == 1);
+//			Report opt.NominalEvaluationCount, "   ",
+//			opt.ObjectiveFunctionValue, "   ",
+//			opt.MaximumInfeasibility, "   ",
+//			opt.MaximumInfeasibilitySource to ConsoleSolver;
+//		End;
 		
 	End;
 	
-	Report opt.ReturnString to Console;
+	Report opt.ReturnString to ConsoleSolver;
 	opt.RestoreObjectsInProcess();
 		
 	
@@ -382,43 +400,59 @@ connection.SocketType = "server";
 connection.PortNumber = 5115;
 connection.SocketTimeout = -1;
 
-Report "Listening on port ", connection.PortNumber.ToString(), "..." to Console;
-Open connection;
-Report "Connected" to Console;
 
-Variable clientIsRunning = 1;
+Variable stepSizeSeconds;
 
-While (clientIsRunning);
-	Receive strategyRequest from connection;
-	Report "" to Console;
-	Report "Recieved request: " to Console;
-	If (strategyRequest == blueStrategyRequest_orbitChange);
-		Report "Orbit Change" to Console;
-		Receive initialCartState,
-				initialEpochDays,
-				desiredKepState,
-				desiredLongitude,
-				interBurnTimeBoundsDays,
-				computationDelayHours from connection;
+
+While (1);	
+	Report "Listening on port ", connection.PortNumber.ToString(), "..." to Console;
+	Open connection;
+	Console.Clear();
+	ConsoleSolver.Clear();
+	Report "Connected" to Console;
 	
-		sc.Epoch = TimeSpan.FromDays(initialEpochDays);
-		sc.SetCartesianState(initialCartState);
-		sc.StepToEpoch(sc.Epoch + TimeSpan.FromHours(computationDelayHours));
-		Call TargetNewOrbit(
-			sc,
-			desiredKepState,
-			desiredLongitude,
-			interBurnTimeBoundsDays,
-			dv1,
-			dv2,
-			interBurnTime);
-		
-		Send dv1, dv2, interBurnTime.ToDays() to connection;
-	ElseIf (strategyRequest == blueStrategyRequest_slew);
-		Report "Slew" to Console;
-	ElseIf (strategyRequest == blueStrategyRequest_disconnectServer);
-		clientIsRunning = 0;
+	Receive stepSizeSeconds from connection;
+	sc.Propagator.StepSize = TimeSpan.FromSeconds(stepSizeSeconds);
+	
+	Try;
+		While (1);
+			Receive strategyRequest from connection;
+			Report "" to Console;
+			Report "Recieved request: " to Console;
+			
+			If (strategyRequest == blueStrategyRequest_orbitChange);
+				Report "Orbit Change" to Console;
+				Receive initialCartState,
+						initialEpochDays,
+						desiredKepState,
+						desiredLongitude,
+						interBurnTimeBoundsDays,
+						computationDelayHours from connection;
+			
+				sc.Epoch = TimeSpan.FromDays(initialEpochDays);
+				sc.SetCartesianState(initialCartState);
+				sc.StepToEpoch(sc.Epoch + TimeSpan.FromHours(computationDelayHours));
+				Call TargetNewOrbit(
+					sc,
+					desiredKepState,
+					desiredLongitude,
+					interBurnTimeBoundsDays,
+					dv1,
+					dv2,
+					interBurnTime);
+				
+				Report "Sending data..." to Console;
+				Send dv1, dv2, interBurnTime.ToDays() to connection;
+				Report "Data transfer complete" to Console;
+			ElseIf (strategyRequest == blueStrategyRequest_slew);
+				Report "Slew" to Console;
+			End;
+		End;
 	End;
+	
+	Close connection;
+	Report "Disconnected" to Console;
+	Report "" to Console;
 End;]]></ProjectScript>
   <ProjectNotes></ProjectNotes>
 </FreeFlyerProjectFile>
