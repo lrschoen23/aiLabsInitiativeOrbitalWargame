@@ -1,0 +1,5387 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<FreeFlyerProjectFile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" timePrecisionMode="nanosecond" schemaVersion="7.8.0.1">
+  <ProjectInformation>
+    <Author />
+    <Source />
+    <FreeFlyerVersion>7.8.1.50021</FreeFlyerVersion>
+    <RevisionNumber />
+    <Title />
+    <Subject />
+    <Category />
+    <Keywords />
+    <Comments />
+    <Notes />
+  </ProjectInformation>
+  <ProjectPreferences>
+    <General>
+      <LockProjectFromEditing>false</LockProjectFromEditing>
+    </General>
+    <OnOpen>
+      <ShowControlSequence>true</ShowControlSequence>
+      <ShowEmptyEnvironment>false</ShowEmptyEnvironment>
+      <ShowNotes>false</ShowNotes>
+      <ShowHome>false</ShowHome>
+      <ShowOutput>false</ShowOutput>
+      <CreateBackup>false</CreateBackup>
+      <BackupLocation></BackupLocation>
+    </OnOpen>
+    <OnRun>
+      <SaveMissionPlan>false</SaveMissionPlan>
+      <HideWarningMessages>false</HideWarningMessages>
+    </OnRun>
+  </ProjectPreferences>
+  <ProjectDataFiles>
+    <EarthOrientationFile useDefault="true"></EarthOrientationFile>
+    <ElectronDensityCoefficientFile useDefault="true"></ElectronDensityCoefficientFile>
+    <GeopotentialFile useDefault="true"></GeopotentialFile>
+    <HarrisPriesterDragFile useDefault="true"></HarrisPriesterDragFile>
+    <JacchiaAtmosphereModelFile useDefault="true"></JacchiaAtmosphereModelFile>
+    <LeapSecondFile useDefault="true"></LeapSecondFile>
+    <MagneticFieldFile useDefault="true"></MagneticFieldFile>
+    <PlanetaryFile useDefault="true"></PlanetaryFile>
+    <StationGeodeticsFile useDefault="true"></StationGeodeticsFile>
+    <SolidTideFile useDefault="true"></SolidTideFile>
+    <DSTFile useDefault="true"></DSTFile>
+    <StarFieldFile useDefault="true"></StarFieldFile>
+  </ProjectDataFiles>
+  <ProjectObjects>
+    <Object>
+      <SolarSystem name="FF_SolarSystem" isConstant="false" isGlobal="true">
+        <Name>FF_SolarSystem</Name>
+        <ComputePolarMotion>true</ComputePolarMotion>
+        <ApplyUT1Correction>true</ApplyUT1Correction>
+        <COUpdateInterval units="s" displayed_units="s">0</COUpdateInterval>
+        <NPUpdateInterval units="s" displayed_units="s">1800</NPUpdateInterval>
+        <IonosphereOptions>
+          <IonosphereOptions name="FF_SolarSystem_|ionoOptions|" isConstant="false" isGlobal="true">
+            <Name>FF_SolarSystem_|ionoOptions|</Name>
+            <MaximumHeight units="km" displayed_units="km">1000</MaximumHeight>
+            <MinimumHeight units="km" displayed_units="km">80</MinimumHeight>
+            <IntegrationStepSize units="km" displayed_units="km">25</IntegrationStepSize>
+            <ScaleFactor units="" displayed_units="">1</ScaleFactor>
+            <Model>0</Model>
+            <metadata dim="0" />
+          </IonosphereOptions>
+        </IonosphereOptions>
+        <NoradKeplerEqTolerance units="" displayed_units="">1e-12</NoradKeplerEqTolerance>
+        <metadata dim="0" />
+      </SolarSystem>
+    </Object>
+    <Object>
+      <ConsoleWindow name="Console" isConstant="false" isGlobal="true">
+        <Name>Console</Name>
+        <WindowTitle>Console</WindowTitle>
+        <WordWrap>false</WordWrap>
+        <CurrentTextColor>0</CurrentTextColor>
+        <BackColor>16777215</BackColor>
+        <Dimension units="" displayed_units="">10</Dimension>
+        <DockMode>1</DockMode>
+        <CurrentFontType>0</CurrentFontType>
+        <UseStdOut>false</UseStdOut>
+        <ShowOnRun>false</ShowOnRun>
+        <metadata dim="0" />
+      </ConsoleWindow>
+    </Object>
+    <Object>
+      <Variable name="userChoice" isConstant="false" isGlobal="true">
+        <Name>userChoice</Name>
+        <Value units="" displayed_units="">0.0</Value>
+        <metadata dim="0" />
+      </Variable>
+    </Object>
+    <Object>
+      <Variable name="simStepSizeSeconds" isConstant="false" isGlobal="false">
+        <Name>simStepSizeSeconds</Name>
+        <Value units="" displayed_units="">0.0</Value>
+        <metadata dim="0" />
+      </Variable>
+    </Object>
+    <Object>
+      <UserInterface name="MainMenu" isConstant="false" isGlobal="false">
+        <Name>MainMenu</Name>
+        <General>
+          <Title>Main Menu</Title>
+          <ContinueButtonLabel>&amp;Continue</ContinueButtonLabel>
+          <LabelColumnWidth units="pixel" displayed_units="pixel">200</LabelColumnWidth>
+          <DataColumnWidth units="pixel" displayed_units="pixel">400</DataColumnWidth>
+          <NavigationType>Random Access</NavigationType>
+          <Elements dim="4">
+            <value>
+              <UIPage name="MainMenu_Page1" isConstant="false" isGlobal="false">
+                <Name>MainMenu_Page1</Name>
+                <PageTitle>Main Menu</PageTitle>
+                <metadata dim="0" />
+              </UIPage>
+            </value>
+            <value>
+              <UIMultiChoice name="MainMenu_DataElement1" isConstant="false" isGlobal="false">
+                <Name>MainMenu_DataElement1</Name>
+                <ValueDestination>
+                  <ObjectHolder name="MainMenu_DataElement1_:ValueDestination" isConstant="false" isGlobal="false">
+                    <Name>MainMenu_DataElement1_:ValueDestination</Name>
+                    <BaseObject>userChoice</BaseObject>
+                    <metadata dim="0" />
+                  </ObjectHolder>
+                </ValueDestination>
+                <Label>Choose wargame mode:</Label>
+                <Items dim="4">
+                  <value>
+                    <UIMultiChoiceItem name="MainMenu_DataElement1_Choice1" isConstant="false" isGlobal="false">
+                      <Name>MainMenu_DataElement1_Choice1</Name>
+                      <Label>Display Mode</Label>
+                      <Value>
+                        <DoubleConstant name="MainMenu_DataElement1_Choice1_:Value" isConstant="false" isGlobal="false">
+                          <Name>MainMenu_DataElement1_Choice1_:Value</Name>
+                          <value units="" displayed_units="">0.0</value>
+                          <metadata dim="0" />
+                        </DoubleConstant>
+                      </Value>
+                      <metadata dim="0" />
+                    </UIMultiChoiceItem>
+                  </value>
+                  <value>
+                    <UIMultiChoiceItem name="MainMenu_DataElement1_Choice2" isConstant="false" isGlobal="false">
+                      <Name>MainMenu_DataElement1_Choice2</Name>
+                      <Label>Wargame Simulator 1</Label>
+                      <Value>
+                        <DoubleConstant name="MainMenu_DataElement1_Choice2_:Value" isConstant="false" isGlobal="false">
+                          <Name>MainMenu_DataElement1_Choice2_:Value</Name>
+                          <value units="" displayed_units="">1</value>
+                          <metadata dim="0" />
+                        </DoubleConstant>
+                      </Value>
+                      <metadata dim="0" />
+                    </UIMultiChoiceItem>
+                  </value>
+                  <value>
+                    <UIMultiChoiceItem name="MainMenu_DataElement1_Choice3" isConstant="false" isGlobal="false">
+                      <Name>MainMenu_DataElement1_Choice3</Name>
+                      <Label>Wargame Simulator 2</Label>
+                      <Value>
+                        <DoubleConstant name="MainMenu_DataElement1_Choice3_:Value" isConstant="false" isGlobal="false">
+                          <Name>MainMenu_DataElement1_Choice3_:Value</Name>
+                          <value units="" displayed_units="">2</value>
+                          <metadata dim="0" />
+                        </DoubleConstant>
+                      </Value>
+                      <metadata dim="0" />
+                    </UIMultiChoiceItem>
+                  </value>
+                  <value>
+                    <UIMultiChoiceItem name="MainMenu_DataElement1_Choice4" isConstant="false" isGlobal="false">
+                      <Name>MainMenu_DataElement1_Choice4</Name>
+                      <Label>Wargame Simulator 3</Label>
+                      <Value>
+                        <DoubleConstant name="MainMenu_DataElement1_Choice4_:Value" isConstant="false" isGlobal="false">
+                          <Name>MainMenu_DataElement1_Choice4_:Value</Name>
+                          <value units="" displayed_units="">3</value>
+                          <metadata dim="0" />
+                        </DoubleConstant>
+                      </Value>
+                      <metadata dim="0" />
+                    </UIMultiChoiceItem>
+                  </value>
+                </Items>
+                <DefaultValue>MainMenu_DataElement1_Choice2</DefaultValue>
+                <UseRadioButtons>true</UseRadioButtons>
+                <metadata dim="0" />
+              </UIMultiChoice>
+            </value>
+            <value>
+              <UIPage name="MainMenu_Page2" isConstant="false" isGlobal="false">
+                <Name>MainMenu_Page2</Name>
+                <PageTitle>Options</PageTitle>
+                <metadata dim="0" />
+              </UIPage>
+            </value>
+            <value>
+              <UINumericTextEntry name="MainMenu_DataElement2" isConstant="false" isGlobal="false">
+                <Name>MainMenu_DataElement2</Name>
+                <ValueDestination>
+                  <ObjectHolder name="MainMenu_DataElement2_:ValueDestination" isConstant="false" isGlobal="false">
+                    <Name>MainMenu_DataElement2_:ValueDestination</Name>
+                    <BaseObject>simStepSizeSeconds</BaseObject>
+                    <metadata dim="0" />
+                  </ObjectHolder>
+                </ValueDestination>
+                <Label>Simulation step size (seconds)</Label>
+                <DefaultValue>
+                  <DoubleConstant name="MainMenu_DataElement2_:DefaultValue" isConstant="false" isGlobal="false">
+                    <Name>MainMenu_DataElement2_:DefaultValue</Name>
+                    <value units="" displayed_units="">800</value>
+                    <metadata dim="0" />
+                  </DoubleConstant>
+                </DefaultValue>
+                <DoPerformRangeValidation>true</DoPerformRangeValidation>
+                <RangeMinimum units="" displayed_units="">1</RangeMinimum>
+                <RangeMaximum units="" displayed_units="">850</RangeMaximum>
+                <Decimals units="" displayed_units="">0</Decimals>
+                <Units>seconds</Units>
+                <metadata dim="0" />
+              </UINumericTextEntry>
+            </value>
+          </Elements>
+        </General>
+        <metadata dim="0" />
+      </UserInterface>
+    </Object>
+  </ProjectObjects>
+  <ProjectMissionSequence>
+    <ProjectExternals>
+      <ProjectExternal included="true" autosave="true" contentType="FreeFlyerScript">..\PlotUtilities.FFProcedure</ProjectExternal>
+    </ProjectExternals>
+    <ProjectCommands>
+      <FreeForm enabled="true">
+        <Label>Get User Input</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[//Show MainMenu;
+
+userChoice = 3;
+simStepSizeSeconds = 1500;
+
+Global Constant Variable autoChooseNominalOperation = 0;
+]]></FreeFormScript>
+      </FreeForm>
+      <FreeForm enabled="true">
+        <Label>Initialize</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[
+Global TimeSpan simStepSize = TimeSpan.FromSeconds(simStepSizeSeconds);
+
+Global TimeSpan aheadPredictTime = TimeSpan.FromHours(18);
+Global Constant Variable aheadPredictRangeUpdateLimit = 500;
+
+Global TimeSpan simStartEpoch = TimeTools.ParseCalendarDate("Jun 09 2025 15:00:00.000", "UTC", "UTC", "MJD GSFC");
+simStartEpoch -= TimeSpan.FromSeconds(4*60 + 23);
+
+Global Variable colorRed1 = ColorTools.InterpolateColorHSV({ColorTools.White, ColorTools.Red, ColorTools.Black}, 0.5);
+Global Variable colorRed2 = ColorTools.InterpolateColorHSV({ColorTools.White, ColorTools.Red, ColorTools.Black}, 0.75);
+Global Variable colorRed3 = ColorTools.InterpolateColorHSV({ColorTools.White, ColorTools.Red, ColorTools.Black}, 0.25);
+Global Variable colorRed4 = ColorTools.InterpolateColorHSV({ColorTools.White, ColorTools.Red, ColorTools.Black}, 0.1);
+Global Variable colorBlue1 = ColorTools.DodgerBlue;
+
+FF_Preferences.PropagationStoppingConditionTolerance = TimeSpan.FromSeconds(1e-5);
+
+Global Variable doOptimizationAndSaveValues = 0;
+
+Global Spacecraft cameraSc;
+
+Formation red;
+Formation blue;
+
+red.Count = 3;
+blue.Count = 1;
+
+red.ViewAsGroup = 0;
+blue.ViewAsGroup = 0;
+
+Global GroundVehicle blueJammer;
+blueJammer.AddSensor("jammerBeam");
+blueJammer.Sensors[0].Active = 0;
+blueJammer.Color = colorBlue1;
+blueJammer.Latitude = -10;
+blueJammer.Longitude = -100;
+blueJammer.Speed = 0;
+blueJammer.Height = 1000;
+
+Global Constant Variable sensorIndexUplink = 0;
+Global Constant Variable sensorIndexPayload = 1;
+
+blue[0].AddSensor("uplink");
+blue[0].Sensors[sensorIndexUplink].ConeHalfAngle = 15;
+blue[0].Sensors[sensorIndexUplink].ProjectionHeight = 30000;
+blue[0].Sensors[sensorIndexUplink].Color = ColorTools.Purple;
+blue[0].Sensors[sensorIndexUplink].Opacity = 0.1;
+blue[0].Sensors[sensorIndexUplink].AttitudeMatrix = [
+	0, 0, 1;
+	1, 0, 0;
+	0, 1, 0
+];
+
+blue[0].AddSensor("payload");
+blue[0].Sensors[sensorIndexPayload].BoresightUnitVector = {0, 0, 1};
+blue[0].Sensors[sensorIndexPayload].ConeHalfAngle = 10;
+blue[0].Sensors[sensorIndexPayload].ProjectionHeight = 50;
+blue[0].Sensors[sensorIndexPayload].Color = ColorTools.Lime;
+blue[0].Sensors[sensorIndexPayload].Opacity = 0.1;
+
+
+// Set up overlays
+Variable overlayPredictLineWidth = 1;
+
+Global GraphicsOverlay overlayRed1Future;
+overlayRed1Future.SetReferenceObject(blue[0].ObjectId);
+overlayRed1Future.DefaultColor = colorRed1;
+
+Global GraphicsOverlay overlayRed2Future;
+overlayRed2Future.SetReferenceObject(blue[0].ObjectId);
+overlayRed2Future.DefaultColor = colorRed2;
+
+Global GraphicsOverlay overlayRed3Future;
+overlayRed3Future.SetReferenceObject(blue[0].ObjectId);
+overlayRed3Future.DefaultColor = colorRed3;
+
+overlayRed1Future.ShapeType = "Points";
+overlayRed2Future.ShapeType = "Points";
+overlayRed3Future.ShapeType = "Points";
+
+overlayRed1Future.ShapeTickType = "Up Triangle";
+overlayRed2Future.ShapeTickType = "Up Triangle";
+overlayRed3Future.ShapeTickType = "Up Triangle";
+
+overlayRed1Future.ShapeTickWidth = 5;
+overlayRed2Future.ShapeTickWidth = 5;
+overlayRed3Future.ShapeTickWidth = 5;
+
+
+Global Constant Variable overlayBorderBuffer = 0.013;
+Global WindowOverlay overlayDateTime;
+overlayDateTime.Shapes[0].SetPosition(0, overlayBorderBuffer, overlayBorderBuffer);
+
+Global Variable screenWidth;
+Global Variable screenHeight;
+OutputLayout.GetScreenSize(screenWidth, screenHeight);
+
+Global Constant Variable sensorLegendBoxWidth = 0.21*0 + 0.26;
+Global Constant Variable sensorLegendBoxHeight = 0.022 + overlayBorderBuffer*2;
+Global WindowOverlay overlaySensorLegend;
+overlaySensorLegend.AddShape();
+overlaySensorLegend.AddShape();
+overlaySensorLegend.AddShape();
+
+overlaySensorLegend.Shapes[0].Type = "Rectangle";
+overlaySensorLegend.Shapes[1].Type = "Rectangle";
+overlaySensorLegend.Shapes[2].Type = "Text";
+overlaySensorLegend.Shapes[3].Type = "Text";
+
+Define Procedure InitializeSensorLegendRectangle(WindowOverlay overlay, Variable index, Variable color);
+	overlay.Shapes[index].RectangleOptions.FillColor = color;
+	overlay.Shapes[index].RectangleOptions.FillOpacity = 0.3;
+	overlay.Shapes[index].RectangleOptions.BorderColor = color;
+	overlay.Shapes[index].RectangleOptions.BorderWidth = 3;
+	overlay.Shapes[index].RectangleOptions.BorderOpacity = 1;
+	overlay.Shapes[index].SetSize(0, sensorLegendBoxWidth, sensorLegendBoxHeight);
+EndProcedure;
+
+Define Procedure InitializeSensorLegendText(WindowOverlay overlay, Variable index, String label);
+	overlay.Shapes[index].TextOptions.Text = label;
+	overlay.Shapes[index].TextOptions.AlignmentVertical = 1;
+	overlay.Shapes[index].TextOptions.AlignmentHorizontal = 0;
+	overlay.Shapes[index].SetSize(0, sensorLegendBoxWidth, sensorLegendBoxHeight);
+	overlay.Shapes[index].BringToFront();
+EndProcedure;
+
+Call InitializeSensorLegendRectangle(overlaySensorLegend, 0, ColorTools.Purple);
+Call InitializeSensorLegendRectangle(overlaySensorLegend, 1, ColorTools.Lime);
+
+Call InitializeSensorLegendText(overlaySensorLegend, 2, "Uplink");
+Call InitializeSensorLegendText(overlaySensorLegend, 3, "Payload Orientation");
+
+overlaySensorLegend.Shapes[0].SetPosition(0, 1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer);
+overlaySensorLegend.Shapes[1].SetPosition(0, 1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer*2 + sensorLegendBoxHeight);
+overlaySensorLegend.Shapes[2].SetPosition(0, 1 - sensorLegendBoxWidth, overlayBorderBuffer);
+overlaySensorLegend.Shapes[3].SetPosition(0, 1 - sensorLegendBoxWidth, overlayBorderBuffer*2 + sensorLegendBoxHeight);
+
+
+Global WindowOverlay overlayUploadingLog;
+Variable uploadingLogWidth = 0.4;
+Variable uploadingLogHeight = 0.07;
+overlayUploadingLog.Shapes[0].SetPosition(0, (1 - uploadingLogWidth) / 2, 1 - uploadingLogHeight - overlayBorderBuffer);
+overlayUploadingLog.Shapes[0].SetSize(0, uploadingLogWidth, uploadingLogHeight);
+overlayUploadingLog.Shapes[0].TextOptions.Font.Size = 35*0 + 22;
+overlayUploadingLog.Shapes[0].TextOptions.Text = "UPLINKING DATA...";
+
+overlayUploadingLog.AddShape();
+overlayUploadingLog.Shapes[1].Type = "Rectangle";
+Call InitializeSensorLegendRectangle(overlayUploadingLog, 1, ColorTools.LightGray);
+overlayUploadingLog.Shapes[1].SetSize(0, uploadingLogWidth, uploadingLogHeight);
+overlayUploadingLog.Shapes[1].SetPosition(0, (1 - uploadingLogWidth) / 2, 1 - uploadingLogHeight - overlayBorderBuffer);
+
+overlayUploadingLog.Shapes[0].BringToFront();
+
+Global ViewFont vf;
+vf.Size = 14;
+
+Define Procedure InitializeViewWindow(ViewWindow vw, String windowTitle, Formation red, Formation blue);
+	vw.AddObject(blue);
+	vw.AddObject(red);
+	vw.AddObject(blueJammer);
+	vw.AddObject(overlayRed1Future);
+	vw.AddObject(overlayRed2Future);
+	vw.AddObject(overlayRed3Future);
+	vw.AddObject(overlayDateTime);
+	vw.AddObject(overlaySensorLegend);
+	
+	vw.SetShowName(0, TypeOf(CelestialObject), 0);
+	vw.SetShowBody(blueJammer.ObjectId, 0);
+	vw.SetShowName(blueJammer.ObjectId, 1);
+	vw.SetShowIcon(blueJammer.ObjectId, 1);
+	vw.SetObjectIconSize(blueJammer.ObjectId, 50);
+	vw.SetObjectLabelFont(blueJammer.ObjectId, vf);
+	
+	vw.ShowStatusText = 0;
+	vw.WindowTitle = windowTitle;
+EndProcedure;
+
+// Set up 3D view
+Global Constant Variable tailLengthHours = 24;
+Global Constant Variable tailPoints = tailLengthHours * 60 * 60 / simStepSizeSeconds;
+Global ViewWindow viewMain3D;
+Call InitializeViewWindow(viewMain3D, "3D View", red, blue);
+viewMain3D.CurrentViewpoint.ThreeDView.Radius = 3000;
+viewMain3D.CurrentViewpoint.ThreeDView.RightAscension = 270;
+viewMain3D.CurrentViewpoint.ThreeDView.Declination = 0;
+viewMain3D.AddObject(cameraSc);
+viewMain3D.AddObject(overlayUploadingLog);
+viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 0);
+viewMain3D.CurrentViewpoint.ThreeDView.Source = cameraSc.ObjectId;
+viewMain3D.CurrentViewpoint.ThreeDView.Target = cameraSc.ObjectId;
+viewMain3D.SetShowObject(cameraSc.ObjectId, 0);
+
+Global ViewWindow viewUplink;
+Call InitializeViewWindow(viewUplink, "Uplink View", red, blue);
+viewUplink.CurrentViewpoint.ViewpointType = "sensorview";
+viewUplink.CurrentViewpoint.SensorView.FilterAllSiblings = 0;
+viewUplink.CurrentViewpoint.SensorView.Source = blue[0].Sensors[sensorIndexUplink].ObjectId;
+
+Global ViewWindow viewPayload;
+Call InitializeViewWindow(viewPayload, "Payload View", red, blue);
+viewPayload.CurrentViewpoint.ViewpointType = "sensorview";
+viewPayload.CurrentViewpoint.SensorView.FilterAllSiblings = 0;
+viewPayload.CurrentViewpoint.SensorView.Source = blue[0].Sensors[sensorIndexPayload].ObjectId;
+
+Global Variable blueBackupCommsState = 0; // 0 is inactive, 1 is ready, 2 is active
+Global Variable blueJammerState = 0; // 0 is inactive, 1 is ready, 2 is active
+Global Variable redJammerState = 0;
+
+Global Variable blueIsOffNominal = 0;
+
+// jammerState = 0 is inactive, 1 is ready, 2 is active
+Define Procedure SetBlueJammerState(Variable jammerState);
+	blueJammerState = jammerState;
+	If (blueJammerState == 0);
+		blueJammer.DisplayName = "Jamming Unit (Inactive)";
+		viewMain3D.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerInactiveIcon.png");
+		viewUplink.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerInactiveIcon.png");
+		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerInactiveIcon.png");
+	ElseIf (blueJammerState == 1);
+		blueJammer.DisplayName = "Jamming Unit (Standing By)";
+		viewMain3D.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerReadyIcon.png");
+		viewUplink.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerReadyIcon.png");
+		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerReadyIcon.png");
+	ElseIf (blueJammerState == 2);
+		blueJammer.DisplayName = "Jamming Unit (Active)";
+		viewMain3D.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerActiveIcon.png");
+		viewUplink.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerActiveIcon.png");
+		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerActiveIcon.png");
+	End;
+EndProcedure;
+
+// jammerState = 0 is inactive, 1 is active
+Define Procedure SetRedJammerState(Variable jammerState, Formation red);
+	redJammerState = jammerState;
+	If (redJammerState == 0);
+		viewMain3D.SetShowIcon(red[1].ObjectId,  0);
+		viewUplink.SetShowIcon(red[1].ObjectId,  0);
+		viewPayload.SetShowIcon(red[1].ObjectId, 0);
+		
+		viewMain3D.SetShowIcon(red[2].ObjectId,  0);
+		viewUplink.SetShowIcon(red[2].ObjectId,  0);
+		viewPayload.SetShowIcon(red[2].ObjectId, 0);
+	ElseIf (redJammerState == 1);
+		viewMain3D.SetShowIcon(red[1].ObjectId,  1);
+		viewUplink.SetShowIcon(red[1].ObjectId,  1);
+		viewPayload.SetShowIcon(red[1].ObjectId, 1);
+		
+		viewMain3D.SetShowIcon(red[2].ObjectId,  1);
+		viewUplink.SetShowIcon(red[2].ObjectId,  1);
+		viewPayload.SetShowIcon(red[2].ObjectId, 1);
+	End;
+EndProcedure;
+
+Call SetBlueJammerState(0);
+
+viewMain3D.SetObjectIcon(red[1].ObjectId,  "Icons/jammingWarning.png");
+viewUplink.SetObjectIcon(red[1].ObjectId,  "Icons/jammingWarning.png");
+viewPayload.SetObjectIcon(red[1].ObjectId, "Icons/jammingWarning.png");
+
+viewMain3D.SetObjectIcon(red[2].ObjectId,  "Icons/jammingWarning.png");
+viewUplink.SetObjectIcon(red[2].ObjectId,  "Icons/jammingWarning.png");
+viewPayload.SetObjectIcon(red[2].ObjectId, "Icons/jammingWarning.png");
+
+Global ImpulsiveBurn burn;
+burn.AttitudeSystem = 6;
+
+
+Global FileInterface file;
+
+
+Define Procedure OpenForRead(String filename);
+	file.Filename = filename;
+	file.ReadMode = 1;
+	file.WriteMode = 0;
+	file.Open();
+EndProcedure;
+
+Define Procedure OpenForWrite(String filename);
+	file.Filename = filename;
+	file.ReadMode = 0;
+	file.WriteMode = 1;
+	file.Open();
+EndProcedure;
+
+
+
+// Set initial states
+Variable baseRAAN = 40;
+Variable baseI = 0.5;
+blue[0].SetKeplerianState({42164,
+                           1e-6,
+                           baseI,
+                           baseRAAN,
+                           1,
+                           1});
+                           
+blue[0].Epoch = simStartEpoch;
+blue[0].Color = colorBlue1;
+blue[0].BodyScale = 1000;
+blue[0].DisplayName = "BlueSat";
+blue[0].Propagator.StepSize = simStepSize;
+blue[0].EulerAngles[1] = 90;
+blue[0].TailLength = tailPoints;
+viewMain3D.SetShowName(blue[0].ObjectId, 1);
+viewMain3D.SetObjectLabelFont(blue[0].ObjectId, vf);
+viewMain3D.SetLineWidth(blue[0].ObjectId, 0, 2);
+
+viewUplink.SetShowName(blue[0].ObjectId, 1);
+viewUplink.SetObjectLabelFont(blue[0].ObjectId, vf);
+viewUplink.SetLineWidth(blue[0].ObjectId, 0, 2);
+
+viewPayload.SetShowName(blue[0].ObjectId, 1);
+viewPayload.SetObjectLabelFont(blue[0].ObjectId, vf);
+viewPayload.SetLineWidth(blue[0].ObjectId, 0, 2);
+
+cameraSc.EulerAngles[1] = 90;
+
+
+Variable red1AngularSeparation = 2;
+Variable red2AngularSeparation = 2.3;
+Variable red2and3RadialSeparation = 60;
+red[0].SetKeplerianState({42164,
+                          1e-6,
+                          baseI * 1.2,
+                          baseRAAN - red1AngularSeparation,
+                          1,
+                          1});
+red[1].SetKeplerianState({42164 - red2and3RadialSeparation,
+                          1e-6,
+                          baseI * 1.01,
+                          baseRAAN,
+                          0,
+                          1 - red2AngularSeparation});
+red[2].SetKeplerianState({42164 + red2and3RadialSeparation,
+                          1e-6,
+                          baseI * 1.01,
+                          baseRAAN,
+                          1,
+                          1 + red2AngularSeparation + 0.77});
+                          
+red[0].Color = colorRed1;
+red[1].Color = colorRed2;
+red[2].Color = colorRed3;
+
+Variable i;
+For i = 0 to red.Count - 1;
+	red[i].Epoch = simStartEpoch;
+	red[i].BodyScale = 1000;
+	red[i].DisplayName = "Red" + (i+1).ToString();
+	red[i].TailLength = tailPoints;
+	
+	viewMain3D.SetShowName(red[i].ObjectId, 1);
+	viewMain3D.SetObjectLabelFont(red[i].ObjectId, vf);
+	viewMain3D.SetLineWidth(red[i].ObjectId, 0, 2);
+	
+	viewUplink.SetShowName(red[i].ObjectId, 1);
+	viewUplink.SetObjectLabelFont(red[i].ObjectId, vf);
+	viewUplink.SetLineWidth(red[i].ObjectId, 0, 2);
+	
+	viewPayload.SetShowName(red[i].ObjectId, 1);
+	viewPayload.SetObjectLabelFont(red[i].ObjectId, vf);
+	viewPayload.SetLineWidth(red[i].ObjectId, 0, 2);
+End;
+
+
+Global Array initialKepStateRed1 = red[0].GetKeplerianState();
+Global Variable initialLongitudeRed1 = red[0].Longitude;
+
+Global Array initialKepStateBlue1 = blue[0].GetKeplerianState();
+Global Variable initialLongitudeBlue1 = blue[0].Longitude;
+
+Global Variable numberOfBlueEvasiveManeuvers = 0;
+
+Global TimeSpan simEpoch = simStartEpoch;
+
+Global TimeSpan blueSlewCompletionEpoch = simStartEpoch - TimeSpan.FromDays(1);
+Global TimeSpan blueSlewStartEpoch;
+Global Variable desiredBluePayloadOrientationAngle;
+Global Variable initialBluePayloadOrientationAngle;
+
+Global Constant Variable nominalBluePayloadOrientationAngle = blue[0].EulerAngles[0];
+]]></FreeFormScript>
+      </FreeForm>
+      <FreeForm enabled="true">
+        <Label>Initialize Plots</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[Define Procedure InitializePlotPredictSeries(PlotScatterSeries series, String label, Variable color);
+	series.Label = label;
+	series.MarkersColor = color;
+
+	series.LineVisible = 0;
+	series.MarkersVisible = 1;
+	series.MarkersStyle = 2;
+EndProcedure;
+
+Define Procedure InitializePlotCurrentLocationSeries(PlotScatterSeries series, Variable color);
+	series.MarkersColor = color;
+	
+	series.MarkersStyle = 1;
+	series.MarkersSize = 2;
+	series.MarkersVisible = 1;
+	series.LineVisible = 0;
+	series.ShowInLegend = 0;
+	series.AddPoints(0, 0);
+EndProcedure;
+
+Define Procedure InitializePlotMainSeries(PlotScatterSeries series, String label, Variable color);
+	series.Label = label;
+	series.LineColor = color;
+
+	series.LineStyle = 0;
+	series.LineWidth = 2;
+EndProcedure;
+
+Define Procedure InitializePlot(PlotWindow plot, String title, String xLabel, String yLabel, String windowHandle);
+	plot.SetBackgroundColorPalette("DarkGray");
+	plot.PlotTitle.Text = title;
+	plot.XAxis.Title.Text = xLabel;
+	plot.YAxis.Title.Text = yLabel;
+	plot.WindowTitle = windowHandle;
+	plot.PlotSubTitle.Visible = 0;
+	plot.HighQualityRendering = 1;
+EndProcedure;
+
+Define Procedure InitializePlotAxisRanges(PlotWindow plot, Array x, Array y);
+	plot.XAxis.MinimumValue = x[0];
+	plot.XAxis.MaximumValue = x[1];
+	plot.YAxis.MinimumValue = y[0];
+	plot.YAxis.MaximumValue = y[1];
+EndProcedure;
+
+Constant Variable maxRangeForPlots = 600;
+
+// set up time vs angle plot
+Global Variable angleFromPayloadB1_R1;
+Global Variable angleFromPayloadB1_R2;
+Global Variable angleFromPayloadB1_R3;
+
+Global PlotScatterSeries angleFromPayloadR1;
+Global PlotScatterSeries angleFromPayloadR2;
+Global PlotScatterSeries angleFromPayloadR3;
+
+Global PlotScatterSeries angleFromPayloadR1CurrentLocation;
+Global PlotScatterSeries angleFromPayloadR2CurrentLocation;
+Global PlotScatterSeries angleFromPayloadR3CurrentLocation;
+
+Global PlotScatterSeries angleFromPayloadR1Predict;
+Global PlotScatterSeries angleFromPayloadR2Predict;
+Global PlotScatterSeries angleFromPayloadR3Predict;
+
+PlotScatterSeries angleFromPayloadWarningArea;
+
+Define Procedure SetMaxPoints(PlotWindow pw, Variable points);
+	If (points < 100);
+		pw.MaxPoints = 100;
+		Diagnostics.ReportWarningMessage(
+		"The max points for PlotWindow is too low, falling back to 100. " +
+		"Decrease step size to fix this warning. Note: you can still run " + 
+		"without fixing, but the tail lengths in plots will not match those " +
+		"in the view windows.");
+	Else;
+		pw.MaxPoints = points;
+	End;
+EndProcedure;
+
+Global PlotWindow pwAngleFromPayload;
+pwAngleFromPayload.BeginBatchUpdate();
+Call InitializePlot(pwAngleFromPayload, "Elapsed Time vs Angle from Sensitive Payload", "Elapsed Time (hrs)", "Angle from Sensitive Payload (deg)", "Time vs Angle");
+pwAngleFromPayload.AddSeries(angleFromPayloadWarningArea);
+pwAngleFromPayload.AddSeries(angleFromPayloadR1);
+pwAngleFromPayload.AddSeries(angleFromPayloadR2);
+pwAngleFromPayload.AddSeries(angleFromPayloadR3);
+pwAngleFromPayload.AddSeries(angleFromPayloadR1Predict);
+pwAngleFromPayload.AddSeries(angleFromPayloadR2Predict);
+pwAngleFromPayload.AddSeries(angleFromPayloadR3Predict);
+pwAngleFromPayload.AddSeries(angleFromPayloadR1CurrentLocation);
+pwAngleFromPayload.AddSeries(angleFromPayloadR2CurrentLocation);
+pwAngleFromPayload.AddSeries(angleFromPayloadR3CurrentLocation);
+Call InitializePlotAxisRanges(pwAngleFromPayload, {-24, aheadPredictTime.ToHours()}, {0, 180});
+pwAngleFromPayload.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
+pwAngleFromPayload.UseMonitorMode = 1;
+pwAngleFromPayload.Legend.Location = 1;
+Call SetMaxPoints(pwAngleFromPayload, tailPoints);
+
+// rangeAngleFromPayloadXX
+Call InitializePlotMainSeries(angleFromPayloadR1, "Red1", colorRed1);
+Call InitializePlotMainSeries(angleFromPayloadR2, "Red2", colorRed2);
+Call InitializePlotMainSeries(angleFromPayloadR3, "Red3", colorRed3);
+
+// rangeAngleFromPayloadXXCurrentLocation
+Call InitializePlotCurrentLocationSeries(angleFromPayloadR1CurrentLocation, colorRed1);
+Call InitializePlotCurrentLocationSeries(angleFromPayloadR2CurrentLocation, colorRed2);
+Call InitializePlotCurrentLocationSeries(angleFromPayloadR3CurrentLocation, colorRed3);
+
+// rangeAngleFromPayloadXXPredict
+Call InitializePlotPredictSeries(angleFromPayloadR1Predict, "Red1 Predict", colorRed1);
+Call InitializePlotPredictSeries(angleFromPayloadR2Predict, "Red2 Predict", colorRed2);
+Call InitializePlotPredictSeries(angleFromPayloadR3Predict, "Red3 Predict", colorRed3);
+
+// angleFromPayloadWarningArea
+angleFromPayloadWarningArea.LineColor = ColorTools.Yellow;
+angleFromPayloadWarningArea.LineWidth = 3;
+angleFromPayloadWarningArea.LineStyle = 0;
+angleFromPayloadWarningArea.Label = "Payload Warning Zone";
+angleFromPayloadWarningArea.AddPoints(
+	{pwAngleFromPayload.XAxis.MinimumValue, pwAngleFromPayload.XAxis.MinimumValue, pwAngleFromPayload.XAxis.MaximumValue, pwAngleFromPayload.XAxis.MaximumValue},
+	{0, 55, 55, 0});
+angleFromPayloadWarningArea.AddPoints(angleFromPayloadWarningArea.Data[0,:]);
+
+
+// set up time vs range plot
+Global Variable rangeB1_R1;
+Global Variable rangeB1_R2;
+Global Variable rangeB1_R3;
+
+Global PlotScatterSeries rangeR1;
+Global PlotScatterSeries rangeR2;
+Global PlotScatterSeries rangeR3;
+
+Global PlotScatterSeries rangeR1CurrentLocation;
+Global PlotScatterSeries rangeR2CurrentLocation;
+Global PlotScatterSeries rangeR3CurrentLocation;
+
+Global PlotScatterSeries rangeR1Predict;
+Global PlotScatterSeries rangeR2Predict;
+Global PlotScatterSeries rangeR3Predict;
+
+PlotScatterSeries rangeKeepOutArea_TimeRangePlot;
+
+Global PlotWindow pwRange;
+pwRange.BeginBatchUpdate();
+Call InitializePlot(pwRange, "Elapsed Time vs Range", "Elapsed Time (hrs)", "Range (km)", "Time vs Range");
+pwRange.AddSeries(rangeKeepOutArea_TimeRangePlot);
+pwRange.AddSeries(rangeR1);
+pwRange.AddSeries(rangeR2);
+pwRange.AddSeries(rangeR3);
+pwRange.AddSeries(rangeR1Predict);
+pwRange.AddSeries(rangeR2Predict);
+pwRange.AddSeries(rangeR3Predict);
+pwRange.AddSeries(rangeR1CurrentLocation);
+pwRange.AddSeries(rangeR2CurrentLocation);
+pwRange.AddSeries(rangeR3CurrentLocation);
+Call InitializePlotAxisRanges(pwRange, {-24, aheadPredictTime.ToHours()}, {0, maxRangeForPlots});
+pwRange.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
+pwRange.UseMonitorMode = 1;
+pwRange.Legend.Location = 1;
+Call SetMaxPoints(pwAngleFromPayload, tailPoints);
+
+// rangeAngleFromPayloadXX
+Call InitializePlotMainSeries(rangeR1, "Red1", colorRed1);
+Call InitializePlotMainSeries(rangeR2, "Red2", colorRed2);
+Call InitializePlotMainSeries(rangeR3, "Red3", colorRed3);
+
+// rangeAngleFromPayloadXXCurrentLocation
+Call InitializePlotCurrentLocationSeries(rangeR1CurrentLocation, colorRed1);
+Call InitializePlotCurrentLocationSeries(rangeR2CurrentLocation, colorRed2);
+Call InitializePlotCurrentLocationSeries(rangeR3CurrentLocation, colorRed3);
+
+// rangeAngleFromPayloadXXPredict
+Call InitializePlotPredictSeries(rangeR1Predict, "Red1 Predict", colorRed1);
+Call InitializePlotPredictSeries(rangeR2Predict, "Red2 Predict", colorRed2);
+Call InitializePlotPredictSeries(rangeR3Predict, "Red3 Predict", colorRed3);
+
+// rangeKeepOutArea_TimeRangePlot
+Global Constant Variable rangeKeepOutValue = 30;
+rangeKeepOutArea_TimeRangePlot.LineColor = ColorTools.Orange;
+rangeKeepOutArea_TimeRangePlot.LineWidth = 3;
+rangeKeepOutArea_TimeRangePlot.LineStyle = 0;
+rangeKeepOutArea_TimeRangePlot.Label = "Range Keep Out Zone";
+rangeKeepOutArea_TimeRangePlot.AddPoints(
+	{pwRange.XAxis.MinimumValue, pwRange.XAxis.MinimumValue, pwRange.XAxis.MaximumValue, pwRange.XAxis.MaximumValue},
+	{0, rangeKeepOutValue, rangeKeepOutValue, 0});
+rangeKeepOutArea_TimeRangePlot.AddPoints(rangeKeepOutArea_TimeRangePlot.Data[0,:]);
+
+
+// set up angle to sensitive payload vs range plot
+Global PlotScatterSeries rangeAngleFromPayloadR1;
+Global PlotScatterSeries rangeAngleFromPayloadR2;
+Global PlotScatterSeries rangeAngleFromPayloadR3;
+
+Global PlotScatterSeries rangeAngleFromPayloadR1CurrentLocation;
+Global PlotScatterSeries rangeAngleFromPayloadR2CurrentLocation;
+Global PlotScatterSeries rangeAngleFromPayloadR3CurrentLocation;
+
+Global PlotScatterSeries rangeAngleFromPayloadR1Predict;
+Global PlotScatterSeries rangeAngleFromPayloadR2Predict;
+Global PlotScatterSeries rangeAngleFromPayloadR3Predict;
+
+PlotScatterSeries rangeAngleKeepOutArea;
+PlotScatterSeries rangeKeepOutArea_AngleRangePlot;
+
+Global PlotWindow pwAngleRange;
+pwAngleRange.BeginBatchUpdate();
+Call InitializePlot(pwAngleRange, "Angle from Sensitive Payload vs Range", "Angle from Sensitive Payload (deg)", "Range (km)", "Angle vs Range");
+pwAngleRange.AddSeries(rangeKeepOutArea_AngleRangePlot);
+pwAngleRange.AddSeries(rangeAngleKeepOutArea);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR1);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR2);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR3);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR1Predict);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR2Predict);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR3Predict);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR1CurrentLocation);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR2CurrentLocation);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR3CurrentLocation);
+Call InitializePlotAxisRanges(pwAngleRange, {0, 180}, {0, maxRangeForPlots});
+pwAngleRange.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
+pwAngleRange.UseMonitorMode = 1;
+pwAngleRange.Legend.Location = 1;
+Call SetMaxPoints(pwAngleRange, tailPoints);
+
+// rangeAngleFromPayloadXX
+Call InitializePlotMainSeries(rangeAngleFromPayloadR1, "Red1", colorRed1);
+Call InitializePlotMainSeries(rangeAngleFromPayloadR2, "Red2", colorRed2);
+Call InitializePlotMainSeries(rangeAngleFromPayloadR3, "Red3", colorRed3);
+
+// rangeAngleFromPayloadXXCurrentLocation
+Call InitializePlotCurrentLocationSeries(rangeAngleFromPayloadR1CurrentLocation, colorRed1);
+Call InitializePlotCurrentLocationSeries(rangeAngleFromPayloadR2CurrentLocation, colorRed2);
+Call InitializePlotCurrentLocationSeries(rangeAngleFromPayloadR3CurrentLocation, colorRed3);
+
+// rangeAngleFromPayloadXXPredict
+Call InitializePlotPredictSeries(rangeAngleFromPayloadR1Predict, "Red1 Predict", colorRed1);
+Call InitializePlotPredictSeries(rangeAngleFromPayloadR2Predict, "Red2 Predict", colorRed2);
+Call InitializePlotPredictSeries(rangeAngleFromPayloadR3Predict, "Red3 Predict", colorRed3);
+
+// rangeAngleKeepOutArea
+Global Constant Variable payloadKeepOutRange = 80;
+Global Constant Variable payloadKeepOutAngle1 = 30;
+Global Constant Variable payloadKeepOutAngle2 = 70;
+rangeAngleKeepOutArea.LineColor = ColorTools.Yellow;
+rangeAngleKeepOutArea.LineWidth = 3;
+rangeAngleKeepOutArea.LineStyle = 0;
+rangeAngleKeepOutArea.Label = "Payload Keep Out Zone";
+rangeAngleKeepOutArea.AddPoints({0, 0, payloadKeepOutAngle1, payloadKeepOutAngle2}, {0, payloadKeepOutRange, payloadKeepOutRange, 0});
+rangeAngleKeepOutArea.AddPoints(rangeAngleKeepOutArea.Data[0,:]);
+
+// rangeKeepOutArea_AngleRangePlot
+rangeKeepOutArea_AngleRangePlot.LineColor = ColorTools.Orange;
+rangeKeepOutArea_AngleRangePlot.LineWidth = 3;
+rangeKeepOutArea_AngleRangePlot.LineStyle = 0;
+rangeKeepOutArea_AngleRangePlot.Label = "Range Keep Out Zone";
+rangeKeepOutArea_AngleRangePlot.AddPoints({0, 0, 180, 180}, {0, rangeKeepOutValue, rangeKeepOutValue, 0});
+rangeKeepOutArea_AngleRangePlot.AddPoints(rangeKeepOutArea_AngleRangePlot.Data[0,:]);
+
+
+// Set up longitude radius plot
+Global PlotScatterSeries radiusLongitudeB1;
+Global PlotScatterSeries radiusLongitudeR1;
+Global PlotScatterSeries radiusLongitudeR2;
+Global PlotScatterSeries radiusLongitudeR3;
+
+Global PlotScatterSeries radiusLongitudeB1CurrentLocation;
+Global PlotScatterSeries radiusLongitudeR1CurrentLocation;
+Global PlotScatterSeries radiusLongitudeR2CurrentLocation;
+Global PlotScatterSeries radiusLongitudeR3CurrentLocation;
+
+Global PlotScatterSeries radiusLongitudeR1Predict;
+Global PlotScatterSeries radiusLongitudeR2Predict;
+Global PlotScatterSeries radiusLongitudeR3Predict;
+
+Global PlotWindow pwRadiusLongitude;
+pwRadiusLongitude.BeginBatchUpdate();
+Call InitializePlot(pwRadiusLongitude, "Longitude vs Radius", "Longitude (deg)", "Radius (km)", "Radius vs Longitude");
+pwRadiusLongitude.AddSeries(radiusLongitudeB1);
+pwRadiusLongitude.AddSeries(radiusLongitudeR1);
+pwRadiusLongitude.AddSeries(radiusLongitudeR2);
+pwRadiusLongitude.AddSeries(radiusLongitudeR3);
+pwRadiusLongitude.AddSeries(radiusLongitudeR1Predict);
+pwRadiusLongitude.AddSeries(radiusLongitudeR2Predict);
+pwRadiusLongitude.AddSeries(radiusLongitudeR3Predict);
+pwRadiusLongitude.AddSeries(radiusLongitudeB1CurrentLocation);
+pwRadiusLongitude.AddSeries(radiusLongitudeR1CurrentLocation);
+pwRadiusLongitude.AddSeries(radiusLongitudeR2CurrentLocation);
+pwRadiusLongitude.AddSeries(radiusLongitudeR3CurrentLocation);
+Call InitializePlotAxisRanges(pwRadiusLongitude, {blue[0].Longitude - 3, blue[0].Longitude + 3}, {42060, 42260});
+pwRadiusLongitude.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
+pwRadiusLongitude.UseMonitorMode = 1;
+pwRadiusLongitude.Legend.Location = 1;
+Call SetMaxPoints(pwRadiusLongitude, tailPoints);
+
+// radiusLongitude
+Call InitializePlotMainSeries(radiusLongitudeB1, "BlueSat", colorBlue1);
+Call InitializePlotMainSeries(radiusLongitudeR1, "Red1", colorRed1);
+Call InitializePlotMainSeries(radiusLongitudeR2, "Red2", colorRed2);
+Call InitializePlotMainSeries(radiusLongitudeR3, "Red3", colorRed3);
+
+// radiusLongitudeXXCurrentLocation
+Call InitializePlotCurrentLocationSeries(radiusLongitudeB1CurrentLocation, colorBlue1);
+Call InitializePlotCurrentLocationSeries(radiusLongitudeR1CurrentLocation, colorRed1);
+Call InitializePlotCurrentLocationSeries(radiusLongitudeR2CurrentLocation, colorRed2);
+Call InitializePlotCurrentLocationSeries(radiusLongitudeR3CurrentLocation, colorRed3);
+
+// radiusLongitudeXXPredict
+Call InitializePlotPredictSeries(radiusLongitudeR1Predict, "Red1 Predict", colorRed1);
+Call InitializePlotPredictSeries(radiusLongitudeR2Predict, "Red2 Predict", colorRed2);
+Call InitializePlotPredictSeries(radiusLongitudeR3Predict, "Red3 Predict", colorRed3);
+
+
+Call AddVerticalLine(
+	pwRadiusLongitude,
+	pwRadiusLongitude.XAxis.MinimumValue + (pwRadiusLongitude.XAxis.MaximumValue - pwRadiusLongitude.XAxis.MinimumValue) * 0.88,
+	{pwRadiusLongitude.YAxis.MinimumValue + (pwRadiusLongitude.YAxis.MaximumValue - pwRadiusLongitude.YAxis.MinimumValue) * 0.17, pwRadiusLongitude.YAxis.MinimumValue + 10},
+	2,
+	ColorTools.Green,
+	0,
+	"");
+Call AddFloatingLabelToPlot(
+	pwRadiusLongitude,
+	pwRadiusLongitude.XAxis.MinimumValue + (pwRadiusLongitude.XAxis.MaximumValue - pwRadiusLongitude.XAxis.MinimumValue) * 0.88,
+	pwRadiusLongitude.YAxis.MinimumValue + (pwRadiusLongitude.YAxis.MaximumValue - pwRadiusLongitude.YAxis.MinimumValue) * 0.15,
+	ColorTools.Green,
+	ColorTools.LightGray,
+	"Candara",
+	16,
+	"To Earth");
+Call AddSinglePointToPlot(
+	pwRadiusLongitude,
+	pwRadiusLongitude.XAxis.MinimumValue + (pwRadiusLongitude.XAxis.MaximumValue - pwRadiusLongitude.XAxis.MinimumValue) * 0.88,
+	pwRadiusLongitude.YAxis.MinimumValue + 10,
+	5,
+	3,
+	ColorTools.Green,
+	"");
+	
+	
+// set up results bar chart
+Global PlotWindow pwResultsBarChart;
+pwResultsBarChart.PointsToUpdate = 1;
+pwResultsBarChart.WindowTitle = "Game Score";
+Global Variable redObjectiveScore = 100;
+Global Variable blueOperationsScore = 100;
+Global Variable tensionScore = 100;
+Call MakeBarChart(pwResultsBarChart, 1, {1, 2, 3}, {redObjectiveScore, blueOperationsScore, tensionScore}, "", "Score (%)", {0.9, 3.1}, {0, 100}, "Results", "");
+pwResultsBarChart.SetBackgroundColorPalette("DarkGray");
+pwResultsBarChart.Legend.Visible = 1;
+pwResultsBarChart.Legend.Location = 1;
+(pwResultsBarChart.Series[0] AsType PlotScatterSeries).Label = "Deny Red Objective";
+(pwResultsBarChart.Series[1] AsType PlotScatterSeries).Label = "Blue Operations";
+(pwResultsBarChart.Series[2] AsType PlotScatterSeries).Label = "Red/Blue Tension";
+
+(pwResultsBarChart.Series[0] AsType PlotScatterSeries).LineColor = colorRed1;
+(pwResultsBarChart.Series[1] AsType PlotScatterSeries).LineColor = colorBlue1;
+(pwResultsBarChart.Series[2] AsType PlotScatterSeries).LineColor = ColorTools.Purple;
+
+
+Define Procedure UpdateResultsBarChart();
+	pwResultsBarChart.BeginBatchUpdate();
+	(pwResultsBarChart.Series[0] AsType PlotScatterSeries).Data[1, 1] = redObjectiveScore;
+	(pwResultsBarChart.Series[1] AsType PlotScatterSeries).Data[1, 1] = blueOperationsScore;
+	(pwResultsBarChart.Series[2] AsType PlotScatterSeries).Data[1, 1] = tensionScore;
+	pwResultsBarChart.EndBatchUpdate();
+EndProcedure;
+
+
+pwRadiusLongitude.EndBatchUpdate();
+pwRange.EndBatchUpdate();
+pwAngleFromPayload.EndBatchUpdate();
+pwAngleRange.EndBatchUpdate();]]></FreeFormScript>
+      </FreeForm>
+      <FreeForm enabled="true">
+        <Label>Output Configuration</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[
+Global Constant Variable screenSpaceRatio = 0.5;
+
+Define Procedure SetWindowRight(Variable ID);
+	OutputLayout.SetWindowPosition(ID, 1, screenSpaceRatio, 1, 0);
+	OutputLayout.SetWindowSize(ID, 1, 1 - screenSpaceRatio, 1, 1);
+EndProcedure;
+
+Define Procedure SetWindowLeft(Variable ID);
+	OutputLayout.SetWindowPosition(ID, 1, 0, 1, 0);
+	OutputLayout.SetWindowSize(ID, 1, screenSpaceRatio, 1, 1);
+EndProcedure;
+
+Define Procedure SetWindowTopLeft(Variable ID);
+	OutputLayout.SetWindowPosition(ID, 1, 0, 1, 0);
+	OutputLayout.SetWindowSize(ID, 1, screenSpaceRatio, 1, 0.5);
+EndProcedure;
+
+Define Procedure SetWindowBottomLeft(Variable ID);
+	OutputLayout.SetWindowPosition(ID, 1, 0, 1, 0.5);
+	OutputLayout.SetWindowSize(ID, 1, screenSpaceRatio, 1, 0.5);
+EndProcedure;
+
+// TODO: uncomment
+//OutputLayout.SetWorkspaceFullScreenMode(1);
+
+OutputLayout.SetWindowFrameVisibility({pwResultsBarChart.ID, viewMain3D.ID, pwRadiusLongitude.ID, pwAngleRange.ID, pwRange.ID, pwAngleFromPayload.ID, viewUplink.ID, viewPayload.ID}, 0);
+
+Call SetWindowTopLeft(pwRadiusLongitude.ID);
+Call SetWindowTopLeft(pwResultsBarChart.ID);
+
+Call SetWindowBottomLeft(pwAngleRange.ID);
+Call SetWindowBottomLeft(pwRange.ID);
+Call SetWindowBottomLeft(pwAngleFromPayload.ID);
+OutputLayout.BringWindowToFront(pwAngleRange.ID);
+
+Call SetWindowRight(viewMain3D.ID);
+Call SetWindowRight(viewUplink.ID);
+Call SetWindowRight(viewPayload.ID);
+OutputLayout.BringWindowToFront(viewMain3D.ID);
+
+OutputLayout.ApplyUpdates();]]></FreeFormScript>
+      </FreeForm>
+      <FreeForm enabled="true">
+        <Label>Procedures</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[
+
+Define Procedure ComputePredict(
+		Spacecraft blueSC,
+		Spacecraft redSC,
+		TimeSpan predictionDuration,
+		GraphicsOverlay go,
+		PlotScatterSeries angleRangeSeries,
+		PlotScatterSeries rangeSeries,
+		PlotScatterSeries angleSeries,
+		PlotScatterSeries radiusLongitudeSeriesRed,
+		Variable justEraseOverlay);
+	Array positionBCS;
+	Variable i;
+	
+	Matrix futureStateMJ2000 = Matrix.Empty;
+	futureStateMJ2000.ColumnCount = 3;
+	
+	// Reset the GraphicsOverlay
+	go.ClearOverlayElements();
+	angleRangeSeries.ClearPoints();
+	rangeSeries.ClearPoints();
+	angleSeries.ClearPoints();
+	radiusLongitudeSeriesRed.ClearPoints();
+	
+	If (justEraseOverlay);
+		ExitProcedure;
+	End;
+	
+	Save blueSC;
+	Save redSC;
+	blueSC.Propagator.StepSize = TimeSpan.FromSeconds(2000);
+	redSC.Propagator.StepSize = TimeSpan.FromSeconds(2000);
+	
+	Variable radiusLongitudePredictDataThinning = 3;
+	Variable dataPointsSinceLastRadiusLongitudePoint = 0;
+	
+    // Compute the future path of the secondary with respect to the primary
+	TimeSpan initialEpoch = blueSC.Epoch;
+	TimeSpan epochToStepTo = initialEpoch + predictionDuration;
+	Variable range;
+	Variable angle;
+	WhileStepping blueSC to (blueSC.Epoch == epochToStepTo);
+		redSC.StepToEpoch(blueSC.Epoch);
+		
+		positionBCS = AttitudeConvert(0, 3, blueSC, redSC.Position - blueSC.Position);
+		
+		go.AddOverlayElement(positionBCS[0], positionBCS[1], positionBCS[2]);
+		
+		range = positionBCS.Norm;
+		angle = deg(acos(positionBCS.Normalized.DotProduct(blueSC.Sensors[sensorIndexPayload].BoresightUnitVector.Normalized)));
+		angleRangeSeries.AddPoints(angle, range);
+		rangeSeries.AddPoints((blueSC.Epoch - initialEpoch).ToHours(), range);
+		angleSeries.AddPoints((blueSC.Epoch - initialEpoch).ToHours(), angle);
+		
+		dataPointsSinceLastRadiusLongitudePoint += 1;
+		If (dataPointsSinceLastRadiusLongitudePoint == radiusLongitudePredictDataThinning);
+			radiusLongitudeSeriesRed.AddPoints(redSC.Longitude, redSC.Radius);
+			dataPointsSinceLastRadiusLongitudePoint = 0;
+		End;
+		
+	End;
+
+	Restore blueSC;
+	Restore redSC;
+	
+EndProcedure;
+
+
+Define Procedure ComputeStationKeepingManeuver(Optimizer opt, Spacecraft sc, Variable longitude);
+	TimeSpan initialEpoch;
+	opt.Reset(1);
+	opt.AddStateVariableBlock(3, "dv", 0.0001, -0.001, 0.001, 1, 1e-6);
+	
+	opt.SaveObjectToProcess(sc);
+	
+	opt.MaximumNominalEvaluationCount = 50;
+	opt.LoadEngine();
+	While (opt.IsRunning());
+		opt.UpdateStateVariables();
+		opt.RestoreObjectsInProcess();
+		burn.BurnDirection = opt.GetStateVariableValues();
+		
+		sc.Maneuver(burn);
+		
+		initialEpoch = sc.Epoch;
+		While (abs(sc.Longitude - longitude) < 0.05);
+			sc.Step(TimeSpan.FromSeconds(30));
+		End;
+		
+		opt.Maximize((sc.Epoch - initialEpoch).ToHours());
+		
+		If (opt.OptimizationPhase == 1);
+			Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, burn.BurnDirection.Norm, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+		End;
+	End;
+	
+	Report opt.ReturnString;
+	opt.RestoreObjectsInProcess();
+EndProcedure;
+
+Define Procedure ComputeRangeAndAngleFromPayload(Spacecraft blue, Spacecraft red, Variable range, Variable angle);
+	Array positionBCS;
+	
+	positionBCS = AttitudeConvert(0, 3, blue, red.Position - blue.Position);
+	range = positionBCS.Norm;
+	angle = deg(acos(positionBCS.Normalized.DotProduct(blue.Sensors[sensorIndexPayload].BoresightUnitVector.Normalized)));
+EndProcedure;
+
+Define Procedure UpdateDataReadouts(Formation red, Formation blue);
+	Variable angle;
+	Variable i;
+	
+	Call UpdateResultsBarChart();
+
+	pwAngleRange.BeginBatchUpdate();
+	pwRadiusLongitude.BeginBatchUpdate();
+	pwRange.BeginBatchUpdate();
+	pwAngleFromPayload.BeginBatchUpdate();
+	viewMain3D.BeginBatchUpdate();
+	viewUplink.BeginBatchUpdate();
+	viewPayload.BeginBatchUpdate();
+	
+	overlayDateTime.Shapes[0].TextOptions.Text = blue[0].Epoch.ConvertToCalendarDate("Mmm DD YYYY  hh:mm");
+
+	Variable dataReadoutIsJammed = redJammerState;
+	
+	// If backup comms are active, no effect from jamming
+	If (blueBackupCommsState == 2);
+		dataReadoutIsJammed = 0;
+	End;
+	
+	// Give a chance for data to come through sporadically when jamming is active
+	RandomNumberGenerator rng;
+	If (dataReadoutIsJammed == 1);
+		If (rng.IntegerUniformDistribution(0, 5) == 1);
+			dataReadoutIsJammed = 0;
+		End;
+	End;
+	
+	// If data is not jammed, do regular update. Otherwise, update with null values.
+	If (dataReadoutIsJammed == 0);
+		// update angle/range data R1
+		Call ComputeRangeAndAngleFromPayload(blue[0], red[0], rangeB1_R1, angle);
+		rangeAngleFromPayloadR1.AddPoints(angle, rangeB1_R1);
+		rangeAngleFromPayloadR1CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR1.Data[rangeAngleFromPayloadR1.Data.RowCount - 1, 0:1];
+		
+		rangeR1.AddPoints(0, rangeB1_R1);
+		For i = 0 to rangeR1.Data.RowCount - 1;
+			rangeR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR1CurrentLocation.Data[0, 0:1] = rangeR1.Data[rangeR1.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR1.AddPoints(0, angle);
+		For i = 0 to angleFromPayloadR1.Data.RowCount - 1;
+			angleFromPayloadR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR1CurrentLocation.Data[0, 0:1] = angleFromPayloadR1.Data[angleFromPayloadR1.Data.RowCount - 1, 0:1];
+		
+		// update angle/range data R2
+		Call ComputeRangeAndAngleFromPayload(blue[0], red[1], rangeB1_R2, angle);
+		rangeAngleFromPayloadR2.AddPoints(angle, rangeB1_R2);
+		rangeAngleFromPayloadR2CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR2.Data[rangeAngleFromPayloadR2.Data.RowCount - 1, 0:1];
+		
+		rangeR2.AddPoints(0, rangeB1_R2);
+		For i = 0 to rangeR2.Data.RowCount - 1;
+			rangeR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR2CurrentLocation.Data[0, 0:1] = rangeR2.Data[rangeR2.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR2.AddPoints(0, angle);
+		For i = 0 to angleFromPayloadR2.Data.RowCount - 1;
+			angleFromPayloadR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR2CurrentLocation.Data[0, 0:1] = angleFromPayloadR2.Data[angleFromPayloadR2.Data.RowCount - 1, 0:1];
+		
+		// update angle/range data R3
+		Call ComputeRangeAndAngleFromPayload(blue[0], red[2], rangeB1_R3, angle);
+		rangeAngleFromPayloadR3.AddPoints(angle, rangeB1_R3);
+		rangeAngleFromPayloadR3CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR3.Data[rangeAngleFromPayloadR3.Data.RowCount - 1, 0:1];
+		
+		rangeR3.AddPoints(0, rangeB1_R3);
+		For i = 0 to rangeR3.Data.RowCount - 1;
+			rangeR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR3CurrentLocation.Data[0, 0:1] = rangeR3.Data[rangeR3.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR3.AddPoints(0, angle);
+		For i = 0 to angleFromPayloadR3.Data.RowCount - 1;
+			angleFromPayloadR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR3CurrentLocation.Data[0, 0:1] = angleFromPayloadR3.Data[angleFromPayloadR3.Data.RowCount - 1, 0:1];
+
+		// update longitude vs radius data
+		radiusLongitudeB1.AddPoints(blue[0].Longitude, blue[0].Radius);
+		radiusLongitudeR1.AddPoints(red[0].Longitude, red[0].Radius);
+		radiusLongitudeR2.AddPoints(red[1].Longitude, red[1].Radius);
+		radiusLongitudeR3.AddPoints(red[2].Longitude, red[2].Radius);
+		radiusLongitudeB1CurrentLocation.Data[0, 0:1] = radiusLongitudeB1.Data[radiusLongitudeB1.Data.RowCount - 1, 0:1];
+		radiusLongitudeR1CurrentLocation.Data[0, 0:1] = radiusLongitudeR1.Data[radiusLongitudeR1.Data.RowCount - 1, 0:1];
+		radiusLongitudeR2CurrentLocation.Data[0, 0:1] = radiusLongitudeR2.Data[radiusLongitudeR2.Data.RowCount - 1, 0:1];
+		radiusLongitudeR3CurrentLocation.Data[0, 0:1] = radiusLongitudeR3.Data[radiusLongitudeR3.Data.RowCount - 1, 0:1];
+		
+		// update predict data
+		Call ComputePredict(
+			blue[0],
+			red[0],
+			aheadPredictTime,
+			overlayRed1Future,
+			rangeAngleFromPayloadR1Predict,
+			rangeR1Predict,
+			angleFromPayloadR1Predict,
+			radiusLongitudeR1Predict,
+			rangeB1_R1 > aheadPredictRangeUpdateLimit);
+		Call ComputePredict(
+			blue[0],
+			red[1],
+			aheadPredictTime,
+			overlayRed2Future,
+			rangeAngleFromPayloadR2Predict,
+			rangeR2Predict,
+			angleFromPayloadR2Predict,
+			radiusLongitudeR2Predict,
+			rangeB1_R2 > aheadPredictRangeUpdateLimit);
+		Call ComputePredict(
+			blue[0],
+			red[2],
+			aheadPredictTime,
+			overlayRed3Future,
+			rangeAngleFromPayloadR3Predict,
+			rangeR3Predict,
+			angleFromPayloadR3Predict,
+			radiusLongitudeR3Predict,
+			rangeB1_R3 > aheadPredictRangeUpdateLimit);
+	Else;
+		viewUplink.InsertLineBreak();
+		viewPayload.InsertLineBreak();
+		viewMain3D.InsertLineBreak();
+		radiusLongitudeB1.AddPoints(blue[0].Longitude, blue[0].Radius);
+		radiusLongitudeB1CurrentLocation.Data[0, 0:1] = radiusLongitudeB1.Data[radiusLongitudeB1.Data.RowCount - 1, 0:1];
+	
+		// update angle/range data R1
+		rangeAngleFromPayloadR1.AddPoints(angle, -999);
+		rangeAngleFromPayloadR1CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR1.Data[rangeAngleFromPayloadR1.Data.RowCount - 1, 0:1];
+		
+		rangeR1.AddPoints(0, -999);
+		For i = 0 to rangeR1.Data.RowCount - 1;
+			rangeR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR1CurrentLocation.Data[0, 0:1] = rangeR1.Data[rangeR1.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR1.AddPoints(0, -999);
+		For i = 0 to angleFromPayloadR1.Data.RowCount - 1;
+			angleFromPayloadR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR1CurrentLocation.Data[0, 0:1] = angleFromPayloadR1.Data[angleFromPayloadR1.Data.RowCount - 1, 0:1];
+		
+		// update angle/range data R2
+		rangeAngleFromPayloadR2.AddPoints(angle, -999);
+		rangeAngleFromPayloadR2CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR2.Data[rangeAngleFromPayloadR2.Data.RowCount - 1, 0:1];
+		
+		rangeR2.AddPoints(0, -999);
+		For i = 0 to rangeR2.Data.RowCount - 1;
+			rangeR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR2CurrentLocation.Data[0, 0:1] = rangeR2.Data[rangeR2.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR2.AddPoints(0, -999);
+		For i = 0 to angleFromPayloadR2.Data.RowCount - 1;
+			angleFromPayloadR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR2CurrentLocation.Data[0, 0:1] = angleFromPayloadR2.Data[angleFromPayloadR2.Data.RowCount - 1, 0:1];
+		
+		// update angle/range data R3
+		rangeAngleFromPayloadR3.AddPoints(angle, -999);
+		rangeAngleFromPayloadR3CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR3.Data[rangeAngleFromPayloadR3.Data.RowCount - 1, 0:1];
+		
+		rangeR3.AddPoints(0, -999);
+		For i = 0 to rangeR3.Data.RowCount - 1;
+			rangeR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR3CurrentLocation.Data[0, 0:1] = rangeR3.Data[rangeR3.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR3.AddPoints(0, -999);
+		For i = 0 to angleFromPayloadR3.Data.RowCount - 1;
+			angleFromPayloadR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR3CurrentLocation.Data[0, 0:1] = angleFromPayloadR3.Data[angleFromPayloadR3.Data.RowCount - 1, 0:1];
+
+		// update longitude vs radius data
+		radiusLongitudeR1.AddPoints(red[0].Longitude, -999);
+		radiusLongitudeR2.AddPoints(red[1].Longitude, -999);
+		radiusLongitudeR3.AddPoints(red[2].Longitude, -999);
+		radiusLongitudeR1CurrentLocation.Data[0, 0:1] = radiusLongitudeR1.Data[radiusLongitudeR1.Data.RowCount - 1, 0:1];
+		radiusLongitudeR2CurrentLocation.Data[0, 0:1] = radiusLongitudeR2.Data[radiusLongitudeR2.Data.RowCount - 1, 0:1];
+		radiusLongitudeR3CurrentLocation.Data[0, 0:1] = radiusLongitudeR3.Data[radiusLongitudeR3.Data.RowCount - 1, 0:1];
+		
+		// Erase predicts
+		Call ComputePredict(
+			blue[0],
+			red[0],
+			aheadPredictTime,
+			overlayRed1Future,
+			rangeAngleFromPayloadR1Predict,
+			rangeR1Predict,
+			angleFromPayloadR1Predict,
+			radiusLongitudeR1Predict,
+			1);
+		Call ComputePredict(
+			blue[0],
+			red[1],
+			aheadPredictTime,
+			overlayRed2Future,
+			rangeAngleFromPayloadR2Predict,
+			rangeR2Predict,
+			angleFromPayloadR2Predict,
+			radiusLongitudeR2Predict,
+			1);
+		Call ComputePredict(
+			blue[0],
+			red[2],
+			aheadPredictTime,
+			overlayRed3Future,
+			rangeAngleFromPayloadR3Predict,
+			rangeR3Predict,
+			angleFromPayloadR3Predict,
+			radiusLongitudeR3Predict,
+			1);	
+	End;
+	
+	viewMain3D.Update();
+	viewUplink.Update();
+	viewPayload.Update();
+	
+	pwRange.EndBatchUpdate();
+	pwAngleFromPayload.EndBatchUpdate();
+	pwAngleRange.EndBatchUpdate();
+	pwRadiusLongitude.EndBatchUpdate();
+	viewUplink.EndBatchUpdate();
+	viewPayload.EndBatchUpdate();
+	viewMain3D.EndBatchUpdate();
+
+EndProcedure;
+
+Global Constant Variable _m = (payloadKeepOutAngle2 - payloadKeepOutAngle1) / -payloadKeepOutRange;
+Global Constant Variable _b = -_m * payloadKeepOutAngle2;
+	
+Define Procedure IsInsidePayloadKeepOutZone(Variable range, Variable angle, Variable result);
+	result = 0;
+	If (range < payloadKeepOutRange);
+		If (angle < payloadKeepOutAngle1 or range < _m * angle + _b);
+			result = 1;
+		End;
+	End;
+EndProcedure;
+
+Define Procedure PostBlueStepSubroutine(Formation red, Formation blue);
+	Variable range;
+	Variable angle;
+	Variable isInsidePayloadKeepOutZone;
+	red.StepToEpoch(blue[0].Epoch);
+	blueJammer.StepToEpoch(blue[0].Epoch);
+	simEpoch = blue[0].Epoch;
+	
+	cameraSc.Epoch = blue[0].Epoch;
+	cameraSc.SetCartesianState(blue[0].GetCartesianState());
+	
+	If (blueIsOffNominal);
+		blueOperationsScore -= 0.1 * blue[0].Propagator.StepSize.ToHours();
+	End;
+	
+	If (blueJammerState == 2);
+		tensionScore -= 0.1 * blue[0].Propagator.StepSize.ToHours();
+	End;
+	
+	If (blueBackupCommsState == 2);
+		blueOperationsScore -= 0.05 * blue[0].Propagator.StepSize.ToHours();
+	End;
+	
+	Call ComputeRangeAndAngleFromPayload(blue[0], red[0], range, angle);
+	Call IsInsidePayloadKeepOutZone(range, angle, isInsidePayloadKeepOutZone);
+	If (isInsidePayloadKeepOutZone);
+		redObjectiveScore -= 1 * blue[0].Propagator.StepSize.ToHours();
+	End;
+	
+	If (range < rangeKeepOutValue);
+		redObjectiveScore -= 5 * blue[0].Propagator.StepSize.ToHours();
+	End;
+	
+	Variable slewRateDegPerSecond;
+	If (blueSlewCompletionEpoch > simEpoch);
+		slewRateDegPerSecond = (desiredBluePayloadOrientationAngle - initialBluePayloadOrientationAngle) / (blueSlewCompletionEpoch - blueSlewStartEpoch).ToSeconds();
+		blue[0].EulerAngles[0] = initialBluePayloadOrientationAngle + slewRateDegPerSecond * (simEpoch - blueSlewStartEpoch).ToSeconds();
+	End;
+	
+	Call UpdateDataReadouts(red, blue);
+EndProcedure;
+
+Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan futureEpoch);	
+	WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+		Call PostBlueStepSubroutine(red, blue);
+	End;
+EndProcedure;
+
+Define Procedure AdvanceSimToFutureEpochWithBlueSlew(Formation red, Formation blue, TimeSpan futureEpoch, Variable slewAngle);
+	Variable slewRateDegPerSecond = slewAngle / (futureEpoch - blue[0].Epoch).ToSeconds();
+	Variable initialAngle = blue[0].EulerAngles[0];
+	TimeSpan initialEpoch = blue[0].Epoch;
+	
+	WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+		blue[0].EulerAngles[0] = initialAngle + slewRateDegPerSecond * (blue[0].Epoch - initialEpoch).ToSeconds();	
+		Call PostBlueStepSubroutine(red, blue);
+	End;
+EndProcedure;
+
+Define Procedure AdvanceSimUplinkPeriod(Formation red, Formation blue);
+	viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 1);
+	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(0.5));
+	viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 0);
+EndProcedure;
+
+
+Define Procedure TargetNewOrbit(
+		Spacecraft sc,
+		Array kepState,
+		Variable longitude,
+		Array timeBoundsDays,
+		Variable doOptimization,
+		String solutionFileLabel,
+		Array dv1,
+		Array dv2,
+		TimeSpan interBurnTime);
+	Variable totalDV;
+	TimeSpan futureEpoch;
+	Variable addLongitudeConstraint;
+	Optimizer opt;
+	
+	If (doOptimization);
+		opt.Reset(1);
+		opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
+		opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
+		opt.AddStateVariable("days", timeBoundsDays.Mean, timeBoundsDays[0], timeBoundsDays[1]);
+		opt.AddConstraint("A",    kepState[0], kepState[0], 100);
+		opt.AddConstraint("E",    kepState[1], kepState[1]);
+		opt.AddConstraint("I",    kepState[2], kepState[2], 100, 360);
+		
+		addLongitudeConstraint = longitude != -999;
+		If (addLongitudeConstraint);
+			opt.AddConstraint("lon",   longitude, longitude, 100, 360);
+		Else;
+			opt.AddConstraint("RAAN", kepState[3], kepState[3], 100, 360);
+			opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
+		End;
+		
+		opt.SaveObjectToProcess(sc);
+		opt.MaximumNominalEvaluationCount = 1000;
+		opt.LoadEngine();
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			
+			burn.BurnDirection = opt.GetStateVariableValues[0:2];
+			totalDV = burn.BurnDirection.Norm;
+			sc.Maneuver(burn);
+			
+			futureEpoch = sc.Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+			WhileStepping sc to (sc.Epoch == futureEpoch);
+			End;
+			
+			burn.BurnDirection = opt.GetStateVariableValues[3:5];
+			totalDV += burn.BurnDirection.Norm;
+			sc.Maneuver(burn);
+			
+			opt.SetConstraintValue("A", sc.A);
+			opt.SetConstraintValue("E", sc.E);
+			opt.SetConstraintValue("I", sc.I);
+
+			If (addLongitudeConstraint);
+				opt.SetConstraintValue("lon", sc.Longitude);
+			Else;
+				opt.SetConstraintValue("RAAN", sc.RAAN);
+				opt.SetConstraintValue("W", sc.W);
+			End;
+									 
+			opt.Minimize(totalDV);
+			
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		Call OpenForWrite("SavedValues/" + solutionFileLabel + ".txt");
+		file.PutLine(opt.GetBestStateVariableValue("dv11").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv12").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv13").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv21").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv22").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv23").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
+		file.Close();
+	End;
+	
+	Call OpenForRead("SavedValues/" + solutionFileLabel + ".txt");
+	dv1[0] = file.GetLine().ToVariable();
+	dv1[1] = file.GetLine().ToVariable();
+	dv1[2] = file.GetLine().ToVariable();
+	dv2[0] = file.GetLine().ToVariable();
+	dv2[1] = file.GetLine().ToVariable();
+	dv2[2] = file.GetLine().ToVariable();
+	interBurnTime = TimeSpan.FromDays(file.GetLine().ToVariable());
+	file.Close();
+EndProcedure;
+
+Define Procedure AdvanceSimToTargetedNewOrbit(Spacecraft sc, Array dv1, Array dv2, TimeSpan interBurnTime, Formation red, Formation blue);
+	burn.BurnDirection = dv1;
+	sc.Maneuver(burn);
+	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + interBurnTime);
+	burn.BurnDirection = dv2;
+	sc.Maneuver(burn);
+EndProcedure;
+
+
+Define Procedure TargetNewOrbitAndAdvanceSim(
+		Spacecraft sc,
+		Array kepState,
+		Variable longitude,
+		Array timeBoundsDays,
+		Variable doOptimization,
+		String solutionFileLabel,
+		Formation red,
+		Formation blue);
+	
+	Array dv1(3);
+	Array dv2(3);
+	TimeSpan interBurnTime;
+	Call TargetNewOrbit(sc, kepState, longitude, timeBoundsDays, doOptimization, solutionFileLabel, dv1, dv2, interBurnTime);
+	Call AdvanceSimToTargetedNewOrbit(sc, dv1, dv2, interBurnTime, red, blue);
+EndProcedure;
+
+
+Define Procedure ComputeDesiredSlewAngle(Formation red, Formation blue, Variable slewAngle);
+	Variable redIndex = 0;
+	Variable i = 0;
+	For i = 0 to red.Count - 1;
+		If (blue[0].Range(red[i]) < blue[0].Range(red[redIndex]));
+			redIndex = i;
+		End;
+	End;
+	
+	Optimizer opt;
+	opt.Reset(1);
+	
+	Variable initialEulerAngle = blue[0].EulerAngles[0];
+	opt.AddStateVariable("angle", initialEulerAngle+90, 0, 360, 100);
+	
+	Variable range;
+	Variable angle;
+	opt.MaximumNominalEvaluationCount = 50;
+	opt.LoadEngine();
+	
+	While (opt.IsRunning());
+		opt.UpdateStateVariables();
+		
+		blue[0].EulerAngles[0] = opt.GetStateVariableValue(0);
+		Call ComputeRangeAndAngleFromPayload(blue[0], red[redIndex], range, angle);
+		opt.Maximize(angle);
+			
+//		If (opt.OptimizationPhase == 1);
+//			Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource, blue[0].EulerAngles[0];
+//		End;
+	End;
+	
+	blue[0].EulerAngles[0] = initialEulerAngle;
+	slewAngle = opt.GetBestStateVariableValue("angle");
+EndProcedure;
+
+Define Procedure ComputeAndExecuteBlueSlew(Formation red, Formation blue);
+	Variable slewAngle;
+	Call ComputeDesiredSlewAngle(red, blue, slewAngle);
+	Call AdvanceSimToFutureEpochWithBlueSlew(red, blue, blue[0].Epoch + TimeSpan.FromHours(10), slewAngle);
+EndProcedure;
+
+]]></FreeFormScript>
+      </FreeForm>
+      <FreeForm enabled="true">
+        <Label>OperatorActions menu</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[Global UserInterface OperatorActions;
+
+Global Constant Variable choice_nominal = 1;
+Global Constant Variable choice_secondaryComms = 2;
+Global Constant Variable choice_slew = 3;
+Global Constant Variable choice_jam = 4;
+Global Constant Variable choice_evasive = 5;
+Global Constant Variable choice_returnToNominal = 6;
+Global Constant Variable choice_reevaluate = 7;
+
+
+Define Procedure BuildOperatorActionsMenu();
+	OperatorActions.ClearElements();
+	OperatorActions.Title = "Operator Actions";
+	String msg = @"To re-evaluate the data readouts and 3D views before making a selection,\nchoose 'Re-evaluate data' from the list above. Then, when you are ready\nto choose an action, click the blue play button in the top toolbar.";
+	OperatorActions.AddLabel(msg);
+	OperatorActions.AddSeparator("", 1);
+	
+	If (redJammerState == 1);
+		msg = "Warning: Primary comms path is currently disrupted.";
+		OperatorActions.AddLabel(msg);
+		OperatorActions.AddSeparator("", 1);
+	End;
+	
+	Variable multiChoiceID = OperatorActions.AddMultiChoice("userChoice", "Select an action:", "choice_nominal", 1);
+	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_nominal",   "Continue nominal operations");
+	
+	If (blueBackupCommsState == 0); // inactive
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Ready secondary blue comms path");
+	ElseIf (blueBackupCommsState == 1); // ready
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to secondary blue comms path");
+	ElseIf (blueBackupCommsState == 2); // active
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to primary blue comm path");
+	End;
+	
+	If (redJammerState == 0);
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_slew", "Slew payload away from closest red spacecraft");
+	End;
+	
+	If (blueJammerState == 0); // inactive
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Ready ground-based jamming unit");
+	ElseIf (blueJammerState == 1); // ready
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Activate ground-based jamming unit");
+	ElseIf (blueJammerState == 2); // active
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "De-activate ground-based jamming unit");
+	End;
+	
+	If (redJammerState == 0);
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_evasive",   "Perform evasive maneuver");
+	End;
+	
+	If (blueIsOffNominal);
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_returnToNominal",   "Return BlueSat to nominal attitude/location");
+	End;
+	
+	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_reevaluate",  "Re-evaluate data");
+EndProcedure;
+
+Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
+	If (autoChooseNominalOperation);
+		userChoice = choice_nominal;
+	Else;
+		Call BuildOperatorActionsMenu();
+		Show OperatorActions;
+	End;
+	
+	While (userChoice == choice_reevaluate);
+		Pause;
+		Show OperatorActions;
+	End;
+	
+	If (userChoice == choice_slew or userChoice == choice_evasive);
+		blueIsOffNominal = 1;
+	End;
+	
+	If (userChoice == choice_slew);
+		initialBluePayloadOrientationAngle = blue[0].EulerAngles[0];
+		blueSlewStartEpoch = simEpoch;
+		blueSlewCompletionEpoch = simEpoch + TimeSpan.FromHours(10);
+		Call ComputeDesiredSlewAngle(red, blue, desiredBluePayloadOrientationAngle);
+	End;
+	
+	If (userChoice == choice_secondaryComms);
+		If (blueBackupCommsState == 0); // inactive
+			blueBackupCommsState = 2;
+		ElseIf (blueBackupCommsState == 1); // ready
+			Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
+		ElseIf (blueBackupCommsState == 2); // active
+			blueBackupCommsState = 0;
+		End;
+	End;
+	
+	If (userChoice == choice_jam);
+		If (blueJammerState == 0); // inactive
+			Call SetBlueJammerState(1);
+			blueOperationsScore -= 3;
+		ElseIf (blueJammerState == 1); // ready
+			Call SetBlueJammerState(2);
+		ElseIf (blueJammerState == 2); // active
+			Call SetBlueJammerState(1);
+		End;
+	End;
+	
+	If (userChoice == choice_evasive);
+		blueOperationsScore -= 8;
+		
+		Call AdvanceSimUplinkPeriod(red, blue);
+		Call TargetNewOrbitAndAdvanceSim(
+			blue[0], initialKepStateBlue1,
+			blue[0].Longitude + 0.3, {0.1, 0.5},
+			doOptimizationAndSaveValues,
+			"BlueSatEvasiveManeuver_" + numberOfBlueEvasiveManeuvers.ToString(), red, blue);
+		
+		numberOfBlueEvasiveManeuvers += 1;
+	End;
+	
+	If (userChoice == choice_returnToNominal);
+		If (numberOfBlueEvasiveManeuvers > 0);
+			blueOperationsScore -= 8;
+			
+			Call AdvanceSimUplinkPeriod(red, blue);
+			Call TargetNewOrbitAndAdvanceSim(
+				blue[0], initialKepStateBlue1,
+				initialLongitudeBlue1, {0.1, 1},
+				doOptimizationAndSaveValues,
+				"BlueSatReturnToSlot_" + numberOfBlueEvasiveManeuvers.ToString(),
+				red, blue);
+			numberOfBlueEvasiveManeuvers = 0;
+		End;
+		blueIsOffNominal = 0;
+	End;
+EndProcedure;
+
+
+]]></FreeFormScript>
+      </FreeForm>
+      <FreeForm enabled="true">
+        <Label>More Procedures</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[
+Define Procedure AdvanceSimUntilBlueIsNominal(Formation red, Formation blue);
+	While (blueIsOffNominal);
+		Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(5));
+		Call ShowOperatorActionsMenu(red, blue);
+	End;
+EndProcedure;]]></FreeFormScript>
+      </FreeForm>
+      <FreeForm enabled="true">
+        <Label>Game Scripts</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[
+Define Procedure DisplayModeScript(Formation red, Formation blue);
+	Optimizer opt;
+	TimeSpan initialEpoch;
+	
+	red[1].I += 0.1;
+	red[2].I += 0.1;
+	red[2].RAAN -= 30;
+	red[2].TA += 30;
+	
+	OutputLayout.BringWindowToFront(pwAngleFromPayload.ID);
+	OutputLayout.ApplyUpdates();
+	
+	pwRange.BeginBatchUpdate();
+	(pwRange.Series[0] AsType PlotScatterSeries).AddPoints(0, 0);
+	pwRange.Update();
+//	(pwRange.Series[0] AsType PlotScatterSeries).ClearPoints();
+	pwRange.EndBatchUpdate();
+	OutputLayout.BringWindowToFront(pwRange.ID);
+	
+	viewMain3D.CurrentViewpoint.ThreeDView.RightAscension = 268;
+	viewMain3D.CurrentViewpoint.ThreeDView.Declination = 7;
+	
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		Call ComputeStationKeepingManeuver(opt, blue[0], 279.25);
+		burn.BurnDirection = opt.GetBestStateVariableValues();
+		
+		Call OpenForWrite("SavedValues/BenignScript_Blue1SK1.txt");
+		file.PutLine(burn.BurnDirection[0].ToString());
+		file.PutLine(burn.BurnDirection[1].ToString());
+		file.PutLine(burn.BurnDirection[2].ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+
+	Call OpenForRead("SavedValues/BenignScript_Blue1SK1.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	file.Close();
+	
+	blue[0].Maneuver(burn);
+	
+	red[0].SetKeplerianState(blue[0].GetKeplerianState());
+	red[0].E += 0.002;
+	red[0].I += 0.25;
+	red[0].TA += 0.1;
+	
+	blue[0].Save("IC");
+	red[0].Save("IC");
+	red[1].Save("IC");
+	red[2].Save("IC");
+	
+	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
+	While (1);
+		Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+		
+		viewMain3D.ResetTails();
+		viewPayload.ResetTails();
+		viewUplink.ResetTails();
+		
+		angleFromPayloadR1.ClearPoints();
+		angleFromPayloadR2.ClearPoints();
+		angleFromPayloadR3.ClearPoints();
+		
+		rangeR1.ClearPoints();
+		rangeR2.ClearPoints();
+		rangeR3.ClearPoints();
+		
+		rangeAngleFromPayloadR1.ClearPoints();
+		rangeAngleFromPayloadR2.ClearPoints();
+		rangeAngleFromPayloadR3.ClearPoints();
+		
+		radiusLongitudeB1.ClearPoints();
+		radiusLongitudeR1.ClearPoints();
+		radiusLongitudeR2.ClearPoints();
+		radiusLongitudeR3.ClearPoints();
+		
+		blue[0].Restore("IC");
+		red[0].Restore("IC");
+		red[1].Restore("IC");
+		red[2].Restore("IC");
+	End;
+	
+EndProcedure;
+
+
+Define Procedure BenignScript(Formation red, Formation blue);
+	Optimizer opt;
+	TimeSpan initialEpoch;
+	Variable totalDV;
+	Variable dv2;
+	
+	
+	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		Call ComputeStationKeepingManeuver(opt, blue[0], 279.25);
+		burn.BurnDirection = opt.GetBestStateVariableValues();
+		
+		Call OpenForWrite("SavedValues/BenignScript_Blue1SK1.txt");
+		file.PutLine(burn.BurnDirection[0].ToString());
+		file.PutLine(burn.BurnDirection[1].ToString());
+		file.PutLine(burn.BurnDirection[2].ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+
+	Call OpenForRead("SavedValues/BenignScript_Blue1SK1.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	file.Close();
+	
+	blue[0].Maneuver(burn);
+	
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(2);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+	burn.AttitudeSystem = 1;
+	burn.BurnDirection[1] = 0;
+	burn.BurnDirection[2] = 0;
+	
+	//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		opt.Reset(1);
+		opt.AddStateVariable("dv1", -0.001, -0.01, 0);
+		opt.AddStateVariable("dv2", -0.001, -0.01, 0);
+		opt.AddStateVariable("days", 0.5, 0.1, 1);
+		opt.AddConstraint("A", 42100, 42100, 100);
+		opt.AddConstraint("E", 0, 0.0001);
+		
+		opt.SaveObjectToProcess(red[0]);
+		opt.LoadEngine();
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			
+			burn.BurnDirection[0] = opt.GetStateVariableValue("dv1");
+			totalDV = abs(burn.BurnDirection[0]);
+			red[0].Maneuver(burn);
+			
+			futureEpoch = red[0].Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+			WhileStepping red[0] to (red[0].Epoch == futureEpoch);
+			End;
+			
+			burn.BurnDirection[0] = opt.GetStateVariableValue("dv2");
+			totalDV += abs(burn.BurnDirection[0]);
+			red[0].Maneuver(burn);
+			
+			opt.SetConstraintValue("A", red[0].A);
+			opt.SetConstraintValue("E", red[0].E);
+									 
+			opt.Minimize(totalDV);
+			
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		Call OpenForWrite("SavedValues/BenignScript_Red1Burn1and2.txt");
+		file.PutLine(opt.GetBestStateVariableValue("dv1").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv2").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+	
+	Call OpenForRead("SavedValues/BenignScript_Red1Burn1and2.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	dv2 = file.GetLine().ToVariable();
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
+	file.Close();
+
+	red[0].Maneuver(burn);
+
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+	burn.BurnDirection[0] = dv2;
+	red[0].Maneuver(burn);
+	burn.AttitudeSystem = 6;
+	
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(4);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+EndProcedure;
+
+
+Define Procedure ObservationScript(Formation red, Formation blue);
+	
+	Array relativePos;
+	Array relativeVel;
+	Array desiredRelativePosLVC;
+	Variable relativeStateObjective;
+	Optimizer opt;
+	NloptOptions nlopt;
+	TimeSpan initialEpoch;
+	Variable maxDistance;
+	Variable minDistance;
+	Variable minAngle;
+	Variable distance;
+	Variable angle;
+	
+	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		Call ComputeStationKeepingManeuver(opt, blue[0], 279.25);
+		burn.BurnDirection = opt.GetBestStateVariableValues();
+		
+		Call OpenForWrite("SavedValues/ObservationScript_Blue1SK1.txt");
+		file.PutLine(burn.BurnDirection[0].ToString());
+		file.PutLine(burn.BurnDirection[1].ToString());
+		file.PutLine(burn.BurnDirection[2].ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+
+	Call OpenForRead("SavedValues/ObservationScript_Blue1SK1.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	file.Close();
+	
+	blue[0].Maneuver(burn);
+
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		desiredRelativePosLVC = {0, 0, 60};
+
+		opt.Reset(1);
+		opt.AddStateVariableBlock(3, "dv", 0.001, -0.01, 0.01);
+		opt.AddStateVariable("days", 7, 6.7, 7.3);
+		opt.AddConstraintBlock(3, "relativePos", 0, 0, 100);
+		opt.AddConstraint("crossTrackVel", 0, 0);
+		
+		opt.SaveObjectToProcess(red[0]);
+		opt.SaveObjectToProcess(blue[0]);
+		
+		opt.LoadEngine();
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			burn.BurnDirection = opt.GetStateVariableValues()[0:2];
+			
+			red[0].Maneuver(burn);
+			
+			futureEpoch = blue[0].Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+			WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+				red[0].StepToEpoch(blue[0].Epoch);
+			End;
+			
+			relativePos = RelativeMotionUtilities.ConvertRelativePosition(0, 6, red[0], blue[0].Position - red[0].Position);
+			relativeVel = RelativeMotionUtilities.ConvertRelativeVelocity(0, 6, red[0], blue[0].GetCartesianState() - red[0].GetCartesianState());
+//			relativePos[2] = desiredRelativePosLVC[2]; // we don't care about cross track so zero it out
+			opt.SetConstraintValues({desiredRelativePosLVC - relativePos, relativeVel[2]});
+			
+			opt.Minimize(burn.BurnDirection.Norm);
+			
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		burn.BurnDirection = opt.GetBestStateVariableValues()[0:2];
+		
+		Call OpenForWrite("SavedValues/ObservationScript_Red1Burn1.txt");
+		file.PutLine(burn.BurnDirection[0].ToString());
+		file.PutLine(burn.BurnDirection[1].ToString());
+		file.PutLine(burn.BurnDirection[2].ToString());
+		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+	
+	Call OpenForRead("SavedValues/ObservationScript_Red1Burn1.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
+	file.Close();
+
+	red[0].Maneuver(burn);
+	
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		desiredRelativePosLVC = RelativeMotionUtilities.ConvertRelativePosition(0, 6, red[0], blue[0].Position - red[0].Position);
+
+		opt.Reset(1);
+		opt.MaximumNominalEvaluationCount = 1800;
+		opt.AddStateVariableBlock(3, "dv", 0.001, -0.01, 0.01);
+		opt.AddConstraint("minAngle", -1e-20, 15);
+		opt.AddConstraint("minDistance", 50, 1e20);
+		opt.AddConstraint("maxDistance", -1e20, 80);
+		
+		opt.SaveObjectToProcess(red[0]);
+		opt.SaveObjectToProcess(blue[0]);
+		
+		nlopt.AlgorithmToUse = 38;
+		nlopt.SubsidiaryAlgorithmToUse = 40;
+		
+		opt.LoadEngine();
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			burn.BurnDirection = opt.GetStateVariableValues();
+			
+			red[0].Maneuver(burn);
+			
+			futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
+			Call ComputeRangeAndAngleFromPayload(blue[0], red[0], distance, angle);
+			minDistance = distance;
+			maxDistance = distance;
+			minAngle = angle;
+			WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+				red[0].StepToEpoch(blue[0].Epoch);
+				Call ComputeRangeAndAngleFromPayload(blue[0], red[0], distance, angle);
+				If (distance < minDistance);
+					minDistance = distance;
+				End;
+				If (distance > maxDistance);
+					maxDistance = distance;
+				End;
+				If (angle < minAngle);
+					minAngle = angle;
+				End;
+			End;
+			
+			opt.SetConstraintValue("minAngle", minAngle);
+			opt.SetConstraintValue("minDistance", minDistance);
+			opt.SetConstraintValue("maxDistance", maxDistance);
+			
+			opt.Minimize(burn.BurnDirection.Norm * 1e0);
+						
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, burn.BurnDirection.Norm, minAngle, minDistance, maxDistance, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		burn.BurnDirection = opt.GetBestStateVariableValues();
+		
+		Call OpenForWrite("SavedValues/ObservationScript_Red1Burn2.txt");
+		file.PutLine(burn.BurnDirection[0].ToString());
+		file.PutLine(burn.BurnDirection[1].ToString());
+		file.PutLine(burn.BurnDirection[2].ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+	
+	Call OpenForRead("SavedValues/ObservationScript_Red1Burn2.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	file.Close();
+	
+	red[0].Maneuver(burn);
+	
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+	burn.BurnDirection = -{    0.000145506,       -0.000805460,       -0.000000254};
+	red[0].Maneuver(burn);
+	
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+EndProcedure;
+
+
+Define Procedure DisableScript(Formation red, Formation blue);
+	
+	Array relativePos;
+	Array desiredRelativePosLVC;
+	Optimizer opt;
+	Variable relativeStateObjective;
+	NloptOptions nlopt;
+	Array kepState;
+	Variable totalDV;
+	TimeSpan initialEpoch;
+	Array dv1(3);
+	Array dv2(3);
+	TimeSpan interBurnTime;
+	TimeSpan futureEpoch2;
+	
+	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		Call ComputeStationKeepingManeuver(opt, blue[0], 279.25);
+		burn.BurnDirection = opt.GetBestStateVariableValues();
+		
+		Call OpenForWrite("SavedValues/DisableScript_Blue1SK1.txt");
+		file.PutLine(burn.BurnDirection[0].ToString());
+		file.PutLine(burn.BurnDirection[1].ToString());
+		file.PutLine(burn.BurnDirection[2].ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+
+	Call OpenForRead("SavedValues/DisableScript_Blue1SK1.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	file.Close();
+	
+	blue[0].Maneuver(burn);
+	
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		desiredRelativePosLVC = {0, 4, 2};
+		
+		opt.Reset(1);
+		opt.AddStateVariableBlock(3, "dv", 0.001, -0.01, 0.01);
+		opt.AddConstraintBlock(3, "relativePos", 0, 0);
+		
+		opt.SaveObjectToProcess(red[0]);
+		opt.SaveObjectToProcess(blue[0]);
+		
+		opt.LoadEngine();
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			burn.BurnDirection = opt.GetStateVariableValues();
+			
+			red[0].Maneuver(burn);
+			
+			futureEpoch = blue[0].Epoch + TimeSpan.FromDays(4);
+			WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+				red[0].StepToEpoch(blue[0].Epoch);
+			End;
+			
+			relativePos = RelativeMotionUtilities.ConvertRelativePosition(0, 6, red[0], blue[0].Position - red[0].Position);
+			relativePos[2] = desiredRelativePosLVC[2]; // we don't care about cross track so zero it out
+			opt.SetConstraintValues(desiredRelativePosLVC - relativePos);
+			
+			opt.Minimize(burn.BurnDirection.Norm);
+			
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		burn.BurnDirection = opt.GetBestStateVariableValues();
+		
+		Call OpenForWrite("SavedValues/DisableScript_Red1Burn1.txt");
+		file.PutLine(burn.BurnDirection[0].ToString());
+		file.PutLine(burn.BurnDirection[1].ToString());
+		file.PutLine(burn.BurnDirection[2].ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+
+	Call OpenForRead("SavedValues/DisableScript_Red1Burn1.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	file.Close();
+
+	red[0].Maneuver(burn);
+	futureEpoch2 = blue[0].Epoch + TimeSpan.FromDays(4);
+	
+	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(10));
+	
+	Call ShowOperatorActionsMenu(red, blue);
+	If (userChoice == choice_evasive);
+		Call TargetNewOrbit(
+			red[0], initialKepStateRed1,
+			initialLongitudeRed1, {0.1, 5},
+			doOptimizationAndSaveValues,
+			"DisableScript_Red1ReturnToSlot1",
+			dv1, dv2, interBurnTime);
+		
+		Call AdvanceSimToTargetedNewOrbit(red[0], dv1, dv2, interBurnTime, red, blue);
+		
+		Call AdvanceSimUntilBlueIsNominal(red, blue);
+		ExitProcedure;
+	End;
+	
+	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(10));
+	
+	Call ShowOperatorActionsMenu(red, blue);
+	If (userChoice == choice_evasive);
+		// red pulls back
+	End;
+	
+	WhileStepping blue[0] to (blue[0].Longitude < red[1].Longitude);
+		Call PostBlueStepSubroutine(red, blue);
+	End;
+	
+	Variable i;
+	If (blueJammerState == 2);
+		For i = 0 to 2;
+			Call ShowOperatorActionsMenu(red, blue);
+			Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(10));
+		End;
+		
+		Call AdvanceSimUntilBlueIsNominal(red, blue);		
+		ExitProcedure;
+	End;
+	
+	kepState = blue[0].GetKeplerianState();
+	kepState[1] += 0.0012;
+	Call TargetNewOrbit(
+		red[1], kepState,
+		-999, {0.4, 0.6},
+		doOptimizationAndSaveValues,
+		"DisableScript_Red2Burn1and2",
+		dv1, dv2, interBurnTime);
+	
+	burn.BurnDirection = dv1;
+	futureEpoch = blue[0].Epoch + interBurnTime;
+		
+	Call SetRedJammerState(1, red);
+
+	Array kepStateRed2 = red[1].GetKeplerianState();
+	Array kepStateRed3 = red[2].GetKeplerianState();
+	
+	
+	red[1].Maneuver(burn);
+	burn.BurnDirection *= -1;
+	red[2].Maneuver(burn);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+	burn.BurnDirection = dv2;
+	red[1].Maneuver(burn);
+	burn.BurnDirection *= -1;
+	red[2].Maneuver(burn);
+	
+	
+	futureEpoch = futureEpoch2;
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		desiredRelativePosLVC = RelativeMotionUtilities.ConvertRelativePosition(0, 6, red[0], blue[0].Position - red[0].Position);
+		
+		opt.Reset(1);
+		opt.MaximumNominalEvaluationCount = 800;
+		opt.AddStateVariableBlock(3, "dv", 0.001, -0.01, 0.01);
+		
+		opt.SaveObjectToProcess(red[0]);
+		opt.SaveObjectToProcess(blue[0]);
+		
+		nlopt.AlgorithmToUse = 38;
+		nlopt.SubsidiaryAlgorithmToUse = 40;
+		
+		opt.LoadEngine(nlopt);
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			burn.BurnDirection = opt.GetStateVariableValues();
+			
+			red[0].Maneuver(burn);
+			
+			futureEpoch = blue[0].Epoch + TimeSpan.FromDays(0.5);
+			WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+				red[0].StepToEpoch(blue[0].Epoch);
+			End;
+			
+			relativePos = RelativeMotionUtilities.ConvertRelativePosition(0, 6, red[0], blue[0].Position - red[0].Position);
+			relativeStateObjective = (-desiredRelativePosLVC - relativePos).Norm;
+			
+			futureEpoch = blue[0].Epoch + TimeSpan.FromDays(0.5);
+			WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+				red[0].StepToEpoch(blue[0].Epoch);
+			End;
+			
+			relativePos = RelativeMotionUtilities.ConvertRelativePosition(0, 6, red[0], blue[0].Position - red[0].Position);
+			relativeStateObjective += (desiredRelativePosLVC - relativePos).Norm;
+			
+			opt.Minimize(burn.BurnDirection.Norm * 1e3 + relativeStateObjective*1e0);
+			
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		burn.BurnDirection = opt.GetBestStateVariableValues();
+		
+		Call OpenForWrite("SavedValues/DisableScript_Red1Burn2.txt");
+		file.PutLine(burn.BurnDirection[0].ToString());
+		file.PutLine(burn.BurnDirection[1].ToString());
+		file.PutLine(burn.BurnDirection[2].ToString());
+		file.Close();
+	End;
+
+//EndBlock PRESOLVED OPTIMIZATION
+
+	Call OpenForRead("SavedValues/DisableScript_Red1Burn2.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	file.Close();
+
+
+	red[0].Maneuver(burn);
+	
+	TimeSpan preDeployWaitTime = TimeSpan.FromDays(0.1);
+	TimeSpan rendezvousTime = TimeSpan.FromDays(0.3);
+	TimeSpan killOperationTime = TimeSpan.FromDays(0.2);
+	
+	futureEpoch = blue[0].Epoch + preDeployWaitTime;
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+	// Deploy inspector from Red 1
+	red.Count += 1;
+	Alias deployableSat = red[red.Count - 1];
+	deployableSat.BodyScale = 200;
+	deployableSat.DisplayName = "Red" + red.Count.ToString();
+	deployableSat.Color = colorRed4;
+	deployableSat.TailLength = tailPoints/4;
+	viewMain3D.SetShowName(deployableSat.ObjectId, 1);
+	viewMain3D.SetObjectLabelFont(deployableSat.ObjectId, vf);
+	
+	deployableSat.Epoch = red[0].Epoch;
+	deployableSat.SetCartesianState(red[0].GetCartesianState());
+
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		desiredRelativePosLVC = {0, 0, 0};
+		
+		opt.Reset(1);
+		opt.AddStateVariableBlock(3, "dv", 0.001, -0.01, 0.01);
+		opt.AddConstraintBlock(3, "relativePos", 0, 0);
+		
+		opt.SaveObjectToProcess(deployableSat);
+		opt.SaveObjectToProcess(blue[0]);
+		
+		opt.LoadEngine();
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			burn.BurnDirection = opt.GetStateVariableValues();
+			
+			deployableSat.Maneuver(burn);
+			
+			futureEpoch = blue[0].Epoch + rendezvousTime;
+			WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+				deployableSat.StepToEpoch(blue[0].Epoch);
+			End;
+			
+			relativePos = RelativeMotionUtilities.ConvertRelativePosition(0, 6, deployableSat, blue[0].Position - deployableSat.Position);
+			opt.SetConstraintValues(desiredRelativePosLVC - relativePos);
+			
+			opt.Minimize(burn.BurnDirection.Norm);
+			
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		burn.BurnDirection = opt.GetBestStateVariableValues();
+		Report burn.BurnDirection;
+		
+		Call OpenForWrite("SavedValues/DisableScript_Red1Burn3.txt");
+		file.PutLine(burn.BurnDirection[0].ToString());
+		file.PutLine(burn.BurnDirection[1].ToString());
+		file.PutLine(burn.BurnDirection[2].ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+	
+	Call OpenForRead("SavedValues/DisableScript_Red1Burn3.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	file.Close();
+	
+	deployableSat.Maneuver(burn);
+	
+	futureEpoch = blue[0].Epoch + rendezvousTime;
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+	deployableSat.SetCartesianState(blue[0].GetCartesianState());
+	
+	futureEpoch = blue[0].Epoch + killOperationTime;
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+	// Inspector return to Red 1
+	
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		desiredRelativePosLVC = {0, 0, 0};
+		
+		opt.Reset(1);
+		opt.AddStateVariableBlock(3, "dv", 0.001, -0.01, 0.01);
+		opt.AddConstraintBlock(3, "relativePos", 0, 0);
+		
+		opt.SaveObjectToProcess(deployableSat);
+		opt.SaveObjectToProcess(red[0]);
+		
+		opt.LoadEngine();
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			burn.BurnDirection = opt.GetStateVariableValues();
+			
+			deployableSat.Maneuver(burn);
+			
+			futureEpoch = red[0].Epoch + rendezvousTime;
+			WhileStepping red[0] to (red[0].Epoch == futureEpoch);
+				deployableSat.StepToEpoch(red[0].Epoch);
+			End;
+			
+			relativePos = RelativeMotionUtilities.ConvertRelativePosition(0, 6, deployableSat, red[0].Position - deployableSat.Position);
+			opt.SetConstraintValues(desiredRelativePosLVC - relativePos);
+			
+			opt.Minimize(burn.BurnDirection.Norm);
+			
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		burn.BurnDirection = opt.GetBestStateVariableValues();
+		
+		Call OpenForWrite("SavedValues/DisableScript_Red1Burn4.txt");
+		file.PutLine(burn.BurnDirection[0].ToString());
+		file.PutLine(burn.BurnDirection[1].ToString());
+		file.PutLine(burn.BurnDirection[2].ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+	
+	Call OpenForRead("SavedValues/DisableScript_Red1Burn4.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	file.Close();
+	
+	deployableSat.Maneuver(burn);
+	
+	futureEpoch = blue[0].Epoch + rendezvousTime;
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+	red.Count -= 1;
+	
+	futureEpoch = blue[0].Epoch + preDeployWaitTime;
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		
+		opt.Reset(1);
+		opt.AddStateVariableBlock(3, "dv1_", 0.001, -0.01, 0.01);
+		opt.AddStateVariableBlock(3, "dv2_", 0.001, -0.01, 0.01);
+		
+		opt.AddConstraint("A", 42164, 42164, 1e1);
+		opt.AddConstraint("E", 0, 1e-4);
+		opt.AddConstraint("I", 0, 2, 1);
+		opt.AddConstraint("lon", 277.2, 277.3, 1, 360);
+		
+		opt.SaveObjectToProcess(red[0]);
+		
+		opt.LoadEngine();
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			
+			burn.BurnDirection[0] = opt.GetStateVariableValue("dv1_1");
+			burn.BurnDirection[1] = opt.GetStateVariableValue("dv1_2");
+			burn.BurnDirection[2] = opt.GetStateVariableValue("dv1_3");
+			red[0].Maneuver(burn);
+			totalDV = burn.BurnDirection.Norm;
+			
+			futureEpoch = red[0].Epoch + TimeSpan.FromDays(7);
+			WhileStepping red[0] to (red[0].Epoch == futureEpoch);
+			End;
+			
+			burn.BurnDirection[0] = opt.GetStateVariableValue("dv2_1");
+			burn.BurnDirection[1] = opt.GetStateVariableValue("dv2_2");
+			burn.BurnDirection[2] = opt.GetStateVariableValue("dv2_3");
+			red[0].Maneuver(burn);
+			totalDV += burn.BurnDirection.Norm;
+			
+			kepState = red[0].GetKeplerianState();
+			
+			opt.SetConstraintValue("A", red[0].A);
+			opt.SetConstraintValue("E", red[0].E);
+			opt.SetConstraintValue("I", red[0].I);
+			opt.SetConstraintValue("lon", red[0].Longitude);
+			
+			opt.Minimize(totalDV*1e-1);
+			
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		burn.BurnDirection = opt.GetBestStateVariableValues()[0:2];
+		
+		Call OpenForWrite("SavedValues/DisableScript_Red1Burn5.txt");
+		file.PutLine(burn.BurnDirection[0].ToString());
+		file.PutLine(burn.BurnDirection[1].ToString());
+		file.PutLine(burn.BurnDirection[2].ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+	
+	Call OpenForRead("SavedValues/DisableScript_Red1Burn5.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	file.Close();
+	
+	red[0].Maneuver(burn);
+	
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		opt.Reset(1);
+		opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
+		opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
+		opt.AddStateVariable("days", 0.5, 0.1, 1);
+		opt.AddConstraint("A",    kepStateRed2[0], kepStateRed2[0]);
+		opt.AddConstraint("E",    kepStateRed2[1], kepStateRed2[1]);
+		opt.AddConstraint("I",    kepStateRed2[2], kepStateRed2[2]);
+		opt.AddConstraint("RAAN", kepStateRed2[3], kepStateRed2[3]);
+		opt.AddConstraint("W",    kepStateRed2[4], kepStateRed2[4]);
+		
+		opt.SaveObjectToProcess(red[1]);
+		opt.LoadEngine();
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			
+			burn.BurnDirection = opt.GetStateVariableValues[0:2];
+			totalDV = burn.BurnDirection.Norm;
+			red[1].Maneuver(burn);
+			
+			futureEpoch = red[1].Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+			WhileStepping red[1] to (red[1].Epoch == futureEpoch);
+			End;
+			
+			burn.BurnDirection = opt.GetStateVariableValues[3:5];
+			totalDV += burn.BurnDirection.Norm;
+			red[1].Maneuver(burn);
+			
+			opt.SetConstraintValue("A", red[1].A);
+			opt.SetConstraintValue("E", red[1].E);
+			opt.SetConstraintValue("I", red[1].I);
+			opt.SetConstraintValue("RAAN", red[1].RAAN);
+			opt.SetConstraintValue("W", red[1].W);
+									 
+			opt.Minimize(totalDV);
+			
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		Call OpenForWrite("SavedValues/DisableScript_Red2Burn3and4.txt");
+		file.PutLine(opt.GetBestStateVariableValue("dv11").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv12").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv13").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv21").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv22").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv23").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+	
+	Call OpenForRead("SavedValues/DisableScript_Red2Burn3and4.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	dv2[0] = file.GetLine().ToVariable();
+	dv2[1] = file.GetLine().ToVariable();
+	dv2[2] = file.GetLine().ToVariable();
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
+	file.Close();
+	
+	Call SetRedJammerState(0, red);
+	
+	red[1].Maneuver(burn);
+	burn.BurnDirection *= -1;
+	red[2].Maneuver(burn);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+	burn.BurnDirection = dv2;
+	red[1].Maneuver(burn);
+	burn.BurnDirection *= -1;
+	red[2].Maneuver(burn);
+	
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+EndProcedure;
+
+]]></FreeFormScript>
+      </FreeForm>
+      <FreeForm enabled="false">
+        <Label>Run things</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[
+If (userChoice == 0);
+	Call DisplayModeScript(red, blue);
+ElseIf (userChoice == 1);
+	Call BenignScript(red, blue);
+ElseIf (userChoice == 2);
+	Call ObservationScript(red, blue);
+ElseIf (userChoice == 3);
+	Call DisableScript(red, blue);
+End;]]></FreeFormScript>
+      </FreeForm>
+      <FreeForm enabled="true">
+        <Label>FreeForm</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[
+Variable redHasNotDisengaged = 1;
+
+Global Constant Variable queueType_none  = 0;
+Global Constant Variable queueType_blueBurn  = 1;
+Global Constant Variable queueType_redBurn  = 2;
+
+Struct QueuedAction;
+	TimeSpan epoch;
+End;
+
+
+
+Global Constant Variable redActionType_none          = 0;
+Global Constant Variable redActionType_toggleJamming  = 1;
+
+Struct QueuedRedAction extends QueuedAction;
+	Variable actionType;
+End;
+
+Struct QueuedBurn extends QueuedAction;
+	Array burnRIC;
+	Variable formationIndex;
+	Variable additionalAction;
+End;
+
+Global List<QueuedBurn> blueBurnQueue;
+Global List<QueuedBurn> redBurnQueue;
+
+TimeSpan simChoiceSpacing = TimeSpan.FromHours(4);
+TimeSpan nextChoiceEpoch;
+	
+Global Variable redIsEngaged = 1;
+
+Define Procedure GetNextQueuedActionSource(Variable source);
+	source = queueType_none;
+	If (blueBurnQueue.Count != 0);
+		source = queueType_blueBurn;
+	ElseIf (redBurnQueue.Count != 0);
+		source = queueType_redBurn;
+	End;
+	
+	If (blueBurnQueue.Count != 0 and redBurnQueue.Count != 0);
+		If (redBurnQueue[0].epoch < blueBurnQueue[0].epoch);
+			source = queueType_redBurn;
+		End;
+	End;
+EndProcedure;
+
+
+Define Procedure PopNextQueuedAction(QueuedBurn nextAction);
+	Variable nextQueuedActionSource;
+	Call GetNextQueuedActionSource(nextQueuedActionSource);
+	If (nextQueuedActionSource == queueType_none);
+		nextAction.epoch = simEpoch + TimeSpan.FromDays(1e3);
+	ElseIf (nextQueuedActionSource == queueType_blueBurn);
+		nextAction = blueBurnQueue[0];
+		blueBurnQueue.RemoveAt(0);
+	ElseIf (nextQueuedActionSource == queueType_redBurn);
+		nextAction = redBurnQueue[0];
+		redBurnQueue.RemoveAt(0);
+	End;
+EndProcedure;
+
+
+QueuedBurn nextQueuedAction;
+Variable nextQueuedActionIsBeforeNextChoiceEpoch;
+While (blueIsOffNominal or redIsEngaged);
+	nextChoiceEpoch = blue[0].Epoch + simChoiceSpacing;
+	
+	Call PopNextQueuedAction(nextQueuedAction);
+	While (nextQueuedAction.epoch < nextChoiceEpoch);
+		Call AdvanceSimToFutureEpoch(red, blue, nextQueuedAction.epoch);
+		// execute action
+		Call PopNextQueuedAction(nextQueuedAction);
+	End;
+	
+	
+	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + simChoiceSpacing);
+	Call ShowOperatorActionsMenu(red, blue);
+	// compute new red strategy(redState, blueState, scriptType)
+End;]]></FreeFormScript>
+      </FreeForm>
+    </ProjectCommands>
+  </ProjectMissionSequence>
+  <ProjectScript><![CDATA[//Show MainMenu;
+
+userChoice = 3;
+simStepSizeSeconds = 1500;
+
+Global Constant Variable autoChooseNominalOperation = 0;
+
+
+Global TimeSpan simStepSize = TimeSpan.FromSeconds(simStepSizeSeconds);
+
+Global TimeSpan aheadPredictTime = TimeSpan.FromHours(18);
+Global Constant Variable aheadPredictRangeUpdateLimit = 500;
+
+Global TimeSpan simStartEpoch = TimeTools.ParseCalendarDate("Jun 09 2025 15:00:00.000", "UTC", "UTC", "MJD GSFC");
+simStartEpoch -= TimeSpan.FromSeconds(4*60 + 23);
+
+Global Variable colorRed1 = ColorTools.InterpolateColorHSV({ColorTools.White, ColorTools.Red, ColorTools.Black}, 0.5);
+Global Variable colorRed2 = ColorTools.InterpolateColorHSV({ColorTools.White, ColorTools.Red, ColorTools.Black}, 0.75);
+Global Variable colorRed3 = ColorTools.InterpolateColorHSV({ColorTools.White, ColorTools.Red, ColorTools.Black}, 0.25);
+Global Variable colorRed4 = ColorTools.InterpolateColorHSV({ColorTools.White, ColorTools.Red, ColorTools.Black}, 0.1);
+Global Variable colorBlue1 = ColorTools.DodgerBlue;
+
+FF_Preferences.PropagationStoppingConditionTolerance = TimeSpan.FromSeconds(1e-5);
+
+Global Variable doOptimizationAndSaveValues = 0;
+
+Global Spacecraft cameraSc;
+
+Formation red;
+Formation blue;
+
+red.Count = 3;
+blue.Count = 1;
+
+red.ViewAsGroup = 0;
+blue.ViewAsGroup = 0;
+
+Global GroundVehicle blueJammer;
+blueJammer.AddSensor("jammerBeam");
+blueJammer.Sensors[0].Active = 0;
+blueJammer.Color = colorBlue1;
+blueJammer.Latitude = -10;
+blueJammer.Longitude = -100;
+blueJammer.Speed = 0;
+blueJammer.Height = 1000;
+
+Global Constant Variable sensorIndexUplink = 0;
+Global Constant Variable sensorIndexPayload = 1;
+
+blue[0].AddSensor("uplink");
+blue[0].Sensors[sensorIndexUplink].ConeHalfAngle = 15;
+blue[0].Sensors[sensorIndexUplink].ProjectionHeight = 30000;
+blue[0].Sensors[sensorIndexUplink].Color = ColorTools.Purple;
+blue[0].Sensors[sensorIndexUplink].Opacity = 0.1;
+blue[0].Sensors[sensorIndexUplink].AttitudeMatrix = [
+	0, 0, 1;
+	1, 0, 0;
+	0, 1, 0
+];
+
+blue[0].AddSensor("payload");
+blue[0].Sensors[sensorIndexPayload].BoresightUnitVector = {0, 0, 1};
+blue[0].Sensors[sensorIndexPayload].ConeHalfAngle = 10;
+blue[0].Sensors[sensorIndexPayload].ProjectionHeight = 50;
+blue[0].Sensors[sensorIndexPayload].Color = ColorTools.Lime;
+blue[0].Sensors[sensorIndexPayload].Opacity = 0.1;
+
+
+// Set up overlays
+Variable overlayPredictLineWidth = 1;
+
+Global GraphicsOverlay overlayRed1Future;
+overlayRed1Future.SetReferenceObject(blue[0].ObjectId);
+overlayRed1Future.DefaultColor = colorRed1;
+
+Global GraphicsOverlay overlayRed2Future;
+overlayRed2Future.SetReferenceObject(blue[0].ObjectId);
+overlayRed2Future.DefaultColor = colorRed2;
+
+Global GraphicsOverlay overlayRed3Future;
+overlayRed3Future.SetReferenceObject(blue[0].ObjectId);
+overlayRed3Future.DefaultColor = colorRed3;
+
+overlayRed1Future.ShapeType = "Points";
+overlayRed2Future.ShapeType = "Points";
+overlayRed3Future.ShapeType = "Points";
+
+overlayRed1Future.ShapeTickType = "Up Triangle";
+overlayRed2Future.ShapeTickType = "Up Triangle";
+overlayRed3Future.ShapeTickType = "Up Triangle";
+
+overlayRed1Future.ShapeTickWidth = 5;
+overlayRed2Future.ShapeTickWidth = 5;
+overlayRed3Future.ShapeTickWidth = 5;
+
+
+Global Constant Variable overlayBorderBuffer = 0.013;
+Global WindowOverlay overlayDateTime;
+overlayDateTime.Shapes[0].SetPosition(0, overlayBorderBuffer, overlayBorderBuffer);
+
+Global Variable screenWidth;
+Global Variable screenHeight;
+OutputLayout.GetScreenSize(screenWidth, screenHeight);
+
+Global Constant Variable sensorLegendBoxWidth = 0.21*0 + 0.26;
+Global Constant Variable sensorLegendBoxHeight = 0.022 + overlayBorderBuffer*2;
+Global WindowOverlay overlaySensorLegend;
+overlaySensorLegend.AddShape();
+overlaySensorLegend.AddShape();
+overlaySensorLegend.AddShape();
+
+overlaySensorLegend.Shapes[0].Type = "Rectangle";
+overlaySensorLegend.Shapes[1].Type = "Rectangle";
+overlaySensorLegend.Shapes[2].Type = "Text";
+overlaySensorLegend.Shapes[3].Type = "Text";
+
+Define Procedure InitializeSensorLegendRectangle(WindowOverlay overlay, Variable index, Variable color);
+	overlay.Shapes[index].RectangleOptions.FillColor = color;
+	overlay.Shapes[index].RectangleOptions.FillOpacity = 0.3;
+	overlay.Shapes[index].RectangleOptions.BorderColor = color;
+	overlay.Shapes[index].RectangleOptions.BorderWidth = 3;
+	overlay.Shapes[index].RectangleOptions.BorderOpacity = 1;
+	overlay.Shapes[index].SetSize(0, sensorLegendBoxWidth, sensorLegendBoxHeight);
+EndProcedure;
+
+Define Procedure InitializeSensorLegendText(WindowOverlay overlay, Variable index, String label);
+	overlay.Shapes[index].TextOptions.Text = label;
+	overlay.Shapes[index].TextOptions.AlignmentVertical = 1;
+	overlay.Shapes[index].TextOptions.AlignmentHorizontal = 0;
+	overlay.Shapes[index].SetSize(0, sensorLegendBoxWidth, sensorLegendBoxHeight);
+	overlay.Shapes[index].BringToFront();
+EndProcedure;
+
+Call InitializeSensorLegendRectangle(overlaySensorLegend, 0, ColorTools.Purple);
+Call InitializeSensorLegendRectangle(overlaySensorLegend, 1, ColorTools.Lime);
+
+Call InitializeSensorLegendText(overlaySensorLegend, 2, "Uplink");
+Call InitializeSensorLegendText(overlaySensorLegend, 3, "Payload Orientation");
+
+overlaySensorLegend.Shapes[0].SetPosition(0, 1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer);
+overlaySensorLegend.Shapes[1].SetPosition(0, 1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer*2 + sensorLegendBoxHeight);
+overlaySensorLegend.Shapes[2].SetPosition(0, 1 - sensorLegendBoxWidth, overlayBorderBuffer);
+overlaySensorLegend.Shapes[3].SetPosition(0, 1 - sensorLegendBoxWidth, overlayBorderBuffer*2 + sensorLegendBoxHeight);
+
+
+Global WindowOverlay overlayUploadingLog;
+Variable uploadingLogWidth = 0.4;
+Variable uploadingLogHeight = 0.07;
+overlayUploadingLog.Shapes[0].SetPosition(0, (1 - uploadingLogWidth) / 2, 1 - uploadingLogHeight - overlayBorderBuffer);
+overlayUploadingLog.Shapes[0].SetSize(0, uploadingLogWidth, uploadingLogHeight);
+overlayUploadingLog.Shapes[0].TextOptions.Font.Size = 35*0 + 22;
+overlayUploadingLog.Shapes[0].TextOptions.Text = "UPLINKING DATA...";
+
+overlayUploadingLog.AddShape();
+overlayUploadingLog.Shapes[1].Type = "Rectangle";
+Call InitializeSensorLegendRectangle(overlayUploadingLog, 1, ColorTools.LightGray);
+overlayUploadingLog.Shapes[1].SetSize(0, uploadingLogWidth, uploadingLogHeight);
+overlayUploadingLog.Shapes[1].SetPosition(0, (1 - uploadingLogWidth) / 2, 1 - uploadingLogHeight - overlayBorderBuffer);
+
+overlayUploadingLog.Shapes[0].BringToFront();
+
+Global ViewFont vf;
+vf.Size = 14;
+
+Define Procedure InitializeViewWindow(ViewWindow vw, String windowTitle, Formation red, Formation blue);
+	vw.AddObject(blue);
+	vw.AddObject(red);
+	vw.AddObject(blueJammer);
+	vw.AddObject(overlayRed1Future);
+	vw.AddObject(overlayRed2Future);
+	vw.AddObject(overlayRed3Future);
+	vw.AddObject(overlayDateTime);
+	vw.AddObject(overlaySensorLegend);
+	
+	vw.SetShowName(0, TypeOf(CelestialObject), 0);
+	vw.SetShowBody(blueJammer.ObjectId, 0);
+	vw.SetShowName(blueJammer.ObjectId, 1);
+	vw.SetShowIcon(blueJammer.ObjectId, 1);
+	vw.SetObjectIconSize(blueJammer.ObjectId, 50);
+	vw.SetObjectLabelFont(blueJammer.ObjectId, vf);
+	
+	vw.ShowStatusText = 0;
+	vw.WindowTitle = windowTitle;
+EndProcedure;
+
+// Set up 3D view
+Global Constant Variable tailLengthHours = 24;
+Global Constant Variable tailPoints = tailLengthHours * 60 * 60 / simStepSizeSeconds;
+Global ViewWindow viewMain3D;
+Call InitializeViewWindow(viewMain3D, "3D View", red, blue);
+viewMain3D.CurrentViewpoint.ThreeDView.Radius = 3000;
+viewMain3D.CurrentViewpoint.ThreeDView.RightAscension = 270;
+viewMain3D.CurrentViewpoint.ThreeDView.Declination = 0;
+viewMain3D.AddObject(cameraSc);
+viewMain3D.AddObject(overlayUploadingLog);
+viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 0);
+viewMain3D.CurrentViewpoint.ThreeDView.Source = cameraSc.ObjectId;
+viewMain3D.CurrentViewpoint.ThreeDView.Target = cameraSc.ObjectId;
+viewMain3D.SetShowObject(cameraSc.ObjectId, 0);
+
+Global ViewWindow viewUplink;
+Call InitializeViewWindow(viewUplink, "Uplink View", red, blue);
+viewUplink.CurrentViewpoint.ViewpointType = "sensorview";
+viewUplink.CurrentViewpoint.SensorView.FilterAllSiblings = 0;
+viewUplink.CurrentViewpoint.SensorView.Source = blue[0].Sensors[sensorIndexUplink].ObjectId;
+
+Global ViewWindow viewPayload;
+Call InitializeViewWindow(viewPayload, "Payload View", red, blue);
+viewPayload.CurrentViewpoint.ViewpointType = "sensorview";
+viewPayload.CurrentViewpoint.SensorView.FilterAllSiblings = 0;
+viewPayload.CurrentViewpoint.SensorView.Source = blue[0].Sensors[sensorIndexPayload].ObjectId;
+
+Global Variable blueBackupCommsState = 0; // 0 is inactive, 1 is ready, 2 is active
+Global Variable blueJammerState = 0; // 0 is inactive, 1 is ready, 2 is active
+Global Variable redJammerState = 0;
+
+Global Variable blueIsOffNominal = 0;
+
+// jammerState = 0 is inactive, 1 is ready, 2 is active
+Define Procedure SetBlueJammerState(Variable jammerState);
+	blueJammerState = jammerState;
+	If (blueJammerState == 0);
+		blueJammer.DisplayName = "Jamming Unit (Inactive)";
+		viewMain3D.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerInactiveIcon.png");
+		viewUplink.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerInactiveIcon.png");
+		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerInactiveIcon.png");
+	ElseIf (blueJammerState == 1);
+		blueJammer.DisplayName = "Jamming Unit (Standing By)";
+		viewMain3D.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerReadyIcon.png");
+		viewUplink.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerReadyIcon.png");
+		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerReadyIcon.png");
+	ElseIf (blueJammerState == 2);
+		blueJammer.DisplayName = "Jamming Unit (Active)";
+		viewMain3D.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerActiveIcon.png");
+		viewUplink.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerActiveIcon.png");
+		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerActiveIcon.png");
+	End;
+EndProcedure;
+
+// jammerState = 0 is inactive, 1 is active
+Define Procedure SetRedJammerState(Variable jammerState, Formation red);
+	redJammerState = jammerState;
+	If (redJammerState == 0);
+		viewMain3D.SetShowIcon(red[1].ObjectId,  0);
+		viewUplink.SetShowIcon(red[1].ObjectId,  0);
+		viewPayload.SetShowIcon(red[1].ObjectId, 0);
+		
+		viewMain3D.SetShowIcon(red[2].ObjectId,  0);
+		viewUplink.SetShowIcon(red[2].ObjectId,  0);
+		viewPayload.SetShowIcon(red[2].ObjectId, 0);
+	ElseIf (redJammerState == 1);
+		viewMain3D.SetShowIcon(red[1].ObjectId,  1);
+		viewUplink.SetShowIcon(red[1].ObjectId,  1);
+		viewPayload.SetShowIcon(red[1].ObjectId, 1);
+		
+		viewMain3D.SetShowIcon(red[2].ObjectId,  1);
+		viewUplink.SetShowIcon(red[2].ObjectId,  1);
+		viewPayload.SetShowIcon(red[2].ObjectId, 1);
+	End;
+EndProcedure;
+
+Call SetBlueJammerState(0);
+
+viewMain3D.SetObjectIcon(red[1].ObjectId,  "Icons/jammingWarning.png");
+viewUplink.SetObjectIcon(red[1].ObjectId,  "Icons/jammingWarning.png");
+viewPayload.SetObjectIcon(red[1].ObjectId, "Icons/jammingWarning.png");
+
+viewMain3D.SetObjectIcon(red[2].ObjectId,  "Icons/jammingWarning.png");
+viewUplink.SetObjectIcon(red[2].ObjectId,  "Icons/jammingWarning.png");
+viewPayload.SetObjectIcon(red[2].ObjectId, "Icons/jammingWarning.png");
+
+Global ImpulsiveBurn burn;
+burn.AttitudeSystem = 6;
+
+
+Global FileInterface file;
+
+
+Define Procedure OpenForRead(String filename);
+	file.Filename = filename;
+	file.ReadMode = 1;
+	file.WriteMode = 0;
+	file.Open();
+EndProcedure;
+
+Define Procedure OpenForWrite(String filename);
+	file.Filename = filename;
+	file.ReadMode = 0;
+	file.WriteMode = 1;
+	file.Open();
+EndProcedure;
+
+
+
+// Set initial states
+Variable baseRAAN = 40;
+Variable baseI = 0.5;
+blue[0].SetKeplerianState({42164,
+                           1e-6,
+                           baseI,
+                           baseRAAN,
+                           1,
+                           1});
+                           
+blue[0].Epoch = simStartEpoch;
+blue[0].Color = colorBlue1;
+blue[0].BodyScale = 1000;
+blue[0].DisplayName = "BlueSat";
+blue[0].Propagator.StepSize = simStepSize;
+blue[0].EulerAngles[1] = 90;
+blue[0].TailLength = tailPoints;
+viewMain3D.SetShowName(blue[0].ObjectId, 1);
+viewMain3D.SetObjectLabelFont(blue[0].ObjectId, vf);
+viewMain3D.SetLineWidth(blue[0].ObjectId, 0, 2);
+
+viewUplink.SetShowName(blue[0].ObjectId, 1);
+viewUplink.SetObjectLabelFont(blue[0].ObjectId, vf);
+viewUplink.SetLineWidth(blue[0].ObjectId, 0, 2);
+
+viewPayload.SetShowName(blue[0].ObjectId, 1);
+viewPayload.SetObjectLabelFont(blue[0].ObjectId, vf);
+viewPayload.SetLineWidth(blue[0].ObjectId, 0, 2);
+
+cameraSc.EulerAngles[1] = 90;
+
+
+Variable red1AngularSeparation = 2;
+Variable red2AngularSeparation = 2.3;
+Variable red2and3RadialSeparation = 60;
+red[0].SetKeplerianState({42164,
+                          1e-6,
+                          baseI * 1.2,
+                          baseRAAN - red1AngularSeparation,
+                          1,
+                          1});
+red[1].SetKeplerianState({42164 - red2and3RadialSeparation,
+                          1e-6,
+                          baseI * 1.01,
+                          baseRAAN,
+                          0,
+                          1 - red2AngularSeparation});
+red[2].SetKeplerianState({42164 + red2and3RadialSeparation,
+                          1e-6,
+                          baseI * 1.01,
+                          baseRAAN,
+                          1,
+                          1 + red2AngularSeparation + 0.77});
+                          
+red[0].Color = colorRed1;
+red[1].Color = colorRed2;
+red[2].Color = colorRed3;
+
+Variable i;
+For i = 0 to red.Count - 1;
+	red[i].Epoch = simStartEpoch;
+	red[i].BodyScale = 1000;
+	red[i].DisplayName = "Red" + (i+1).ToString();
+	red[i].TailLength = tailPoints;
+	
+	viewMain3D.SetShowName(red[i].ObjectId, 1);
+	viewMain3D.SetObjectLabelFont(red[i].ObjectId, vf);
+	viewMain3D.SetLineWidth(red[i].ObjectId, 0, 2);
+	
+	viewUplink.SetShowName(red[i].ObjectId, 1);
+	viewUplink.SetObjectLabelFont(red[i].ObjectId, vf);
+	viewUplink.SetLineWidth(red[i].ObjectId, 0, 2);
+	
+	viewPayload.SetShowName(red[i].ObjectId, 1);
+	viewPayload.SetObjectLabelFont(red[i].ObjectId, vf);
+	viewPayload.SetLineWidth(red[i].ObjectId, 0, 2);
+End;
+
+
+Global Array initialKepStateRed1 = red[0].GetKeplerianState();
+Global Variable initialLongitudeRed1 = red[0].Longitude;
+
+Global Array initialKepStateBlue1 = blue[0].GetKeplerianState();
+Global Variable initialLongitudeBlue1 = blue[0].Longitude;
+
+Global Variable numberOfBlueEvasiveManeuvers = 0;
+
+Global TimeSpan simEpoch = simStartEpoch;
+
+Global TimeSpan blueSlewCompletionEpoch = simStartEpoch - TimeSpan.FromDays(1);
+Global TimeSpan blueSlewStartEpoch;
+Global Variable desiredBluePayloadOrientationAngle;
+Global Variable initialBluePayloadOrientationAngle;
+
+Global Constant Variable nominalBluePayloadOrientationAngle = blue[0].EulerAngles[0];
+
+Define Procedure InitializePlotPredictSeries(PlotScatterSeries series, String label, Variable color);
+	series.Label = label;
+	series.MarkersColor = color;
+
+	series.LineVisible = 0;
+	series.MarkersVisible = 1;
+	series.MarkersStyle = 2;
+EndProcedure;
+
+Define Procedure InitializePlotCurrentLocationSeries(PlotScatterSeries series, Variable color);
+	series.MarkersColor = color;
+	
+	series.MarkersStyle = 1;
+	series.MarkersSize = 2;
+	series.MarkersVisible = 1;
+	series.LineVisible = 0;
+	series.ShowInLegend = 0;
+	series.AddPoints(0, 0);
+EndProcedure;
+
+Define Procedure InitializePlotMainSeries(PlotScatterSeries series, String label, Variable color);
+	series.Label = label;
+	series.LineColor = color;
+
+	series.LineStyle = 0;
+	series.LineWidth = 2;
+EndProcedure;
+
+Define Procedure InitializePlot(PlotWindow plot, String title, String xLabel, String yLabel, String windowHandle);
+	plot.SetBackgroundColorPalette("DarkGray");
+	plot.PlotTitle.Text = title;
+	plot.XAxis.Title.Text = xLabel;
+	plot.YAxis.Title.Text = yLabel;
+	plot.WindowTitle = windowHandle;
+	plot.PlotSubTitle.Visible = 0;
+	plot.HighQualityRendering = 1;
+EndProcedure;
+
+Define Procedure InitializePlotAxisRanges(PlotWindow plot, Array x, Array y);
+	plot.XAxis.MinimumValue = x[0];
+	plot.XAxis.MaximumValue = x[1];
+	plot.YAxis.MinimumValue = y[0];
+	plot.YAxis.MaximumValue = y[1];
+EndProcedure;
+
+Constant Variable maxRangeForPlots = 600;
+
+// set up time vs angle plot
+Global Variable angleFromPayloadB1_R1;
+Global Variable angleFromPayloadB1_R2;
+Global Variable angleFromPayloadB1_R3;
+
+Global PlotScatterSeries angleFromPayloadR1;
+Global PlotScatterSeries angleFromPayloadR2;
+Global PlotScatterSeries angleFromPayloadR3;
+
+Global PlotScatterSeries angleFromPayloadR1CurrentLocation;
+Global PlotScatterSeries angleFromPayloadR2CurrentLocation;
+Global PlotScatterSeries angleFromPayloadR3CurrentLocation;
+
+Global PlotScatterSeries angleFromPayloadR1Predict;
+Global PlotScatterSeries angleFromPayloadR2Predict;
+Global PlotScatterSeries angleFromPayloadR3Predict;
+
+PlotScatterSeries angleFromPayloadWarningArea;
+
+Define Procedure SetMaxPoints(PlotWindow pw, Variable points);
+	If (points < 100);
+		pw.MaxPoints = 100;
+		Diagnostics.ReportWarningMessage(
+		"The max points for PlotWindow is too low, falling back to 100. " +
+		"Decrease step size to fix this warning. Note: you can still run " + 
+		"without fixing, but the tail lengths in plots will not match those " +
+		"in the view windows.");
+	Else;
+		pw.MaxPoints = points;
+	End;
+EndProcedure;
+
+Global PlotWindow pwAngleFromPayload;
+pwAngleFromPayload.BeginBatchUpdate();
+Call InitializePlot(pwAngleFromPayload, "Elapsed Time vs Angle from Sensitive Payload", "Elapsed Time (hrs)", "Angle from Sensitive Payload (deg)", "Time vs Angle");
+pwAngleFromPayload.AddSeries(angleFromPayloadWarningArea);
+pwAngleFromPayload.AddSeries(angleFromPayloadR1);
+pwAngleFromPayload.AddSeries(angleFromPayloadR2);
+pwAngleFromPayload.AddSeries(angleFromPayloadR3);
+pwAngleFromPayload.AddSeries(angleFromPayloadR1Predict);
+pwAngleFromPayload.AddSeries(angleFromPayloadR2Predict);
+pwAngleFromPayload.AddSeries(angleFromPayloadR3Predict);
+pwAngleFromPayload.AddSeries(angleFromPayloadR1CurrentLocation);
+pwAngleFromPayload.AddSeries(angleFromPayloadR2CurrentLocation);
+pwAngleFromPayload.AddSeries(angleFromPayloadR3CurrentLocation);
+Call InitializePlotAxisRanges(pwAngleFromPayload, {-24, aheadPredictTime.ToHours()}, {0, 180});
+pwAngleFromPayload.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
+pwAngleFromPayload.UseMonitorMode = 1;
+pwAngleFromPayload.Legend.Location = 1;
+Call SetMaxPoints(pwAngleFromPayload, tailPoints);
+
+// rangeAngleFromPayloadXX
+Call InitializePlotMainSeries(angleFromPayloadR1, "Red1", colorRed1);
+Call InitializePlotMainSeries(angleFromPayloadR2, "Red2", colorRed2);
+Call InitializePlotMainSeries(angleFromPayloadR3, "Red3", colorRed3);
+
+// rangeAngleFromPayloadXXCurrentLocation
+Call InitializePlotCurrentLocationSeries(angleFromPayloadR1CurrentLocation, colorRed1);
+Call InitializePlotCurrentLocationSeries(angleFromPayloadR2CurrentLocation, colorRed2);
+Call InitializePlotCurrentLocationSeries(angleFromPayloadR3CurrentLocation, colorRed3);
+
+// rangeAngleFromPayloadXXPredict
+Call InitializePlotPredictSeries(angleFromPayloadR1Predict, "Red1 Predict", colorRed1);
+Call InitializePlotPredictSeries(angleFromPayloadR2Predict, "Red2 Predict", colorRed2);
+Call InitializePlotPredictSeries(angleFromPayloadR3Predict, "Red3 Predict", colorRed3);
+
+// angleFromPayloadWarningArea
+angleFromPayloadWarningArea.LineColor = ColorTools.Yellow;
+angleFromPayloadWarningArea.LineWidth = 3;
+angleFromPayloadWarningArea.LineStyle = 0;
+angleFromPayloadWarningArea.Label = "Payload Warning Zone";
+angleFromPayloadWarningArea.AddPoints(
+	{pwAngleFromPayload.XAxis.MinimumValue, pwAngleFromPayload.XAxis.MinimumValue, pwAngleFromPayload.XAxis.MaximumValue, pwAngleFromPayload.XAxis.MaximumValue},
+	{0, 55, 55, 0});
+angleFromPayloadWarningArea.AddPoints(angleFromPayloadWarningArea.Data[0,:]);
+
+
+// set up time vs range plot
+Global Variable rangeB1_R1;
+Global Variable rangeB1_R2;
+Global Variable rangeB1_R3;
+
+Global PlotScatterSeries rangeR1;
+Global PlotScatterSeries rangeR2;
+Global PlotScatterSeries rangeR3;
+
+Global PlotScatterSeries rangeR1CurrentLocation;
+Global PlotScatterSeries rangeR2CurrentLocation;
+Global PlotScatterSeries rangeR3CurrentLocation;
+
+Global PlotScatterSeries rangeR1Predict;
+Global PlotScatterSeries rangeR2Predict;
+Global PlotScatterSeries rangeR3Predict;
+
+PlotScatterSeries rangeKeepOutArea_TimeRangePlot;
+
+Global PlotWindow pwRange;
+pwRange.BeginBatchUpdate();
+Call InitializePlot(pwRange, "Elapsed Time vs Range", "Elapsed Time (hrs)", "Range (km)", "Time vs Range");
+pwRange.AddSeries(rangeKeepOutArea_TimeRangePlot);
+pwRange.AddSeries(rangeR1);
+pwRange.AddSeries(rangeR2);
+pwRange.AddSeries(rangeR3);
+pwRange.AddSeries(rangeR1Predict);
+pwRange.AddSeries(rangeR2Predict);
+pwRange.AddSeries(rangeR3Predict);
+pwRange.AddSeries(rangeR1CurrentLocation);
+pwRange.AddSeries(rangeR2CurrentLocation);
+pwRange.AddSeries(rangeR3CurrentLocation);
+Call InitializePlotAxisRanges(pwRange, {-24, aheadPredictTime.ToHours()}, {0, maxRangeForPlots});
+pwRange.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
+pwRange.UseMonitorMode = 1;
+pwRange.Legend.Location = 1;
+Call SetMaxPoints(pwAngleFromPayload, tailPoints);
+
+// rangeAngleFromPayloadXX
+Call InitializePlotMainSeries(rangeR1, "Red1", colorRed1);
+Call InitializePlotMainSeries(rangeR2, "Red2", colorRed2);
+Call InitializePlotMainSeries(rangeR3, "Red3", colorRed3);
+
+// rangeAngleFromPayloadXXCurrentLocation
+Call InitializePlotCurrentLocationSeries(rangeR1CurrentLocation, colorRed1);
+Call InitializePlotCurrentLocationSeries(rangeR2CurrentLocation, colorRed2);
+Call InitializePlotCurrentLocationSeries(rangeR3CurrentLocation, colorRed3);
+
+// rangeAngleFromPayloadXXPredict
+Call InitializePlotPredictSeries(rangeR1Predict, "Red1 Predict", colorRed1);
+Call InitializePlotPredictSeries(rangeR2Predict, "Red2 Predict", colorRed2);
+Call InitializePlotPredictSeries(rangeR3Predict, "Red3 Predict", colorRed3);
+
+// rangeKeepOutArea_TimeRangePlot
+Global Constant Variable rangeKeepOutValue = 30;
+rangeKeepOutArea_TimeRangePlot.LineColor = ColorTools.Orange;
+rangeKeepOutArea_TimeRangePlot.LineWidth = 3;
+rangeKeepOutArea_TimeRangePlot.LineStyle = 0;
+rangeKeepOutArea_TimeRangePlot.Label = "Range Keep Out Zone";
+rangeKeepOutArea_TimeRangePlot.AddPoints(
+	{pwRange.XAxis.MinimumValue, pwRange.XAxis.MinimumValue, pwRange.XAxis.MaximumValue, pwRange.XAxis.MaximumValue},
+	{0, rangeKeepOutValue, rangeKeepOutValue, 0});
+rangeKeepOutArea_TimeRangePlot.AddPoints(rangeKeepOutArea_TimeRangePlot.Data[0,:]);
+
+
+// set up angle to sensitive payload vs range plot
+Global PlotScatterSeries rangeAngleFromPayloadR1;
+Global PlotScatterSeries rangeAngleFromPayloadR2;
+Global PlotScatterSeries rangeAngleFromPayloadR3;
+
+Global PlotScatterSeries rangeAngleFromPayloadR1CurrentLocation;
+Global PlotScatterSeries rangeAngleFromPayloadR2CurrentLocation;
+Global PlotScatterSeries rangeAngleFromPayloadR3CurrentLocation;
+
+Global PlotScatterSeries rangeAngleFromPayloadR1Predict;
+Global PlotScatterSeries rangeAngleFromPayloadR2Predict;
+Global PlotScatterSeries rangeAngleFromPayloadR3Predict;
+
+PlotScatterSeries rangeAngleKeepOutArea;
+PlotScatterSeries rangeKeepOutArea_AngleRangePlot;
+
+Global PlotWindow pwAngleRange;
+pwAngleRange.BeginBatchUpdate();
+Call InitializePlot(pwAngleRange, "Angle from Sensitive Payload vs Range", "Angle from Sensitive Payload (deg)", "Range (km)", "Angle vs Range");
+pwAngleRange.AddSeries(rangeKeepOutArea_AngleRangePlot);
+pwAngleRange.AddSeries(rangeAngleKeepOutArea);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR1);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR2);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR3);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR1Predict);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR2Predict);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR3Predict);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR1CurrentLocation);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR2CurrentLocation);
+pwAngleRange.AddSeries(rangeAngleFromPayloadR3CurrentLocation);
+Call InitializePlotAxisRanges(pwAngleRange, {0, 180}, {0, maxRangeForPlots});
+pwAngleRange.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
+pwAngleRange.UseMonitorMode = 1;
+pwAngleRange.Legend.Location = 1;
+Call SetMaxPoints(pwAngleRange, tailPoints);
+
+// rangeAngleFromPayloadXX
+Call InitializePlotMainSeries(rangeAngleFromPayloadR1, "Red1", colorRed1);
+Call InitializePlotMainSeries(rangeAngleFromPayloadR2, "Red2", colorRed2);
+Call InitializePlotMainSeries(rangeAngleFromPayloadR3, "Red3", colorRed3);
+
+// rangeAngleFromPayloadXXCurrentLocation
+Call InitializePlotCurrentLocationSeries(rangeAngleFromPayloadR1CurrentLocation, colorRed1);
+Call InitializePlotCurrentLocationSeries(rangeAngleFromPayloadR2CurrentLocation, colorRed2);
+Call InitializePlotCurrentLocationSeries(rangeAngleFromPayloadR3CurrentLocation, colorRed3);
+
+// rangeAngleFromPayloadXXPredict
+Call InitializePlotPredictSeries(rangeAngleFromPayloadR1Predict, "Red1 Predict", colorRed1);
+Call InitializePlotPredictSeries(rangeAngleFromPayloadR2Predict, "Red2 Predict", colorRed2);
+Call InitializePlotPredictSeries(rangeAngleFromPayloadR3Predict, "Red3 Predict", colorRed3);
+
+// rangeAngleKeepOutArea
+Global Constant Variable payloadKeepOutRange = 80;
+Global Constant Variable payloadKeepOutAngle1 = 30;
+Global Constant Variable payloadKeepOutAngle2 = 70;
+rangeAngleKeepOutArea.LineColor = ColorTools.Yellow;
+rangeAngleKeepOutArea.LineWidth = 3;
+rangeAngleKeepOutArea.LineStyle = 0;
+rangeAngleKeepOutArea.Label = "Payload Keep Out Zone";
+rangeAngleKeepOutArea.AddPoints({0, 0, payloadKeepOutAngle1, payloadKeepOutAngle2}, {0, payloadKeepOutRange, payloadKeepOutRange, 0});
+rangeAngleKeepOutArea.AddPoints(rangeAngleKeepOutArea.Data[0,:]);
+
+// rangeKeepOutArea_AngleRangePlot
+rangeKeepOutArea_AngleRangePlot.LineColor = ColorTools.Orange;
+rangeKeepOutArea_AngleRangePlot.LineWidth = 3;
+rangeKeepOutArea_AngleRangePlot.LineStyle = 0;
+rangeKeepOutArea_AngleRangePlot.Label = "Range Keep Out Zone";
+rangeKeepOutArea_AngleRangePlot.AddPoints({0, 0, 180, 180}, {0, rangeKeepOutValue, rangeKeepOutValue, 0});
+rangeKeepOutArea_AngleRangePlot.AddPoints(rangeKeepOutArea_AngleRangePlot.Data[0,:]);
+
+
+// Set up longitude radius plot
+Global PlotScatterSeries radiusLongitudeB1;
+Global PlotScatterSeries radiusLongitudeR1;
+Global PlotScatterSeries radiusLongitudeR2;
+Global PlotScatterSeries radiusLongitudeR3;
+
+Global PlotScatterSeries radiusLongitudeB1CurrentLocation;
+Global PlotScatterSeries radiusLongitudeR1CurrentLocation;
+Global PlotScatterSeries radiusLongitudeR2CurrentLocation;
+Global PlotScatterSeries radiusLongitudeR3CurrentLocation;
+
+Global PlotScatterSeries radiusLongitudeR1Predict;
+Global PlotScatterSeries radiusLongitudeR2Predict;
+Global PlotScatterSeries radiusLongitudeR3Predict;
+
+Global PlotWindow pwRadiusLongitude;
+pwRadiusLongitude.BeginBatchUpdate();
+Call InitializePlot(pwRadiusLongitude, "Longitude vs Radius", "Longitude (deg)", "Radius (km)", "Radius vs Longitude");
+pwRadiusLongitude.AddSeries(radiusLongitudeB1);
+pwRadiusLongitude.AddSeries(radiusLongitudeR1);
+pwRadiusLongitude.AddSeries(radiusLongitudeR2);
+pwRadiusLongitude.AddSeries(radiusLongitudeR3);
+pwRadiusLongitude.AddSeries(radiusLongitudeR1Predict);
+pwRadiusLongitude.AddSeries(radiusLongitudeR2Predict);
+pwRadiusLongitude.AddSeries(radiusLongitudeR3Predict);
+pwRadiusLongitude.AddSeries(radiusLongitudeB1CurrentLocation);
+pwRadiusLongitude.AddSeries(radiusLongitudeR1CurrentLocation);
+pwRadiusLongitude.AddSeries(radiusLongitudeR2CurrentLocation);
+pwRadiusLongitude.AddSeries(radiusLongitudeR3CurrentLocation);
+Call InitializePlotAxisRanges(pwRadiusLongitude, {blue[0].Longitude - 3, blue[0].Longitude + 3}, {42060, 42260});
+pwRadiusLongitude.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
+pwRadiusLongitude.UseMonitorMode = 1;
+pwRadiusLongitude.Legend.Location = 1;
+Call SetMaxPoints(pwRadiusLongitude, tailPoints);
+
+// radiusLongitude
+Call InitializePlotMainSeries(radiusLongitudeB1, "BlueSat", colorBlue1);
+Call InitializePlotMainSeries(radiusLongitudeR1, "Red1", colorRed1);
+Call InitializePlotMainSeries(radiusLongitudeR2, "Red2", colorRed2);
+Call InitializePlotMainSeries(radiusLongitudeR3, "Red3", colorRed3);
+
+// radiusLongitudeXXCurrentLocation
+Call InitializePlotCurrentLocationSeries(radiusLongitudeB1CurrentLocation, colorBlue1);
+Call InitializePlotCurrentLocationSeries(radiusLongitudeR1CurrentLocation, colorRed1);
+Call InitializePlotCurrentLocationSeries(radiusLongitudeR2CurrentLocation, colorRed2);
+Call InitializePlotCurrentLocationSeries(radiusLongitudeR3CurrentLocation, colorRed3);
+
+// radiusLongitudeXXPredict
+Call InitializePlotPredictSeries(radiusLongitudeR1Predict, "Red1 Predict", colorRed1);
+Call InitializePlotPredictSeries(radiusLongitudeR2Predict, "Red2 Predict", colorRed2);
+Call InitializePlotPredictSeries(radiusLongitudeR3Predict, "Red3 Predict", colorRed3);
+
+
+Call AddVerticalLine(
+	pwRadiusLongitude,
+	pwRadiusLongitude.XAxis.MinimumValue + (pwRadiusLongitude.XAxis.MaximumValue - pwRadiusLongitude.XAxis.MinimumValue) * 0.88,
+	{pwRadiusLongitude.YAxis.MinimumValue + (pwRadiusLongitude.YAxis.MaximumValue - pwRadiusLongitude.YAxis.MinimumValue) * 0.17, pwRadiusLongitude.YAxis.MinimumValue + 10},
+	2,
+	ColorTools.Green,
+	0,
+	"");
+Call AddFloatingLabelToPlot(
+	pwRadiusLongitude,
+	pwRadiusLongitude.XAxis.MinimumValue + (pwRadiusLongitude.XAxis.MaximumValue - pwRadiusLongitude.XAxis.MinimumValue) * 0.88,
+	pwRadiusLongitude.YAxis.MinimumValue + (pwRadiusLongitude.YAxis.MaximumValue - pwRadiusLongitude.YAxis.MinimumValue) * 0.15,
+	ColorTools.Green,
+	ColorTools.LightGray,
+	"Candara",
+	16,
+	"To Earth");
+Call AddSinglePointToPlot(
+	pwRadiusLongitude,
+	pwRadiusLongitude.XAxis.MinimumValue + (pwRadiusLongitude.XAxis.MaximumValue - pwRadiusLongitude.XAxis.MinimumValue) * 0.88,
+	pwRadiusLongitude.YAxis.MinimumValue + 10,
+	5,
+	3,
+	ColorTools.Green,
+	"");
+	
+	
+// set up results bar chart
+Global PlotWindow pwResultsBarChart;
+pwResultsBarChart.PointsToUpdate = 1;
+pwResultsBarChart.WindowTitle = "Game Score";
+Global Variable redObjectiveScore = 100;
+Global Variable blueOperationsScore = 100;
+Global Variable tensionScore = 100;
+Call MakeBarChart(pwResultsBarChart, 1, {1, 2, 3}, {redObjectiveScore, blueOperationsScore, tensionScore}, "", "Score (%)", {0.9, 3.1}, {0, 100}, "Results", "");
+pwResultsBarChart.SetBackgroundColorPalette("DarkGray");
+pwResultsBarChart.Legend.Visible = 1;
+pwResultsBarChart.Legend.Location = 1;
+(pwResultsBarChart.Series[0] AsType PlotScatterSeries).Label = "Deny Red Objective";
+(pwResultsBarChart.Series[1] AsType PlotScatterSeries).Label = "Blue Operations";
+(pwResultsBarChart.Series[2] AsType PlotScatterSeries).Label = "Red/Blue Tension";
+
+(pwResultsBarChart.Series[0] AsType PlotScatterSeries).LineColor = colorRed1;
+(pwResultsBarChart.Series[1] AsType PlotScatterSeries).LineColor = colorBlue1;
+(pwResultsBarChart.Series[2] AsType PlotScatterSeries).LineColor = ColorTools.Purple;
+
+
+Define Procedure UpdateResultsBarChart();
+	pwResultsBarChart.BeginBatchUpdate();
+	(pwResultsBarChart.Series[0] AsType PlotScatterSeries).Data[1, 1] = redObjectiveScore;
+	(pwResultsBarChart.Series[1] AsType PlotScatterSeries).Data[1, 1] = blueOperationsScore;
+	(pwResultsBarChart.Series[2] AsType PlotScatterSeries).Data[1, 1] = tensionScore;
+	pwResultsBarChart.EndBatchUpdate();
+EndProcedure;
+
+
+pwRadiusLongitude.EndBatchUpdate();
+pwRange.EndBatchUpdate();
+pwAngleFromPayload.EndBatchUpdate();
+pwAngleRange.EndBatchUpdate();
+
+Global Constant Variable screenSpaceRatio = 0.5;
+
+Define Procedure SetWindowRight(Variable ID);
+	OutputLayout.SetWindowPosition(ID, 1, screenSpaceRatio, 1, 0);
+	OutputLayout.SetWindowSize(ID, 1, 1 - screenSpaceRatio, 1, 1);
+EndProcedure;
+
+Define Procedure SetWindowLeft(Variable ID);
+	OutputLayout.SetWindowPosition(ID, 1, 0, 1, 0);
+	OutputLayout.SetWindowSize(ID, 1, screenSpaceRatio, 1, 1);
+EndProcedure;
+
+Define Procedure SetWindowTopLeft(Variable ID);
+	OutputLayout.SetWindowPosition(ID, 1, 0, 1, 0);
+	OutputLayout.SetWindowSize(ID, 1, screenSpaceRatio, 1, 0.5);
+EndProcedure;
+
+Define Procedure SetWindowBottomLeft(Variable ID);
+	OutputLayout.SetWindowPosition(ID, 1, 0, 1, 0.5);
+	OutputLayout.SetWindowSize(ID, 1, screenSpaceRatio, 1, 0.5);
+EndProcedure;
+
+// TODO: uncomment
+//OutputLayout.SetWorkspaceFullScreenMode(1);
+
+OutputLayout.SetWindowFrameVisibility({pwResultsBarChart.ID, viewMain3D.ID, pwRadiusLongitude.ID, pwAngleRange.ID, pwRange.ID, pwAngleFromPayload.ID, viewUplink.ID, viewPayload.ID}, 0);
+
+Call SetWindowTopLeft(pwRadiusLongitude.ID);
+Call SetWindowTopLeft(pwResultsBarChart.ID);
+
+Call SetWindowBottomLeft(pwAngleRange.ID);
+Call SetWindowBottomLeft(pwRange.ID);
+Call SetWindowBottomLeft(pwAngleFromPayload.ID);
+OutputLayout.BringWindowToFront(pwAngleRange.ID);
+
+Call SetWindowRight(viewMain3D.ID);
+Call SetWindowRight(viewUplink.ID);
+Call SetWindowRight(viewPayload.ID);
+OutputLayout.BringWindowToFront(viewMain3D.ID);
+
+OutputLayout.ApplyUpdates();
+
+
+Define Procedure ComputePredict(
+		Spacecraft blueSC,
+		Spacecraft redSC,
+		TimeSpan predictionDuration,
+		GraphicsOverlay go,
+		PlotScatterSeries angleRangeSeries,
+		PlotScatterSeries rangeSeries,
+		PlotScatterSeries angleSeries,
+		PlotScatterSeries radiusLongitudeSeriesRed,
+		Variable justEraseOverlay);
+	Array positionBCS;
+	Variable i;
+	
+	Matrix futureStateMJ2000 = Matrix.Empty;
+	futureStateMJ2000.ColumnCount = 3;
+	
+	// Reset the GraphicsOverlay
+	go.ClearOverlayElements();
+	angleRangeSeries.ClearPoints();
+	rangeSeries.ClearPoints();
+	angleSeries.ClearPoints();
+	radiusLongitudeSeriesRed.ClearPoints();
+	
+	If (justEraseOverlay);
+		ExitProcedure;
+	End;
+	
+	Save blueSC;
+	Save redSC;
+	blueSC.Propagator.StepSize = TimeSpan.FromSeconds(2000);
+	redSC.Propagator.StepSize = TimeSpan.FromSeconds(2000);
+	
+	Variable radiusLongitudePredictDataThinning = 3;
+	Variable dataPointsSinceLastRadiusLongitudePoint = 0;
+	
+    // Compute the future path of the secondary with respect to the primary
+	TimeSpan initialEpoch = blueSC.Epoch;
+	TimeSpan epochToStepTo = initialEpoch + predictionDuration;
+	Variable range;
+	Variable angle;
+	WhileStepping blueSC to (blueSC.Epoch == epochToStepTo);
+		redSC.StepToEpoch(blueSC.Epoch);
+		
+		positionBCS = AttitudeConvert(0, 3, blueSC, redSC.Position - blueSC.Position);
+		
+		go.AddOverlayElement(positionBCS[0], positionBCS[1], positionBCS[2]);
+		
+		range = positionBCS.Norm;
+		angle = deg(acos(positionBCS.Normalized.DotProduct(blueSC.Sensors[sensorIndexPayload].BoresightUnitVector.Normalized)));
+		angleRangeSeries.AddPoints(angle, range);
+		rangeSeries.AddPoints((blueSC.Epoch - initialEpoch).ToHours(), range);
+		angleSeries.AddPoints((blueSC.Epoch - initialEpoch).ToHours(), angle);
+		
+		dataPointsSinceLastRadiusLongitudePoint += 1;
+		If (dataPointsSinceLastRadiusLongitudePoint == radiusLongitudePredictDataThinning);
+			radiusLongitudeSeriesRed.AddPoints(redSC.Longitude, redSC.Radius);
+			dataPointsSinceLastRadiusLongitudePoint = 0;
+		End;
+		
+	End;
+
+	Restore blueSC;
+	Restore redSC;
+	
+EndProcedure;
+
+
+Define Procedure ComputeStationKeepingManeuver(Optimizer opt, Spacecraft sc, Variable longitude);
+	TimeSpan initialEpoch;
+	opt.Reset(1);
+	opt.AddStateVariableBlock(3, "dv", 0.0001, -0.001, 0.001, 1, 1e-6);
+	
+	opt.SaveObjectToProcess(sc);
+	
+	opt.MaximumNominalEvaluationCount = 50;
+	opt.LoadEngine();
+	While (opt.IsRunning());
+		opt.UpdateStateVariables();
+		opt.RestoreObjectsInProcess();
+		burn.BurnDirection = opt.GetStateVariableValues();
+		
+		sc.Maneuver(burn);
+		
+		initialEpoch = sc.Epoch;
+		While (abs(sc.Longitude - longitude) < 0.05);
+			sc.Step(TimeSpan.FromSeconds(30));
+		End;
+		
+		opt.Maximize((sc.Epoch - initialEpoch).ToHours());
+		
+		If (opt.OptimizationPhase == 1);
+			Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, burn.BurnDirection.Norm, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+		End;
+	End;
+	
+	Report opt.ReturnString;
+	opt.RestoreObjectsInProcess();
+EndProcedure;
+
+Define Procedure ComputeRangeAndAngleFromPayload(Spacecraft blue, Spacecraft red, Variable range, Variable angle);
+	Array positionBCS;
+	
+	positionBCS = AttitudeConvert(0, 3, blue, red.Position - blue.Position);
+	range = positionBCS.Norm;
+	angle = deg(acos(positionBCS.Normalized.DotProduct(blue.Sensors[sensorIndexPayload].BoresightUnitVector.Normalized)));
+EndProcedure;
+
+Define Procedure UpdateDataReadouts(Formation red, Formation blue);
+	Variable angle;
+	Variable i;
+	
+	Call UpdateResultsBarChart();
+
+	pwAngleRange.BeginBatchUpdate();
+	pwRadiusLongitude.BeginBatchUpdate();
+	pwRange.BeginBatchUpdate();
+	pwAngleFromPayload.BeginBatchUpdate();
+	viewMain3D.BeginBatchUpdate();
+	viewUplink.BeginBatchUpdate();
+	viewPayload.BeginBatchUpdate();
+	
+	overlayDateTime.Shapes[0].TextOptions.Text = blue[0].Epoch.ConvertToCalendarDate("Mmm DD YYYY  hh:mm");
+
+	Variable dataReadoutIsJammed = redJammerState;
+	
+	// If backup comms are active, no effect from jamming
+	If (blueBackupCommsState == 2);
+		dataReadoutIsJammed = 0;
+	End;
+	
+	// Give a chance for data to come through sporadically when jamming is active
+	RandomNumberGenerator rng;
+	If (dataReadoutIsJammed == 1);
+		If (rng.IntegerUniformDistribution(0, 5) == 1);
+			dataReadoutIsJammed = 0;
+		End;
+	End;
+	
+	// If data is not jammed, do regular update. Otherwise, update with null values.
+	If (dataReadoutIsJammed == 0);
+		// update angle/range data R1
+		Call ComputeRangeAndAngleFromPayload(blue[0], red[0], rangeB1_R1, angle);
+		rangeAngleFromPayloadR1.AddPoints(angle, rangeB1_R1);
+		rangeAngleFromPayloadR1CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR1.Data[rangeAngleFromPayloadR1.Data.RowCount - 1, 0:1];
+		
+		rangeR1.AddPoints(0, rangeB1_R1);
+		For i = 0 to rangeR1.Data.RowCount - 1;
+			rangeR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR1CurrentLocation.Data[0, 0:1] = rangeR1.Data[rangeR1.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR1.AddPoints(0, angle);
+		For i = 0 to angleFromPayloadR1.Data.RowCount - 1;
+			angleFromPayloadR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR1CurrentLocation.Data[0, 0:1] = angleFromPayloadR1.Data[angleFromPayloadR1.Data.RowCount - 1, 0:1];
+		
+		// update angle/range data R2
+		Call ComputeRangeAndAngleFromPayload(blue[0], red[1], rangeB1_R2, angle);
+		rangeAngleFromPayloadR2.AddPoints(angle, rangeB1_R2);
+		rangeAngleFromPayloadR2CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR2.Data[rangeAngleFromPayloadR2.Data.RowCount - 1, 0:1];
+		
+		rangeR2.AddPoints(0, rangeB1_R2);
+		For i = 0 to rangeR2.Data.RowCount - 1;
+			rangeR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR2CurrentLocation.Data[0, 0:1] = rangeR2.Data[rangeR2.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR2.AddPoints(0, angle);
+		For i = 0 to angleFromPayloadR2.Data.RowCount - 1;
+			angleFromPayloadR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR2CurrentLocation.Data[0, 0:1] = angleFromPayloadR2.Data[angleFromPayloadR2.Data.RowCount - 1, 0:1];
+		
+		// update angle/range data R3
+		Call ComputeRangeAndAngleFromPayload(blue[0], red[2], rangeB1_R3, angle);
+		rangeAngleFromPayloadR3.AddPoints(angle, rangeB1_R3);
+		rangeAngleFromPayloadR3CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR3.Data[rangeAngleFromPayloadR3.Data.RowCount - 1, 0:1];
+		
+		rangeR3.AddPoints(0, rangeB1_R3);
+		For i = 0 to rangeR3.Data.RowCount - 1;
+			rangeR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR3CurrentLocation.Data[0, 0:1] = rangeR3.Data[rangeR3.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR3.AddPoints(0, angle);
+		For i = 0 to angleFromPayloadR3.Data.RowCount - 1;
+			angleFromPayloadR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR3CurrentLocation.Data[0, 0:1] = angleFromPayloadR3.Data[angleFromPayloadR3.Data.RowCount - 1, 0:1];
+
+		// update longitude vs radius data
+		radiusLongitudeB1.AddPoints(blue[0].Longitude, blue[0].Radius);
+		radiusLongitudeR1.AddPoints(red[0].Longitude, red[0].Radius);
+		radiusLongitudeR2.AddPoints(red[1].Longitude, red[1].Radius);
+		radiusLongitudeR3.AddPoints(red[2].Longitude, red[2].Radius);
+		radiusLongitudeB1CurrentLocation.Data[0, 0:1] = radiusLongitudeB1.Data[radiusLongitudeB1.Data.RowCount - 1, 0:1];
+		radiusLongitudeR1CurrentLocation.Data[0, 0:1] = radiusLongitudeR1.Data[radiusLongitudeR1.Data.RowCount - 1, 0:1];
+		radiusLongitudeR2CurrentLocation.Data[0, 0:1] = radiusLongitudeR2.Data[radiusLongitudeR2.Data.RowCount - 1, 0:1];
+		radiusLongitudeR3CurrentLocation.Data[0, 0:1] = radiusLongitudeR3.Data[radiusLongitudeR3.Data.RowCount - 1, 0:1];
+		
+		// update predict data
+		Call ComputePredict(
+			blue[0],
+			red[0],
+			aheadPredictTime,
+			overlayRed1Future,
+			rangeAngleFromPayloadR1Predict,
+			rangeR1Predict,
+			angleFromPayloadR1Predict,
+			radiusLongitudeR1Predict,
+			rangeB1_R1 > aheadPredictRangeUpdateLimit);
+		Call ComputePredict(
+			blue[0],
+			red[1],
+			aheadPredictTime,
+			overlayRed2Future,
+			rangeAngleFromPayloadR2Predict,
+			rangeR2Predict,
+			angleFromPayloadR2Predict,
+			radiusLongitudeR2Predict,
+			rangeB1_R2 > aheadPredictRangeUpdateLimit);
+		Call ComputePredict(
+			blue[0],
+			red[2],
+			aheadPredictTime,
+			overlayRed3Future,
+			rangeAngleFromPayloadR3Predict,
+			rangeR3Predict,
+			angleFromPayloadR3Predict,
+			radiusLongitudeR3Predict,
+			rangeB1_R3 > aheadPredictRangeUpdateLimit);
+	Else;
+		viewUplink.InsertLineBreak();
+		viewPayload.InsertLineBreak();
+		viewMain3D.InsertLineBreak();
+		radiusLongitudeB1.AddPoints(blue[0].Longitude, blue[0].Radius);
+		radiusLongitudeB1CurrentLocation.Data[0, 0:1] = radiusLongitudeB1.Data[radiusLongitudeB1.Data.RowCount - 1, 0:1];
+	
+		// update angle/range data R1
+		rangeAngleFromPayloadR1.AddPoints(angle, -999);
+		rangeAngleFromPayloadR1CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR1.Data[rangeAngleFromPayloadR1.Data.RowCount - 1, 0:1];
+		
+		rangeR1.AddPoints(0, -999);
+		For i = 0 to rangeR1.Data.RowCount - 1;
+			rangeR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR1CurrentLocation.Data[0, 0:1] = rangeR1.Data[rangeR1.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR1.AddPoints(0, -999);
+		For i = 0 to angleFromPayloadR1.Data.RowCount - 1;
+			angleFromPayloadR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR1CurrentLocation.Data[0, 0:1] = angleFromPayloadR1.Data[angleFromPayloadR1.Data.RowCount - 1, 0:1];
+		
+		// update angle/range data R2
+		rangeAngleFromPayloadR2.AddPoints(angle, -999);
+		rangeAngleFromPayloadR2CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR2.Data[rangeAngleFromPayloadR2.Data.RowCount - 1, 0:1];
+		
+		rangeR2.AddPoints(0, -999);
+		For i = 0 to rangeR2.Data.RowCount - 1;
+			rangeR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR2CurrentLocation.Data[0, 0:1] = rangeR2.Data[rangeR2.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR2.AddPoints(0, -999);
+		For i = 0 to angleFromPayloadR2.Data.RowCount - 1;
+			angleFromPayloadR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR2CurrentLocation.Data[0, 0:1] = angleFromPayloadR2.Data[angleFromPayloadR2.Data.RowCount - 1, 0:1];
+		
+		// update angle/range data R3
+		rangeAngleFromPayloadR3.AddPoints(angle, -999);
+		rangeAngleFromPayloadR3CurrentLocation.Data[0, 0:1] = rangeAngleFromPayloadR3.Data[rangeAngleFromPayloadR3.Data.RowCount - 1, 0:1];
+		
+		rangeR3.AddPoints(0, -999);
+		For i = 0 to rangeR3.Data.RowCount - 1;
+			rangeR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		rangeR3CurrentLocation.Data[0, 0:1] = rangeR3.Data[rangeR3.Data.RowCount - 1, 0:1];
+		
+		angleFromPayloadR3.AddPoints(0, -999);
+		For i = 0 to angleFromPayloadR3.Data.RowCount - 1;
+			angleFromPayloadR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+		End;
+		angleFromPayloadR3CurrentLocation.Data[0, 0:1] = angleFromPayloadR3.Data[angleFromPayloadR3.Data.RowCount - 1, 0:1];
+
+		// update longitude vs radius data
+		radiusLongitudeR1.AddPoints(red[0].Longitude, -999);
+		radiusLongitudeR2.AddPoints(red[1].Longitude, -999);
+		radiusLongitudeR3.AddPoints(red[2].Longitude, -999);
+		radiusLongitudeR1CurrentLocation.Data[0, 0:1] = radiusLongitudeR1.Data[radiusLongitudeR1.Data.RowCount - 1, 0:1];
+		radiusLongitudeR2CurrentLocation.Data[0, 0:1] = radiusLongitudeR2.Data[radiusLongitudeR2.Data.RowCount - 1, 0:1];
+		radiusLongitudeR3CurrentLocation.Data[0, 0:1] = radiusLongitudeR3.Data[radiusLongitudeR3.Data.RowCount - 1, 0:1];
+		
+		// Erase predicts
+		Call ComputePredict(
+			blue[0],
+			red[0],
+			aheadPredictTime,
+			overlayRed1Future,
+			rangeAngleFromPayloadR1Predict,
+			rangeR1Predict,
+			angleFromPayloadR1Predict,
+			radiusLongitudeR1Predict,
+			1);
+		Call ComputePredict(
+			blue[0],
+			red[1],
+			aheadPredictTime,
+			overlayRed2Future,
+			rangeAngleFromPayloadR2Predict,
+			rangeR2Predict,
+			angleFromPayloadR2Predict,
+			radiusLongitudeR2Predict,
+			1);
+		Call ComputePredict(
+			blue[0],
+			red[2],
+			aheadPredictTime,
+			overlayRed3Future,
+			rangeAngleFromPayloadR3Predict,
+			rangeR3Predict,
+			angleFromPayloadR3Predict,
+			radiusLongitudeR3Predict,
+			1);	
+	End;
+	
+	viewMain3D.Update();
+	viewUplink.Update();
+	viewPayload.Update();
+	
+	pwRange.EndBatchUpdate();
+	pwAngleFromPayload.EndBatchUpdate();
+	pwAngleRange.EndBatchUpdate();
+	pwRadiusLongitude.EndBatchUpdate();
+	viewUplink.EndBatchUpdate();
+	viewPayload.EndBatchUpdate();
+	viewMain3D.EndBatchUpdate();
+
+EndProcedure;
+
+Global Constant Variable _m = (payloadKeepOutAngle2 - payloadKeepOutAngle1) / -payloadKeepOutRange;
+Global Constant Variable _b = -_m * payloadKeepOutAngle2;
+	
+Define Procedure IsInsidePayloadKeepOutZone(Variable range, Variable angle, Variable result);
+	result = 0;
+	If (range < payloadKeepOutRange);
+		If (angle < payloadKeepOutAngle1 or range < _m * angle + _b);
+			result = 1;
+		End;
+	End;
+EndProcedure;
+
+Define Procedure PostBlueStepSubroutine(Formation red, Formation blue);
+	Variable range;
+	Variable angle;
+	Variable isInsidePayloadKeepOutZone;
+	red.StepToEpoch(blue[0].Epoch);
+	blueJammer.StepToEpoch(blue[0].Epoch);
+	simEpoch = blue[0].Epoch;
+	
+	cameraSc.Epoch = blue[0].Epoch;
+	cameraSc.SetCartesianState(blue[0].GetCartesianState());
+	
+	If (blueIsOffNominal);
+		blueOperationsScore -= 0.1 * blue[0].Propagator.StepSize.ToHours();
+	End;
+	
+	If (blueJammerState == 2);
+		tensionScore -= 0.1 * blue[0].Propagator.StepSize.ToHours();
+	End;
+	
+	If (blueBackupCommsState == 2);
+		blueOperationsScore -= 0.05 * blue[0].Propagator.StepSize.ToHours();
+	End;
+	
+	Call ComputeRangeAndAngleFromPayload(blue[0], red[0], range, angle);
+	Call IsInsidePayloadKeepOutZone(range, angle, isInsidePayloadKeepOutZone);
+	If (isInsidePayloadKeepOutZone);
+		redObjectiveScore -= 1 * blue[0].Propagator.StepSize.ToHours();
+	End;
+	
+	If (range < rangeKeepOutValue);
+		redObjectiveScore -= 5 * blue[0].Propagator.StepSize.ToHours();
+	End;
+	
+	Variable slewRateDegPerSecond;
+	If (blueSlewCompletionEpoch > simEpoch);
+		slewRateDegPerSecond = (desiredBluePayloadOrientationAngle - initialBluePayloadOrientationAngle) / (blueSlewCompletionEpoch - blueSlewStartEpoch).ToSeconds();
+		blue[0].EulerAngles[0] = initialBluePayloadOrientationAngle + slewRateDegPerSecond * (simEpoch - blueSlewStartEpoch).ToSeconds();
+	End;
+	
+	Call UpdateDataReadouts(red, blue);
+EndProcedure;
+
+Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan futureEpoch);	
+	WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+		Call PostBlueStepSubroutine(red, blue);
+	End;
+EndProcedure;
+
+Define Procedure AdvanceSimToFutureEpochWithBlueSlew(Formation red, Formation blue, TimeSpan futureEpoch, Variable slewAngle);
+	Variable slewRateDegPerSecond = slewAngle / (futureEpoch - blue[0].Epoch).ToSeconds();
+	Variable initialAngle = blue[0].EulerAngles[0];
+	TimeSpan initialEpoch = blue[0].Epoch;
+	
+	WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+		blue[0].EulerAngles[0] = initialAngle + slewRateDegPerSecond * (blue[0].Epoch - initialEpoch).ToSeconds();	
+		Call PostBlueStepSubroutine(red, blue);
+	End;
+EndProcedure;
+
+Define Procedure AdvanceSimUplinkPeriod(Formation red, Formation blue);
+	viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 1);
+	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(0.5));
+	viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 0);
+EndProcedure;
+
+
+Define Procedure TargetNewOrbit(
+		Spacecraft sc,
+		Array kepState,
+		Variable longitude,
+		Array timeBoundsDays,
+		Variable doOptimization,
+		String solutionFileLabel,
+		Array dv1,
+		Array dv2,
+		TimeSpan interBurnTime);
+	Variable totalDV;
+	TimeSpan futureEpoch;
+	Variable addLongitudeConstraint;
+	Optimizer opt;
+	
+	If (doOptimization);
+		opt.Reset(1);
+		opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
+		opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
+		opt.AddStateVariable("days", timeBoundsDays.Mean, timeBoundsDays[0], timeBoundsDays[1]);
+		opt.AddConstraint("A",    kepState[0], kepState[0], 100);
+		opt.AddConstraint("E",    kepState[1], kepState[1]);
+		opt.AddConstraint("I",    kepState[2], kepState[2], 100, 360);
+		
+		addLongitudeConstraint = longitude != -999;
+		If (addLongitudeConstraint);
+			opt.AddConstraint("lon",   longitude, longitude, 100, 360);
+		Else;
+			opt.AddConstraint("RAAN", kepState[3], kepState[3], 100, 360);
+			opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
+		End;
+		
+		opt.SaveObjectToProcess(sc);
+		opt.MaximumNominalEvaluationCount = 1000;
+		opt.LoadEngine();
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			
+			burn.BurnDirection = opt.GetStateVariableValues[0:2];
+			totalDV = burn.BurnDirection.Norm;
+			sc.Maneuver(burn);
+			
+			futureEpoch = sc.Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+			WhileStepping sc to (sc.Epoch == futureEpoch);
+			End;
+			
+			burn.BurnDirection = opt.GetStateVariableValues[3:5];
+			totalDV += burn.BurnDirection.Norm;
+			sc.Maneuver(burn);
+			
+			opt.SetConstraintValue("A", sc.A);
+			opt.SetConstraintValue("E", sc.E);
+			opt.SetConstraintValue("I", sc.I);
+
+			If (addLongitudeConstraint);
+				opt.SetConstraintValue("lon", sc.Longitude);
+			Else;
+				opt.SetConstraintValue("RAAN", sc.RAAN);
+				opt.SetConstraintValue("W", sc.W);
+			End;
+									 
+			opt.Minimize(totalDV);
+			
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		Call OpenForWrite("SavedValues/" + solutionFileLabel + ".txt");
+		file.PutLine(opt.GetBestStateVariableValue("dv11").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv12").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv13").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv21").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv22").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv23").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
+		file.Close();
+	End;
+	
+	Call OpenForRead("SavedValues/" + solutionFileLabel + ".txt");
+	dv1[0] = file.GetLine().ToVariable();
+	dv1[1] = file.GetLine().ToVariable();
+	dv1[2] = file.GetLine().ToVariable();
+	dv2[0] = file.GetLine().ToVariable();
+	dv2[1] = file.GetLine().ToVariable();
+	dv2[2] = file.GetLine().ToVariable();
+	interBurnTime = TimeSpan.FromDays(file.GetLine().ToVariable());
+	file.Close();
+EndProcedure;
+
+Define Procedure AdvanceSimToTargetedNewOrbit(Spacecraft sc, Array dv1, Array dv2, TimeSpan interBurnTime, Formation red, Formation blue);
+	burn.BurnDirection = dv1;
+	sc.Maneuver(burn);
+	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + interBurnTime);
+	burn.BurnDirection = dv2;
+	sc.Maneuver(burn);
+EndProcedure;
+
+
+Define Procedure TargetNewOrbitAndAdvanceSim(
+		Spacecraft sc,
+		Array kepState,
+		Variable longitude,
+		Array timeBoundsDays,
+		Variable doOptimization,
+		String solutionFileLabel,
+		Formation red,
+		Formation blue);
+	
+	Array dv1(3);
+	Array dv2(3);
+	TimeSpan interBurnTime;
+	Call TargetNewOrbit(sc, kepState, longitude, timeBoundsDays, doOptimization, solutionFileLabel, dv1, dv2, interBurnTime);
+	Call AdvanceSimToTargetedNewOrbit(sc, dv1, dv2, interBurnTime, red, blue);
+EndProcedure;
+
+
+Define Procedure ComputeDesiredSlewAngle(Formation red, Formation blue, Variable slewAngle);
+	Variable redIndex = 0;
+	Variable i = 0;
+	For i = 0 to red.Count - 1;
+		If (blue[0].Range(red[i]) < blue[0].Range(red[redIndex]));
+			redIndex = i;
+		End;
+	End;
+	
+	Optimizer opt;
+	opt.Reset(1);
+	
+	Variable initialEulerAngle = blue[0].EulerAngles[0];
+	opt.AddStateVariable("angle", initialEulerAngle+90, 0, 360, 100);
+	
+	Variable range;
+	Variable angle;
+	opt.MaximumNominalEvaluationCount = 50;
+	opt.LoadEngine();
+	
+	While (opt.IsRunning());
+		opt.UpdateStateVariables();
+		
+		blue[0].EulerAngles[0] = opt.GetStateVariableValue(0);
+		Call ComputeRangeAndAngleFromPayload(blue[0], red[redIndex], range, angle);
+		opt.Maximize(angle);
+			
+//		If (opt.OptimizationPhase == 1);
+//			Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource, blue[0].EulerAngles[0];
+//		End;
+	End;
+	
+	blue[0].EulerAngles[0] = initialEulerAngle;
+	slewAngle = opt.GetBestStateVariableValue("angle");
+EndProcedure;
+
+Define Procedure ComputeAndExecuteBlueSlew(Formation red, Formation blue);
+	Variable slewAngle;
+	Call ComputeDesiredSlewAngle(red, blue, slewAngle);
+	Call AdvanceSimToFutureEpochWithBlueSlew(red, blue, blue[0].Epoch + TimeSpan.FromHours(10), slewAngle);
+EndProcedure;
+
+
+Global UserInterface OperatorActions;
+
+Global Constant Variable choice_nominal = 1;
+Global Constant Variable choice_secondaryComms = 2;
+Global Constant Variable choice_slew = 3;
+Global Constant Variable choice_jam = 4;
+Global Constant Variable choice_evasive = 5;
+Global Constant Variable choice_returnToNominal = 6;
+Global Constant Variable choice_reevaluate = 7;
+
+
+Define Procedure BuildOperatorActionsMenu();
+	OperatorActions.ClearElements();
+	OperatorActions.Title = "Operator Actions";
+	String msg = @"To re-evaluate the data readouts and 3D views before making a selection,\nchoose 'Re-evaluate data' from the list above. Then, when you are ready\nto choose an action, click the blue play button in the top toolbar.";
+	OperatorActions.AddLabel(msg);
+	OperatorActions.AddSeparator("", 1);
+	
+	If (redJammerState == 1);
+		msg = "Warning: Primary comms path is currently disrupted.";
+		OperatorActions.AddLabel(msg);
+		OperatorActions.AddSeparator("", 1);
+	End;
+	
+	Variable multiChoiceID = OperatorActions.AddMultiChoice("userChoice", "Select an action:", "choice_nominal", 1);
+	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_nominal",   "Continue nominal operations");
+	
+	If (blueBackupCommsState == 0); // inactive
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Ready secondary blue comms path");
+	ElseIf (blueBackupCommsState == 1); // ready
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to secondary blue comms path");
+	ElseIf (blueBackupCommsState == 2); // active
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to primary blue comm path");
+	End;
+	
+	If (redJammerState == 0);
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_slew", "Slew payload away from closest red spacecraft");
+	End;
+	
+	If (blueJammerState == 0); // inactive
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Ready ground-based jamming unit");
+	ElseIf (blueJammerState == 1); // ready
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Activate ground-based jamming unit");
+	ElseIf (blueJammerState == 2); // active
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "De-activate ground-based jamming unit");
+	End;
+	
+	If (redJammerState == 0);
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_evasive",   "Perform evasive maneuver");
+	End;
+	
+	If (blueIsOffNominal);
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_returnToNominal",   "Return BlueSat to nominal attitude/location");
+	End;
+	
+	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_reevaluate",  "Re-evaluate data");
+EndProcedure;
+
+Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
+	If (autoChooseNominalOperation);
+		userChoice = choice_nominal;
+	Else;
+		Call BuildOperatorActionsMenu();
+		Show OperatorActions;
+	End;
+	
+	While (userChoice == choice_reevaluate);
+		Pause;
+		Show OperatorActions;
+	End;
+	
+	If (userChoice == choice_slew or userChoice == choice_evasive);
+		blueIsOffNominal = 1;
+	End;
+	
+	If (userChoice == choice_slew);
+		initialBluePayloadOrientationAngle = blue[0].EulerAngles[0];
+		blueSlewStartEpoch = simEpoch;
+		blueSlewCompletionEpoch = simEpoch + TimeSpan.FromHours(10);
+		Call ComputeDesiredSlewAngle(red, blue, desiredBluePayloadOrientationAngle);
+	End;
+	
+	If (userChoice == choice_secondaryComms);
+		If (blueBackupCommsState == 0); // inactive
+			blueBackupCommsState = 2;
+		ElseIf (blueBackupCommsState == 1); // ready
+			Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
+		ElseIf (blueBackupCommsState == 2); // active
+			blueBackupCommsState = 0;
+		End;
+	End;
+	
+	If (userChoice == choice_jam);
+		If (blueJammerState == 0); // inactive
+			Call SetBlueJammerState(1);
+			blueOperationsScore -= 3;
+		ElseIf (blueJammerState == 1); // ready
+			Call SetBlueJammerState(2);
+		ElseIf (blueJammerState == 2); // active
+			Call SetBlueJammerState(1);
+		End;
+	End;
+	
+	If (userChoice == choice_evasive);
+		blueOperationsScore -= 8;
+		
+		Call AdvanceSimUplinkPeriod(red, blue);
+		Call TargetNewOrbitAndAdvanceSim(
+			blue[0], initialKepStateBlue1,
+			blue[0].Longitude + 0.3, {0.1, 0.5},
+			doOptimizationAndSaveValues,
+			"BlueSatEvasiveManeuver_" + numberOfBlueEvasiveManeuvers.ToString(), red, blue);
+		
+		numberOfBlueEvasiveManeuvers += 1;
+	End;
+	
+	If (userChoice == choice_returnToNominal);
+		If (numberOfBlueEvasiveManeuvers > 0);
+			blueOperationsScore -= 8;
+			
+			Call AdvanceSimUplinkPeriod(red, blue);
+			Call TargetNewOrbitAndAdvanceSim(
+				blue[0], initialKepStateBlue1,
+				initialLongitudeBlue1, {0.1, 1},
+				doOptimizationAndSaveValues,
+				"BlueSatReturnToSlot_" + numberOfBlueEvasiveManeuvers.ToString(),
+				red, blue);
+			numberOfBlueEvasiveManeuvers = 0;
+		End;
+		blueIsOffNominal = 0;
+	End;
+EndProcedure;
+
+
+
+
+Define Procedure AdvanceSimUntilBlueIsNominal(Formation red, Formation blue);
+	While (blueIsOffNominal);
+		Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(5));
+		Call ShowOperatorActionsMenu(red, blue);
+	End;
+EndProcedure;
+
+Define Procedure DisplayModeScript(Formation red, Formation blue);
+	Optimizer opt;
+	TimeSpan initialEpoch;
+	
+	red[1].I += 0.1;
+	red[2].I += 0.1;
+	red[2].RAAN -= 30;
+	red[2].TA += 30;
+	
+	OutputLayout.BringWindowToFront(pwAngleFromPayload.ID);
+	OutputLayout.ApplyUpdates();
+	
+	pwRange.BeginBatchUpdate();
+	(pwRange.Series[0] AsType PlotScatterSeries).AddPoints(0, 0);
+	pwRange.Update();
+//	(pwRange.Series[0] AsType PlotScatterSeries).ClearPoints();
+	pwRange.EndBatchUpdate();
+	OutputLayout.BringWindowToFront(pwRange.ID);
+	
+	viewMain3D.CurrentViewpoint.ThreeDView.RightAscension = 268;
+	viewMain3D.CurrentViewpoint.ThreeDView.Declination = 7;
+	
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		Call ComputeStationKeepingManeuver(opt, blue[0], 279.25);
+		burn.BurnDirection = opt.GetBestStateVariableValues();
+		
+		Call OpenForWrite("SavedValues/BenignScript_Blue1SK1.txt");
+		file.PutLine(burn.BurnDirection[0].ToString());
+		file.PutLine(burn.BurnDirection[1].ToString());
+		file.PutLine(burn.BurnDirection[2].ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+
+	Call OpenForRead("SavedValues/BenignScript_Blue1SK1.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	file.Close();
+	
+	blue[0].Maneuver(burn);
+	
+	red[0].SetKeplerianState(blue[0].GetKeplerianState());
+	red[0].E += 0.002;
+	red[0].I += 0.25;
+	red[0].TA += 0.1;
+	
+	blue[0].Save("IC");
+	red[0].Save("IC");
+	red[1].Save("IC");
+	red[2].Save("IC");
+	
+	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
+	While (1);
+		Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+		
+		viewMain3D.ResetTails();
+		viewPayload.ResetTails();
+		viewUplink.ResetTails();
+		
+		angleFromPayloadR1.ClearPoints();
+		angleFromPayloadR2.ClearPoints();
+		angleFromPayloadR3.ClearPoints();
+		
+		rangeR1.ClearPoints();
+		rangeR2.ClearPoints();
+		rangeR3.ClearPoints();
+		
+		rangeAngleFromPayloadR1.ClearPoints();
+		rangeAngleFromPayloadR2.ClearPoints();
+		rangeAngleFromPayloadR3.ClearPoints();
+		
+		radiusLongitudeB1.ClearPoints();
+		radiusLongitudeR1.ClearPoints();
+		radiusLongitudeR2.ClearPoints();
+		radiusLongitudeR3.ClearPoints();
+		
+		blue[0].Restore("IC");
+		red[0].Restore("IC");
+		red[1].Restore("IC");
+		red[2].Restore("IC");
+	End;
+	
+EndProcedure;
+
+
+Define Procedure BenignScript(Formation red, Formation blue);
+	Optimizer opt;
+	TimeSpan initialEpoch;
+	Variable totalDV;
+	Variable dv2;
+	
+	
+	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		Call ComputeStationKeepingManeuver(opt, blue[0], 279.25);
+		burn.BurnDirection = opt.GetBestStateVariableValues();
+		
+		Call OpenForWrite("SavedValues/BenignScript_Blue1SK1.txt");
+		file.PutLine(burn.BurnDirection[0].ToString());
+		file.PutLine(burn.BurnDirection[1].ToString());
+		file.PutLine(burn.BurnDirection[2].ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+
+	Call OpenForRead("SavedValues/BenignScript_Blue1SK1.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	file.Close();
+	
+	blue[0].Maneuver(burn);
+	
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(2);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+	burn.AttitudeSystem = 1;
+	burn.BurnDirection[1] = 0;
+	burn.BurnDirection[2] = 0;
+	
+	//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		opt.Reset(1);
+		opt.AddStateVariable("dv1", -0.001, -0.01, 0);
+		opt.AddStateVariable("dv2", -0.001, -0.01, 0);
+		opt.AddStateVariable("days", 0.5, 0.1, 1);
+		opt.AddConstraint("A", 42100, 42100, 100);
+		opt.AddConstraint("E", 0, 0.0001);
+		
+		opt.SaveObjectToProcess(red[0]);
+		opt.LoadEngine();
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			
+			burn.BurnDirection[0] = opt.GetStateVariableValue("dv1");
+			totalDV = abs(burn.BurnDirection[0]);
+			red[0].Maneuver(burn);
+			
+			futureEpoch = red[0].Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+			WhileStepping red[0] to (red[0].Epoch == futureEpoch);
+			End;
+			
+			burn.BurnDirection[0] = opt.GetStateVariableValue("dv2");
+			totalDV += abs(burn.BurnDirection[0]);
+			red[0].Maneuver(burn);
+			
+			opt.SetConstraintValue("A", red[0].A);
+			opt.SetConstraintValue("E", red[0].E);
+									 
+			opt.Minimize(totalDV);
+			
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		Call OpenForWrite("SavedValues/BenignScript_Red1Burn1and2.txt");
+		file.PutLine(opt.GetBestStateVariableValue("dv1").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv2").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+	
+	Call OpenForRead("SavedValues/BenignScript_Red1Burn1and2.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	dv2 = file.GetLine().ToVariable();
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
+	file.Close();
+
+	red[0].Maneuver(burn);
+
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+	burn.BurnDirection[0] = dv2;
+	red[0].Maneuver(burn);
+	burn.AttitudeSystem = 6;
+	
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(4);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+EndProcedure;
+
+
+Define Procedure ObservationScript(Formation red, Formation blue);
+	
+	Array relativePos;
+	Array relativeVel;
+	Array desiredRelativePosLVC;
+	Variable relativeStateObjective;
+	Optimizer opt;
+	NloptOptions nlopt;
+	TimeSpan initialEpoch;
+	Variable maxDistance;
+	Variable minDistance;
+	Variable minAngle;
+	Variable distance;
+	Variable angle;
+	
+	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		Call ComputeStationKeepingManeuver(opt, blue[0], 279.25);
+		burn.BurnDirection = opt.GetBestStateVariableValues();
+		
+		Call OpenForWrite("SavedValues/ObservationScript_Blue1SK1.txt");
+		file.PutLine(burn.BurnDirection[0].ToString());
+		file.PutLine(burn.BurnDirection[1].ToString());
+		file.PutLine(burn.BurnDirection[2].ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+
+	Call OpenForRead("SavedValues/ObservationScript_Blue1SK1.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	file.Close();
+	
+	blue[0].Maneuver(burn);
+
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		desiredRelativePosLVC = {0, 0, 60};
+
+		opt.Reset(1);
+		opt.AddStateVariableBlock(3, "dv", 0.001, -0.01, 0.01);
+		opt.AddStateVariable("days", 7, 6.7, 7.3);
+		opt.AddConstraintBlock(3, "relativePos", 0, 0, 100);
+		opt.AddConstraint("crossTrackVel", 0, 0);
+		
+		opt.SaveObjectToProcess(red[0]);
+		opt.SaveObjectToProcess(blue[0]);
+		
+		opt.LoadEngine();
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			burn.BurnDirection = opt.GetStateVariableValues()[0:2];
+			
+			red[0].Maneuver(burn);
+			
+			futureEpoch = blue[0].Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+			WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+				red[0].StepToEpoch(blue[0].Epoch);
+			End;
+			
+			relativePos = RelativeMotionUtilities.ConvertRelativePosition(0, 6, red[0], blue[0].Position - red[0].Position);
+			relativeVel = RelativeMotionUtilities.ConvertRelativeVelocity(0, 6, red[0], blue[0].GetCartesianState() - red[0].GetCartesianState());
+//			relativePos[2] = desiredRelativePosLVC[2]; // we don't care about cross track so zero it out
+			opt.SetConstraintValues({desiredRelativePosLVC - relativePos, relativeVel[2]});
+			
+			opt.Minimize(burn.BurnDirection.Norm);
+			
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		burn.BurnDirection = opt.GetBestStateVariableValues()[0:2];
+		
+		Call OpenForWrite("SavedValues/ObservationScript_Red1Burn1.txt");
+		file.PutLine(burn.BurnDirection[0].ToString());
+		file.PutLine(burn.BurnDirection[1].ToString());
+		file.PutLine(burn.BurnDirection[2].ToString());
+		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+	
+	Call OpenForRead("SavedValues/ObservationScript_Red1Burn1.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
+	file.Close();
+
+	red[0].Maneuver(burn);
+	
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		desiredRelativePosLVC = RelativeMotionUtilities.ConvertRelativePosition(0, 6, red[0], blue[0].Position - red[0].Position);
+
+		opt.Reset(1);
+		opt.MaximumNominalEvaluationCount = 1800;
+		opt.AddStateVariableBlock(3, "dv", 0.001, -0.01, 0.01);
+		opt.AddConstraint("minAngle", -1e-20, 15);
+		opt.AddConstraint("minDistance", 50, 1e20);
+		opt.AddConstraint("maxDistance", -1e20, 80);
+		
+		opt.SaveObjectToProcess(red[0]);
+		opt.SaveObjectToProcess(blue[0]);
+		
+		nlopt.AlgorithmToUse = 38;
+		nlopt.SubsidiaryAlgorithmToUse = 40;
+		
+		opt.LoadEngine();
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			burn.BurnDirection = opt.GetStateVariableValues();
+			
+			red[0].Maneuver(burn);
+			
+			futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
+			Call ComputeRangeAndAngleFromPayload(blue[0], red[0], distance, angle);
+			minDistance = distance;
+			maxDistance = distance;
+			minAngle = angle;
+			WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+				red[0].StepToEpoch(blue[0].Epoch);
+				Call ComputeRangeAndAngleFromPayload(blue[0], red[0], distance, angle);
+				If (distance < minDistance);
+					minDistance = distance;
+				End;
+				If (distance > maxDistance);
+					maxDistance = distance;
+				End;
+				If (angle < minAngle);
+					minAngle = angle;
+				End;
+			End;
+			
+			opt.SetConstraintValue("minAngle", minAngle);
+			opt.SetConstraintValue("minDistance", minDistance);
+			opt.SetConstraintValue("maxDistance", maxDistance);
+			
+			opt.Minimize(burn.BurnDirection.Norm * 1e0);
+						
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, burn.BurnDirection.Norm, minAngle, minDistance, maxDistance, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		burn.BurnDirection = opt.GetBestStateVariableValues();
+		
+		Call OpenForWrite("SavedValues/ObservationScript_Red1Burn2.txt");
+		file.PutLine(burn.BurnDirection[0].ToString());
+		file.PutLine(burn.BurnDirection[1].ToString());
+		file.PutLine(burn.BurnDirection[2].ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+	
+	Call OpenForRead("SavedValues/ObservationScript_Red1Burn2.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	file.Close();
+	
+	red[0].Maneuver(burn);
+	
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+	burn.BurnDirection = -{    0.000145506,       -0.000805460,       -0.000000254};
+	red[0].Maneuver(burn);
+	
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+EndProcedure;
+
+
+Define Procedure DisableScript(Formation red, Formation blue);
+	
+	Array relativePos;
+	Array desiredRelativePosLVC;
+	Optimizer opt;
+	Variable relativeStateObjective;
+	NloptOptions nlopt;
+	Array kepState;
+	Variable totalDV;
+	TimeSpan initialEpoch;
+	Array dv1(3);
+	Array dv2(3);
+	TimeSpan interBurnTime;
+	TimeSpan futureEpoch2;
+	
+	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		Call ComputeStationKeepingManeuver(opt, blue[0], 279.25);
+		burn.BurnDirection = opt.GetBestStateVariableValues();
+		
+		Call OpenForWrite("SavedValues/DisableScript_Blue1SK1.txt");
+		file.PutLine(burn.BurnDirection[0].ToString());
+		file.PutLine(burn.BurnDirection[1].ToString());
+		file.PutLine(burn.BurnDirection[2].ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+
+	Call OpenForRead("SavedValues/DisableScript_Blue1SK1.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	file.Close();
+	
+	blue[0].Maneuver(burn);
+	
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		desiredRelativePosLVC = {0, 4, 2};
+		
+		opt.Reset(1);
+		opt.AddStateVariableBlock(3, "dv", 0.001, -0.01, 0.01);
+		opt.AddConstraintBlock(3, "relativePos", 0, 0);
+		
+		opt.SaveObjectToProcess(red[0]);
+		opt.SaveObjectToProcess(blue[0]);
+		
+		opt.LoadEngine();
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			burn.BurnDirection = opt.GetStateVariableValues();
+			
+			red[0].Maneuver(burn);
+			
+			futureEpoch = blue[0].Epoch + TimeSpan.FromDays(4);
+			WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+				red[0].StepToEpoch(blue[0].Epoch);
+			End;
+			
+			relativePos = RelativeMotionUtilities.ConvertRelativePosition(0, 6, red[0], blue[0].Position - red[0].Position);
+			relativePos[2] = desiredRelativePosLVC[2]; // we don't care about cross track so zero it out
+			opt.SetConstraintValues(desiredRelativePosLVC - relativePos);
+			
+			opt.Minimize(burn.BurnDirection.Norm);
+			
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		burn.BurnDirection = opt.GetBestStateVariableValues();
+		
+		Call OpenForWrite("SavedValues/DisableScript_Red1Burn1.txt");
+		file.PutLine(burn.BurnDirection[0].ToString());
+		file.PutLine(burn.BurnDirection[1].ToString());
+		file.PutLine(burn.BurnDirection[2].ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+
+	Call OpenForRead("SavedValues/DisableScript_Red1Burn1.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	file.Close();
+
+	red[0].Maneuver(burn);
+	futureEpoch2 = blue[0].Epoch + TimeSpan.FromDays(4);
+	
+	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(10));
+	
+	Call ShowOperatorActionsMenu(red, blue);
+	If (userChoice == choice_evasive);
+		Call TargetNewOrbit(
+			red[0], initialKepStateRed1,
+			initialLongitudeRed1, {0.1, 5},
+			doOptimizationAndSaveValues,
+			"DisableScript_Red1ReturnToSlot1",
+			dv1, dv2, interBurnTime);
+		
+		Call AdvanceSimToTargetedNewOrbit(red[0], dv1, dv2, interBurnTime, red, blue);
+		
+		Call AdvanceSimUntilBlueIsNominal(red, blue);
+		ExitProcedure;
+	End;
+	
+	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(10));
+	
+	Call ShowOperatorActionsMenu(red, blue);
+	If (userChoice == choice_evasive);
+		// red pulls back
+	End;
+	
+	WhileStepping blue[0] to (blue[0].Longitude < red[1].Longitude);
+		Call PostBlueStepSubroutine(red, blue);
+	End;
+	
+	Variable i;
+	If (blueJammerState == 2);
+		For i = 0 to 2;
+			Call ShowOperatorActionsMenu(red, blue);
+			Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(10));
+		End;
+		
+		Call AdvanceSimUntilBlueIsNominal(red, blue);		
+		ExitProcedure;
+	End;
+	
+	kepState = blue[0].GetKeplerianState();
+	kepState[1] += 0.0012;
+	Call TargetNewOrbit(
+		red[1], kepState,
+		-999, {0.4, 0.6},
+		doOptimizationAndSaveValues,
+		"DisableScript_Red2Burn1and2",
+		dv1, dv2, interBurnTime);
+	
+	burn.BurnDirection = dv1;
+	futureEpoch = blue[0].Epoch + interBurnTime;
+		
+	Call SetRedJammerState(1, red);
+
+	Array kepStateRed2 = red[1].GetKeplerianState();
+	Array kepStateRed3 = red[2].GetKeplerianState();
+	
+	
+	red[1].Maneuver(burn);
+	burn.BurnDirection *= -1;
+	red[2].Maneuver(burn);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+	burn.BurnDirection = dv2;
+	red[1].Maneuver(burn);
+	burn.BurnDirection *= -1;
+	red[2].Maneuver(burn);
+	
+	
+	futureEpoch = futureEpoch2;
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		desiredRelativePosLVC = RelativeMotionUtilities.ConvertRelativePosition(0, 6, red[0], blue[0].Position - red[0].Position);
+		
+		opt.Reset(1);
+		opt.MaximumNominalEvaluationCount = 800;
+		opt.AddStateVariableBlock(3, "dv", 0.001, -0.01, 0.01);
+		
+		opt.SaveObjectToProcess(red[0]);
+		opt.SaveObjectToProcess(blue[0]);
+		
+		nlopt.AlgorithmToUse = 38;
+		nlopt.SubsidiaryAlgorithmToUse = 40;
+		
+		opt.LoadEngine(nlopt);
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			burn.BurnDirection = opt.GetStateVariableValues();
+			
+			red[0].Maneuver(burn);
+			
+			futureEpoch = blue[0].Epoch + TimeSpan.FromDays(0.5);
+			WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+				red[0].StepToEpoch(blue[0].Epoch);
+			End;
+			
+			relativePos = RelativeMotionUtilities.ConvertRelativePosition(0, 6, red[0], blue[0].Position - red[0].Position);
+			relativeStateObjective = (-desiredRelativePosLVC - relativePos).Norm;
+			
+			futureEpoch = blue[0].Epoch + TimeSpan.FromDays(0.5);
+			WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+				red[0].StepToEpoch(blue[0].Epoch);
+			End;
+			
+			relativePos = RelativeMotionUtilities.ConvertRelativePosition(0, 6, red[0], blue[0].Position - red[0].Position);
+			relativeStateObjective += (desiredRelativePosLVC - relativePos).Norm;
+			
+			opt.Minimize(burn.BurnDirection.Norm * 1e3 + relativeStateObjective*1e0);
+			
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		burn.BurnDirection = opt.GetBestStateVariableValues();
+		
+		Call OpenForWrite("SavedValues/DisableScript_Red1Burn2.txt");
+		file.PutLine(burn.BurnDirection[0].ToString());
+		file.PutLine(burn.BurnDirection[1].ToString());
+		file.PutLine(burn.BurnDirection[2].ToString());
+		file.Close();
+	End;
+
+//EndBlock PRESOLVED OPTIMIZATION
+
+	Call OpenForRead("SavedValues/DisableScript_Red1Burn2.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	file.Close();
+
+
+	red[0].Maneuver(burn);
+	
+	TimeSpan preDeployWaitTime = TimeSpan.FromDays(0.1);
+	TimeSpan rendezvousTime = TimeSpan.FromDays(0.3);
+	TimeSpan killOperationTime = TimeSpan.FromDays(0.2);
+	
+	futureEpoch = blue[0].Epoch + preDeployWaitTime;
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+	// Deploy inspector from Red 1
+	red.Count += 1;
+	Alias deployableSat = red[red.Count - 1];
+	deployableSat.BodyScale = 200;
+	deployableSat.DisplayName = "Red" + red.Count.ToString();
+	deployableSat.Color = colorRed4;
+	deployableSat.TailLength = tailPoints/4;
+	viewMain3D.SetShowName(deployableSat.ObjectId, 1);
+	viewMain3D.SetObjectLabelFont(deployableSat.ObjectId, vf);
+	
+	deployableSat.Epoch = red[0].Epoch;
+	deployableSat.SetCartesianState(red[0].GetCartesianState());
+
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		desiredRelativePosLVC = {0, 0, 0};
+		
+		opt.Reset(1);
+		opt.AddStateVariableBlock(3, "dv", 0.001, -0.01, 0.01);
+		opt.AddConstraintBlock(3, "relativePos", 0, 0);
+		
+		opt.SaveObjectToProcess(deployableSat);
+		opt.SaveObjectToProcess(blue[0]);
+		
+		opt.LoadEngine();
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			burn.BurnDirection = opt.GetStateVariableValues();
+			
+			deployableSat.Maneuver(burn);
+			
+			futureEpoch = blue[0].Epoch + rendezvousTime;
+			WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+				deployableSat.StepToEpoch(blue[0].Epoch);
+			End;
+			
+			relativePos = RelativeMotionUtilities.ConvertRelativePosition(0, 6, deployableSat, blue[0].Position - deployableSat.Position);
+			opt.SetConstraintValues(desiredRelativePosLVC - relativePos);
+			
+			opt.Minimize(burn.BurnDirection.Norm);
+			
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		burn.BurnDirection = opt.GetBestStateVariableValues();
+		Report burn.BurnDirection;
+		
+		Call OpenForWrite("SavedValues/DisableScript_Red1Burn3.txt");
+		file.PutLine(burn.BurnDirection[0].ToString());
+		file.PutLine(burn.BurnDirection[1].ToString());
+		file.PutLine(burn.BurnDirection[2].ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+	
+	Call OpenForRead("SavedValues/DisableScript_Red1Burn3.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	file.Close();
+	
+	deployableSat.Maneuver(burn);
+	
+	futureEpoch = blue[0].Epoch + rendezvousTime;
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+	deployableSat.SetCartesianState(blue[0].GetCartesianState());
+	
+	futureEpoch = blue[0].Epoch + killOperationTime;
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+	// Inspector return to Red 1
+	
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		desiredRelativePosLVC = {0, 0, 0};
+		
+		opt.Reset(1);
+		opt.AddStateVariableBlock(3, "dv", 0.001, -0.01, 0.01);
+		opt.AddConstraintBlock(3, "relativePos", 0, 0);
+		
+		opt.SaveObjectToProcess(deployableSat);
+		opt.SaveObjectToProcess(red[0]);
+		
+		opt.LoadEngine();
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			burn.BurnDirection = opt.GetStateVariableValues();
+			
+			deployableSat.Maneuver(burn);
+			
+			futureEpoch = red[0].Epoch + rendezvousTime;
+			WhileStepping red[0] to (red[0].Epoch == futureEpoch);
+				deployableSat.StepToEpoch(red[0].Epoch);
+			End;
+			
+			relativePos = RelativeMotionUtilities.ConvertRelativePosition(0, 6, deployableSat, red[0].Position - deployableSat.Position);
+			opt.SetConstraintValues(desiredRelativePosLVC - relativePos);
+			
+			opt.Minimize(burn.BurnDirection.Norm);
+			
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		burn.BurnDirection = opt.GetBestStateVariableValues();
+		
+		Call OpenForWrite("SavedValues/DisableScript_Red1Burn4.txt");
+		file.PutLine(burn.BurnDirection[0].ToString());
+		file.PutLine(burn.BurnDirection[1].ToString());
+		file.PutLine(burn.BurnDirection[2].ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+	
+	Call OpenForRead("SavedValues/DisableScript_Red1Burn4.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	file.Close();
+	
+	deployableSat.Maneuver(burn);
+	
+	futureEpoch = blue[0].Epoch + rendezvousTime;
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+	red.Count -= 1;
+	
+	futureEpoch = blue[0].Epoch + preDeployWaitTime;
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		
+		opt.Reset(1);
+		opt.AddStateVariableBlock(3, "dv1_", 0.001, -0.01, 0.01);
+		opt.AddStateVariableBlock(3, "dv2_", 0.001, -0.01, 0.01);
+		
+		opt.AddConstraint("A", 42164, 42164, 1e1);
+		opt.AddConstraint("E", 0, 1e-4);
+		opt.AddConstraint("I", 0, 2, 1);
+		opt.AddConstraint("lon", 277.2, 277.3, 1, 360);
+		
+		opt.SaveObjectToProcess(red[0]);
+		
+		opt.LoadEngine();
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			
+			burn.BurnDirection[0] = opt.GetStateVariableValue("dv1_1");
+			burn.BurnDirection[1] = opt.GetStateVariableValue("dv1_2");
+			burn.BurnDirection[2] = opt.GetStateVariableValue("dv1_3");
+			red[0].Maneuver(burn);
+			totalDV = burn.BurnDirection.Norm;
+			
+			futureEpoch = red[0].Epoch + TimeSpan.FromDays(7);
+			WhileStepping red[0] to (red[0].Epoch == futureEpoch);
+			End;
+			
+			burn.BurnDirection[0] = opt.GetStateVariableValue("dv2_1");
+			burn.BurnDirection[1] = opt.GetStateVariableValue("dv2_2");
+			burn.BurnDirection[2] = opt.GetStateVariableValue("dv2_3");
+			red[0].Maneuver(burn);
+			totalDV += burn.BurnDirection.Norm;
+			
+			kepState = red[0].GetKeplerianState();
+			
+			opt.SetConstraintValue("A", red[0].A);
+			opt.SetConstraintValue("E", red[0].E);
+			opt.SetConstraintValue("I", red[0].I);
+			opt.SetConstraintValue("lon", red[0].Longitude);
+			
+			opt.Minimize(totalDV*1e-1);
+			
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		burn.BurnDirection = opt.GetBestStateVariableValues()[0:2];
+		
+		Call OpenForWrite("SavedValues/DisableScript_Red1Burn5.txt");
+		file.PutLine(burn.BurnDirection[0].ToString());
+		file.PutLine(burn.BurnDirection[1].ToString());
+		file.PutLine(burn.BurnDirection[2].ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+	
+	Call OpenForRead("SavedValues/DisableScript_Red1Burn5.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	file.Close();
+	
+	red[0].Maneuver(burn);
+	
+//Block PRESOLVED OPTIMIZATION
+	If (doOptimizationAndSaveValues);
+		opt.Reset(1);
+		opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
+		opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
+		opt.AddStateVariable("days", 0.5, 0.1, 1);
+		opt.AddConstraint("A",    kepStateRed2[0], kepStateRed2[0]);
+		opt.AddConstraint("E",    kepStateRed2[1], kepStateRed2[1]);
+		opt.AddConstraint("I",    kepStateRed2[2], kepStateRed2[2]);
+		opt.AddConstraint("RAAN", kepStateRed2[3], kepStateRed2[3]);
+		opt.AddConstraint("W",    kepStateRed2[4], kepStateRed2[4]);
+		
+		opt.SaveObjectToProcess(red[1]);
+		opt.LoadEngine();
+		While (opt.IsRunning());
+			opt.UpdateStateVariables();
+			opt.RestoreObjectsInProcess();
+			
+			burn.BurnDirection = opt.GetStateVariableValues[0:2];
+			totalDV = burn.BurnDirection.Norm;
+			red[1].Maneuver(burn);
+			
+			futureEpoch = red[1].Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+			WhileStepping red[1] to (red[1].Epoch == futureEpoch);
+			End;
+			
+			burn.BurnDirection = opt.GetStateVariableValues[3:5];
+			totalDV += burn.BurnDirection.Norm;
+			red[1].Maneuver(burn);
+			
+			opt.SetConstraintValue("A", red[1].A);
+			opt.SetConstraintValue("E", red[1].E);
+			opt.SetConstraintValue("I", red[1].I);
+			opt.SetConstraintValue("RAAN", red[1].RAAN);
+			opt.SetConstraintValue("W", red[1].W);
+									 
+			opt.Minimize(totalDV);
+			
+			If (opt.OptimizationPhase == 1);
+				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+			End;
+		End;
+		
+		Report opt.ReturnString;
+		opt.RestoreObjectsInProcess();
+		
+		Call OpenForWrite("SavedValues/DisableScript_Red2Burn3and4.txt");
+		file.PutLine(opt.GetBestStateVariableValue("dv11").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv12").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv13").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv21").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv22").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("dv23").ToString());
+		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
+		file.Close();
+	End;
+//EndBlock PRESOLVED OPTIMIZATION
+	
+	Call OpenForRead("SavedValues/DisableScript_Red2Burn3and4.txt");
+	burn.BurnDirection[0] = file.GetLine().ToVariable();
+	burn.BurnDirection[1] = file.GetLine().ToVariable();
+	burn.BurnDirection[2] = file.GetLine().ToVariable();
+	dv2[0] = file.GetLine().ToVariable();
+	dv2[1] = file.GetLine().ToVariable();
+	dv2[2] = file.GetLine().ToVariable();
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
+	file.Close();
+	
+	Call SetRedJammerState(0, red);
+	
+	red[1].Maneuver(burn);
+	burn.BurnDirection *= -1;
+	red[2].Maneuver(burn);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+	burn.BurnDirection = dv2;
+	red[1].Maneuver(burn);
+	burn.BurnDirection *= -1;
+	red[2].Maneuver(burn);
+	
+	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
+	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+	
+EndProcedure;
+
+
+// 
+// If (userChoice == 0);
+// 	Call DisplayModeScript(red, blue);
+// ElseIf (userChoice == 1);
+// 	Call BenignScript(red, blue);
+// ElseIf (userChoice == 2);
+// 	Call ObservationScript(red, blue);
+// ElseIf (userChoice == 3);
+// 	Call DisableScript(red, blue);
+// End;
+
+Variable redHasNotDisengaged = 1;
+
+Global Constant Variable queueType_none  = 0;
+Global Constant Variable queueType_blueBurn  = 1;
+Global Constant Variable queueType_redBurn  = 2;
+
+Struct QueuedAction;
+	TimeSpan epoch;
+End;
+
+
+
+Global Constant Variable redActionType_none          = 0;
+Global Constant Variable redActionType_toggleJamming  = 1;
+
+Struct QueuedRedAction extends QueuedAction;
+	Variable actionType;
+End;
+
+Struct QueuedBurn extends QueuedAction;
+	Array burnRIC;
+	Variable formationIndex;
+	Variable additionalAction;
+End;
+
+Global List<QueuedBurn> blueBurnQueue;
+Global List<QueuedBurn> redBurnQueue;
+
+TimeSpan simChoiceSpacing = TimeSpan.FromHours(4);
+TimeSpan nextChoiceEpoch;
+	
+Global Variable redIsEngaged = 1;
+
+Define Procedure GetNextQueuedActionSource(Variable source);
+	source = queueType_none;
+	If (blueBurnQueue.Count != 0);
+		source = queueType_blueBurn;
+	ElseIf (redBurnQueue.Count != 0);
+		source = queueType_redBurn;
+	End;
+	
+	If (blueBurnQueue.Count != 0 and redBurnQueue.Count != 0);
+		If (redBurnQueue[0].epoch < blueBurnQueue[0].epoch);
+			source = queueType_redBurn;
+		End;
+	End;
+EndProcedure;
+
+
+Define Procedure PopNextQueuedAction(QueuedBurn nextAction);
+	Variable nextQueuedActionSource;
+	Call GetNextQueuedActionSource(nextQueuedActionSource);
+	If (nextQueuedActionSource == queueType_none);
+		nextAction.epoch = simEpoch + TimeSpan.FromDays(1e3);
+	ElseIf (nextQueuedActionSource == queueType_blueBurn);
+		nextAction = blueBurnQueue[0];
+		blueBurnQueue.RemoveAt(0);
+	ElseIf (nextQueuedActionSource == queueType_redBurn);
+		nextAction = redBurnQueue[0];
+		redBurnQueue.RemoveAt(0);
+	End;
+EndProcedure;
+
+
+QueuedBurn nextQueuedAction;
+Variable nextQueuedActionIsBeforeNextChoiceEpoch;
+While (blueIsOffNominal or redIsEngaged);
+	nextChoiceEpoch = blue[0].Epoch + simChoiceSpacing;
+	
+	Call PopNextQueuedAction(nextQueuedAction);
+	While (nextQueuedAction.epoch < nextChoiceEpoch);
+		Call AdvanceSimToFutureEpoch(red, blue, nextQueuedAction.epoch);
+		// execute action
+		Call PopNextQueuedAction(nextQueuedAction);
+	End;
+	
+	
+	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + simChoiceSpacing);
+	Call ShowOperatorActionsMenu(red, blue);
+	// compute new red strategy(redState, blueState, scriptType)
+End;]]></ProjectScript>
+  <ProjectNotes></ProjectNotes>
+</FreeFlyerProjectFile>
