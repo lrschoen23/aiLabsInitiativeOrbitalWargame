@@ -241,6 +241,7 @@ userChoice = 3;
 simStepSizeSeconds = 1500;
 
 Global Constant Variable autoChooseNominalOperation = 0;
+Console.Show();
 ]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
@@ -627,8 +628,79 @@ Global TimeSpan blueSlewCompletionEpoch = simStartEpoch - TimeSpan.FromDays(1);
 Global TimeSpan blueSlewStartEpoch;
 Global Variable desiredBluePayloadOrientationAngle;
 Global Variable initialBluePayloadOrientationAngle;
+Global TimeSpan slewTime = TimeSpan.FromHours(3);
 
 Global Constant Variable nominalBluePayloadOrientationAngle = blue[0].EulerAngles[0];
+]]></FreeFormScript>
+      </FreeForm>
+      <FreeForm enabled="true">
+        <Label>New stuff</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[
+
+Variable redHasNotDisengaged = 1;
+
+Global Constant Variable queueType_none  = 0;
+Global Constant Variable queueType_blueBurn  = 1;
+Global Constant Variable queueType_redBurn  = 2;
+
+Struct QueuedAction;
+	TimeSpan epoch;
+End;
+
+
+
+Global Constant Variable redActionType_none          = 0;
+Global Constant Variable redActionType_toggleJamming  = 1;
+
+Struct QueuedRedAction extends QueuedAction;
+	Variable actionType;
+End;
+
+Struct QueuedBurn extends QueuedAction;
+	Array burnRIC;
+	Variable formationIndex;
+	Variable additionalAction;
+End;
+
+Global List<QueuedBurn> blueBurnQueue;
+Global List<QueuedBurn> redBurnQueue;
+
+TimeSpan simChoiceSpacing = TimeSpan.FromHours(4);
+TimeSpan nextChoiceEpoch;
+	
+Global Variable redIsEngaged = 1;
+
+Define Procedure GetNextQueuedActionSource(Variable source);
+	source = queueType_none;
+	If (blueBurnQueue.Count != 0);
+		source = queueType_blueBurn;
+	ElseIf (redBurnQueue.Count != 0);
+		source = queueType_redBurn;
+	End;
+	
+	If (blueBurnQueue.Count != 0 and redBurnQueue.Count != 0);
+		If (redBurnQueue[0].epoch < blueBurnQueue[0].epoch);
+			source = queueType_redBurn;
+		End;
+	End;
+EndProcedure;
+
+
+Define Procedure PopNextQueuedAction(QueuedBurn nextAction);
+	Variable nextQueuedActionSource;
+	Call GetNextQueuedActionSource(nextQueuedActionSource);
+	If (nextQueuedActionSource == queueType_none);
+		nextAction.epoch = simEpoch + TimeSpan.FromDays(1e3);
+	ElseIf (nextQueuedActionSource == queueType_blueBurn);
+		nextAction = blueBurnQueue[0];
+		blueBurnQueue.RemoveAt(0);
+	ElseIf (nextQueuedActionSource == queueType_redBurn);
+		nextAction = redBurnQueue[0];
+		redBurnQueue.RemoveAt(0);
+	End;
+EndProcedure;
 ]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
@@ -1487,8 +1559,6 @@ Define Procedure TargetNewOrbit(
 		Array kepState,
 		Variable longitude,
 		Array timeBoundsDays,
-		Variable doOptimization,
-		String solutionFileLabel,
 		Array dv1,
 		Array dv2,
 		TimeSpan interBurnTime);
@@ -1497,83 +1567,74 @@ Define Procedure TargetNewOrbit(
 	Variable addLongitudeConstraint;
 	Optimizer opt;
 	
-	If (doOptimization);
-		opt.Reset(1);
-		opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
-		opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
-		opt.AddStateVariable("days", timeBoundsDays.Mean, timeBoundsDays[0], timeBoundsDays[1]);
-		opt.AddConstraint("A",    kepState[0], kepState[0], 100);
-		opt.AddConstraint("E",    kepState[1], kepState[1]);
-		opt.AddConstraint("I",    kepState[2], kepState[2], 100, 360);
-		
-		addLongitudeConstraint = longitude != -999;
-		If (addLongitudeConstraint);
-			opt.AddConstraint("lon",   longitude, longitude, 100, 360);
-		Else;
-			opt.AddConstraint("RAAN", kepState[3], kepState[3], 100, 360);
-			opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
-		End;
-		
-		opt.SaveObjectToProcess(sc);
-		opt.MaximumNominalEvaluationCount = 1000;
-		opt.LoadEngine();
-		While (opt.IsRunning());
-			opt.UpdateStateVariables();
-			opt.RestoreObjectsInProcess();
-			
-			burn.BurnDirection = opt.GetStateVariableValues[0:2];
-			totalDV = burn.BurnDirection.Norm;
-			sc.Maneuver(burn);
-			
-			futureEpoch = sc.Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
-			WhileStepping sc to (sc.Epoch == futureEpoch);
-			End;
-			
-			burn.BurnDirection = opt.GetStateVariableValues[3:5];
-			totalDV += burn.BurnDirection.Norm;
-			sc.Maneuver(burn);
-			
-			opt.SetConstraintValue("A", sc.A);
-			opt.SetConstraintValue("E", sc.E);
-			opt.SetConstraintValue("I", sc.I);
-
-			If (addLongitudeConstraint);
-				opt.SetConstraintValue("lon", sc.Longitude);
-			Else;
-				opt.SetConstraintValue("RAAN", sc.RAAN);
-				opt.SetConstraintValue("W", sc.W);
-			End;
-									 
-			opt.Minimize(totalDV);
-			
-			If (opt.OptimizationPhase == 1);
-				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
-			End;
-		End;
-		
-		Report opt.ReturnString;
-		opt.RestoreObjectsInProcess();
-		
-		Call OpenForWrite("SavedValues/" + solutionFileLabel + ".txt");
-		file.PutLine(opt.GetBestStateVariableValue("dv11").ToString());
-		file.PutLine(opt.GetBestStateVariableValue("dv12").ToString());
-		file.PutLine(opt.GetBestStateVariableValue("dv13").ToString());
-		file.PutLine(opt.GetBestStateVariableValue("dv21").ToString());
-		file.PutLine(opt.GetBestStateVariableValue("dv22").ToString());
-		file.PutLine(opt.GetBestStateVariableValue("dv23").ToString());
-		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
-		file.Close();
+	opt.Reset(1);
+	opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
+	opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
+	opt.AddStateVariable("days", timeBoundsDays.Mean, timeBoundsDays[0], timeBoundsDays[1]);
+	opt.AddConstraint("A",    kepState[0], kepState[0], 100);
+	opt.AddConstraint("E",    kepState[1], kepState[1]);
+	opt.AddConstraint("I",    kepState[2], kepState[2], 100, 360);
+	
+	addLongitudeConstraint = longitude != -999;
+	If (addLongitudeConstraint);
+		opt.AddConstraint("lon",   longitude, longitude, 100, 360);
+	Else;
+		opt.AddConstraint("RAAN", kepState[3], kepState[3], 100, 360);
+		opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
 	End;
 	
-	Call OpenForRead("SavedValues/" + solutionFileLabel + ".txt");
-	dv1[0] = file.GetLine().ToVariable();
-	dv1[1] = file.GetLine().ToVariable();
-	dv1[2] = file.GetLine().ToVariable();
-	dv2[0] = file.GetLine().ToVariable();
-	dv2[1] = file.GetLine().ToVariable();
-	dv2[2] = file.GetLine().ToVariable();
-	interBurnTime = TimeSpan.FromDays(file.GetLine().ToVariable());
-	file.Close();
+	opt.SaveObjectToProcess(sc);
+	opt.MaximumNominalEvaluationCount = 1000;
+	opt.LoadEngine();
+	While (opt.IsRunning());
+		opt.UpdateStateVariables();
+		opt.RestoreObjectsInProcess();
+		
+		burn.BurnDirection = opt.GetStateVariableValues[0:2];
+		totalDV = burn.BurnDirection.Norm;
+		sc.Maneuver(burn);
+		
+		futureEpoch = sc.Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+		WhileStepping sc to (sc.Epoch == futureEpoch);
+		End;
+		
+		burn.BurnDirection = opt.GetStateVariableValues[3:5];
+		totalDV += burn.BurnDirection.Norm;
+		sc.Maneuver(burn);
+		
+		opt.SetConstraintValue("A", sc.A);
+		opt.SetConstraintValue("E", sc.E);
+		opt.SetConstraintValue("I", sc.I);
+
+		If (addLongitudeConstraint);
+			opt.SetConstraintValue("lon", sc.Longitude);
+		Else;
+			opt.SetConstraintValue("RAAN", sc.RAAN);
+			opt.SetConstraintValue("W", sc.W);
+		End;
+								 
+		opt.Minimize(totalDV);
+		
+		If (opt.OptimizationPhase == 1);
+			Report opt.NominalEvaluationCount, "   ",
+			opt.ObjectiveFunctionValue, "   ",
+			opt.MaximumInfeasibility, "   ",
+			opt.MaximumInfeasibilitySource to Console;
+		End;
+		
+	End;
+	
+	Report opt.ReturnString to Console;
+	opt.RestoreObjectsInProcess();
+		
+	
+	dv1[0] = opt.GetBestStateVariableValue("dv11");
+	dv1[1] = opt.GetBestStateVariableValue("dv12");
+	dv1[2] = opt.GetBestStateVariableValue("dv13");
+	dv2[0] = opt.GetBestStateVariableValue("dv21");
+	dv2[1] = opt.GetBestStateVariableValue("dv22");
+	dv2[2] = opt.GetBestStateVariableValue("dv23");
+	interBurnTime = TimeSpan.FromDays(opt.GetBestStateVariableValue("days"));
 EndProcedure;
 
 Define Procedure AdvanceSimToTargetedNewOrbit(Spacecraft sc, Array dv1, Array dv2, TimeSpan interBurnTime, Formation red, Formation blue);
@@ -1585,21 +1646,30 @@ Define Procedure AdvanceSimToTargetedNewOrbit(Spacecraft sc, Array dv1, Array dv
 EndProcedure;
 
 
-Define Procedure TargetNewOrbitAndAdvanceSim(
+Define Procedure TargetNewBlueOrbitAndAddBurnsToQueue(
 		Spacecraft sc,
 		Array kepState,
 		Variable longitude,
 		Array timeBoundsDays,
-		Variable doOptimization,
-		String solutionFileLabel,
-		Formation red,
-		Formation blue);
+		Variable formationIndex,
+		List<QueuedBurn> burnQueue);
 	
 	Array dv1(3);
 	Array dv2(3);
 	TimeSpan interBurnTime;
-	Call TargetNewOrbit(sc, kepState, longitude, timeBoundsDays, doOptimization, solutionFileLabel, dv1, dv2, interBurnTime);
-	Call AdvanceSimToTargetedNewOrbit(sc, dv1, dv2, interBurnTime, red, blue);
+	Call TargetNewOrbit(sc, kepState, longitude, timeBoundsDays, dv1, dv2, interBurnTime);
+	Alias newBurn = burnQueue[burnQueue.Count - 1];
+	
+	burnQueue.Count += 1;
+	newBurn.epoch = simEpoch;
+	newBurn.burnRIC = dv1;
+	newBurn.formationIndex = formationIndex;
+	
+	burnQueue.Count += 1;
+	newBurn.epoch = simEpoch + interBurnTime;
+	newBurn.burnRIC = dv2;
+	newBurn.formationIndex = formationIndex;
+	
 EndProcedure;
 
 
@@ -1729,7 +1799,7 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 	If (userChoice == choice_slew);
 		initialBluePayloadOrientationAngle = blue[0].EulerAngles[0];
 		blueSlewStartEpoch = simEpoch;
-		blueSlewCompletionEpoch = simEpoch + TimeSpan.FromHours(10);
+		blueSlewCompletionEpoch = simEpoch + slewTime;
 		Call ComputeDesiredSlewAngle(red, blue, desiredBluePayloadOrientationAngle);
 	End;
 	
@@ -1757,12 +1827,13 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 	If (userChoice == choice_evasive);
 		blueOperationsScore -= 8;
 		
-		Call AdvanceSimUplinkPeriod(red, blue);
-		Call TargetNewOrbitAndAdvanceSim(
-			blue[0], initialKepStateBlue1,
-			blue[0].Longitude + 0.3, {0.1, 0.5},
-			doOptimizationAndSaveValues,
-			"BlueSatEvasiveManeuver_" + numberOfBlueEvasiveManeuvers.ToString(), red, blue);
+		Call TargetNewBlueOrbitAndAddBurnsToQueue(
+			blue[0],
+			initialKepStateBlue1,
+			blue[0].Longitude + 0.3,
+			{0.1, 0.5},
+			0,
+			blueBurnQueue);
 		
 		numberOfBlueEvasiveManeuvers += 1;
 	End;
@@ -1771,15 +1842,21 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 		If (numberOfBlueEvasiveManeuvers > 0);
 			blueOperationsScore -= 8;
 			
-			Call AdvanceSimUplinkPeriod(red, blue);
-			Call TargetNewOrbitAndAdvanceSim(
-				blue[0], initialKepStateBlue1,
-				initialLongitudeBlue1, {0.1, 1},
-				doOptimizationAndSaveValues,
-				"BlueSatReturnToSlot_" + numberOfBlueEvasiveManeuvers.ToString(),
-				red, blue);
+			Call TargetNewBlueOrbitAndAddBurnsToQueue(
+				blue[0],
+				initialKepStateBlue1,
+				initialLongitudeBlue1,
+				{0.1, 1},
+				0,
+				blueBurnQueue);
 			numberOfBlueEvasiveManeuvers = 0;
 		End;
+		
+		initialBluePayloadOrientationAngle = blue[0].EulerAngles[0];
+		desiredBluePayloadOrientationAngle = nominalBluePayloadOrientationAngle;
+		blueSlewStartEpoch = simEpoch;
+		blueSlewCompletionEpoch = simEpoch + slewTime;
+		
 		blueIsOffNominal = 0;
 	End;
 EndProcedure;
@@ -1799,7 +1876,7 @@ Define Procedure AdvanceSimUntilBlueIsNominal(Formation red, Formation blue);
 	End;
 EndProcedure;]]></FreeFormScript>
       </FreeForm>
-      <FreeForm enabled="true">
+      <FreeForm enabled="false">
         <Label>Game Scripts</Label>
         <Bookmarks />
         <Breakpoints />
@@ -2749,69 +2826,6 @@ End;]]></FreeFormScript>
         <Bookmarks />
         <Breakpoints />
         <FreeFormScript><![CDATA[
-Variable redHasNotDisengaged = 1;
-
-Global Constant Variable queueType_none  = 0;
-Global Constant Variable queueType_blueBurn  = 1;
-Global Constant Variable queueType_redBurn  = 2;
-
-Struct QueuedAction;
-	TimeSpan epoch;
-End;
-
-
-
-Global Constant Variable redActionType_none          = 0;
-Global Constant Variable redActionType_toggleJamming  = 1;
-
-Struct QueuedRedAction extends QueuedAction;
-	Variable actionType;
-End;
-
-Struct QueuedBurn extends QueuedAction;
-	Array burnRIC;
-	Variable formationIndex;
-	Variable additionalAction;
-End;
-
-Global List<QueuedBurn> blueBurnQueue;
-Global List<QueuedBurn> redBurnQueue;
-
-TimeSpan simChoiceSpacing = TimeSpan.FromHours(4);
-TimeSpan nextChoiceEpoch;
-	
-Global Variable redIsEngaged = 1;
-
-Define Procedure GetNextQueuedActionSource(Variable source);
-	source = queueType_none;
-	If (blueBurnQueue.Count != 0);
-		source = queueType_blueBurn;
-	ElseIf (redBurnQueue.Count != 0);
-		source = queueType_redBurn;
-	End;
-	
-	If (blueBurnQueue.Count != 0 and redBurnQueue.Count != 0);
-		If (redBurnQueue[0].epoch < blueBurnQueue[0].epoch);
-			source = queueType_redBurn;
-		End;
-	End;
-EndProcedure;
-
-
-Define Procedure PopNextQueuedAction(QueuedBurn nextAction);
-	Variable nextQueuedActionSource;
-	Call GetNextQueuedActionSource(nextQueuedActionSource);
-	If (nextQueuedActionSource == queueType_none);
-		nextAction.epoch = simEpoch + TimeSpan.FromDays(1e3);
-	ElseIf (nextQueuedActionSource == queueType_blueBurn);
-		nextAction = blueBurnQueue[0];
-		blueBurnQueue.RemoveAt(0);
-	ElseIf (nextQueuedActionSource == queueType_redBurn);
-		nextAction = redBurnQueue[0];
-		redBurnQueue.RemoveAt(0);
-	End;
-EndProcedure;
-
 
 QueuedBurn nextQueuedAction;
 Variable nextQueuedActionIsBeforeNextChoiceEpoch;
@@ -2839,6 +2853,7 @@ userChoice = 3;
 simStepSizeSeconds = 1500;
 
 Global Constant Variable autoChooseNominalOperation = 0;
+Console.Show();
 
 
 Global TimeSpan simStepSize = TimeSpan.FromSeconds(simStepSizeSeconds);
@@ -3220,8 +3235,74 @@ Global TimeSpan blueSlewCompletionEpoch = simStartEpoch - TimeSpan.FromDays(1);
 Global TimeSpan blueSlewStartEpoch;
 Global Variable desiredBluePayloadOrientationAngle;
 Global Variable initialBluePayloadOrientationAngle;
+Global TimeSpan slewTime = TimeSpan.FromHours(3);
 
 Global Constant Variable nominalBluePayloadOrientationAngle = blue[0].EulerAngles[0];
+
+
+
+Variable redHasNotDisengaged = 1;
+
+Global Constant Variable queueType_none  = 0;
+Global Constant Variable queueType_blueBurn  = 1;
+Global Constant Variable queueType_redBurn  = 2;
+
+Struct QueuedAction;
+	TimeSpan epoch;
+End;
+
+
+
+Global Constant Variable redActionType_none          = 0;
+Global Constant Variable redActionType_toggleJamming  = 1;
+
+Struct QueuedRedAction extends QueuedAction;
+	Variable actionType;
+End;
+
+Struct QueuedBurn extends QueuedAction;
+	Array burnRIC;
+	Variable formationIndex;
+	Variable additionalAction;
+End;
+
+Global List<QueuedBurn> blueBurnQueue;
+Global List<QueuedBurn> redBurnQueue;
+
+TimeSpan simChoiceSpacing = TimeSpan.FromHours(4);
+TimeSpan nextChoiceEpoch;
+	
+Global Variable redIsEngaged = 1;
+
+Define Procedure GetNextQueuedActionSource(Variable source);
+	source = queueType_none;
+	If (blueBurnQueue.Count != 0);
+		source = queueType_blueBurn;
+	ElseIf (redBurnQueue.Count != 0);
+		source = queueType_redBurn;
+	End;
+	
+	If (blueBurnQueue.Count != 0 and redBurnQueue.Count != 0);
+		If (redBurnQueue[0].epoch < blueBurnQueue[0].epoch);
+			source = queueType_redBurn;
+		End;
+	End;
+EndProcedure;
+
+
+Define Procedure PopNextQueuedAction(QueuedBurn nextAction);
+	Variable nextQueuedActionSource;
+	Call GetNextQueuedActionSource(nextQueuedActionSource);
+	If (nextQueuedActionSource == queueType_none);
+		nextAction.epoch = simEpoch + TimeSpan.FromDays(1e3);
+	ElseIf (nextQueuedActionSource == queueType_blueBurn);
+		nextAction = blueBurnQueue[0];
+		blueBurnQueue.RemoveAt(0);
+	ElseIf (nextQueuedActionSource == queueType_redBurn);
+		nextAction = redBurnQueue[0];
+		redBurnQueue.RemoveAt(0);
+	End;
+EndProcedure;
 
 Define Procedure InitializePlotPredictSeries(PlotScatterSeries series, String label, Variable color);
 	series.Label = label;
@@ -4065,8 +4146,6 @@ Define Procedure TargetNewOrbit(
 		Array kepState,
 		Variable longitude,
 		Array timeBoundsDays,
-		Variable doOptimization,
-		String solutionFileLabel,
 		Array dv1,
 		Array dv2,
 		TimeSpan interBurnTime);
@@ -4075,83 +4154,74 @@ Define Procedure TargetNewOrbit(
 	Variable addLongitudeConstraint;
 	Optimizer opt;
 	
-	If (doOptimization);
-		opt.Reset(1);
-		opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
-		opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
-		opt.AddStateVariable("days", timeBoundsDays.Mean, timeBoundsDays[0], timeBoundsDays[1]);
-		opt.AddConstraint("A",    kepState[0], kepState[0], 100);
-		opt.AddConstraint("E",    kepState[1], kepState[1]);
-		opt.AddConstraint("I",    kepState[2], kepState[2], 100, 360);
-		
-		addLongitudeConstraint = longitude != -999;
-		If (addLongitudeConstraint);
-			opt.AddConstraint("lon",   longitude, longitude, 100, 360);
-		Else;
-			opt.AddConstraint("RAAN", kepState[3], kepState[3], 100, 360);
-			opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
-		End;
-		
-		opt.SaveObjectToProcess(sc);
-		opt.MaximumNominalEvaluationCount = 1000;
-		opt.LoadEngine();
-		While (opt.IsRunning());
-			opt.UpdateStateVariables();
-			opt.RestoreObjectsInProcess();
-			
-			burn.BurnDirection = opt.GetStateVariableValues[0:2];
-			totalDV = burn.BurnDirection.Norm;
-			sc.Maneuver(burn);
-			
-			futureEpoch = sc.Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
-			WhileStepping sc to (sc.Epoch == futureEpoch);
-			End;
-			
-			burn.BurnDirection = opt.GetStateVariableValues[3:5];
-			totalDV += burn.BurnDirection.Norm;
-			sc.Maneuver(burn);
-			
-			opt.SetConstraintValue("A", sc.A);
-			opt.SetConstraintValue("E", sc.E);
-			opt.SetConstraintValue("I", sc.I);
-
-			If (addLongitudeConstraint);
-				opt.SetConstraintValue("lon", sc.Longitude);
-			Else;
-				opt.SetConstraintValue("RAAN", sc.RAAN);
-				opt.SetConstraintValue("W", sc.W);
-			End;
-									 
-			opt.Minimize(totalDV);
-			
-			If (opt.OptimizationPhase == 1);
-				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
-			End;
-		End;
-		
-		Report opt.ReturnString;
-		opt.RestoreObjectsInProcess();
-		
-		Call OpenForWrite("SavedValues/" + solutionFileLabel + ".txt");
-		file.PutLine(opt.GetBestStateVariableValue("dv11").ToString());
-		file.PutLine(opt.GetBestStateVariableValue("dv12").ToString());
-		file.PutLine(opt.GetBestStateVariableValue("dv13").ToString());
-		file.PutLine(opt.GetBestStateVariableValue("dv21").ToString());
-		file.PutLine(opt.GetBestStateVariableValue("dv22").ToString());
-		file.PutLine(opt.GetBestStateVariableValue("dv23").ToString());
-		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
-		file.Close();
+	opt.Reset(1);
+	opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
+	opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
+	opt.AddStateVariable("days", timeBoundsDays.Mean, timeBoundsDays[0], timeBoundsDays[1]);
+	opt.AddConstraint("A",    kepState[0], kepState[0], 100);
+	opt.AddConstraint("E",    kepState[1], kepState[1]);
+	opt.AddConstraint("I",    kepState[2], kepState[2], 100, 360);
+	
+	addLongitudeConstraint = longitude != -999;
+	If (addLongitudeConstraint);
+		opt.AddConstraint("lon",   longitude, longitude, 100, 360);
+	Else;
+		opt.AddConstraint("RAAN", kepState[3], kepState[3], 100, 360);
+		opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
 	End;
 	
-	Call OpenForRead("SavedValues/" + solutionFileLabel + ".txt");
-	dv1[0] = file.GetLine().ToVariable();
-	dv1[1] = file.GetLine().ToVariable();
-	dv1[2] = file.GetLine().ToVariable();
-	dv2[0] = file.GetLine().ToVariable();
-	dv2[1] = file.GetLine().ToVariable();
-	dv2[2] = file.GetLine().ToVariable();
-	interBurnTime = TimeSpan.FromDays(file.GetLine().ToVariable());
-	file.Close();
+	opt.SaveObjectToProcess(sc);
+	opt.MaximumNominalEvaluationCount = 1000;
+	opt.LoadEngine();
+	While (opt.IsRunning());
+		opt.UpdateStateVariables();
+		opt.RestoreObjectsInProcess();
+		
+		burn.BurnDirection = opt.GetStateVariableValues[0:2];
+		totalDV = burn.BurnDirection.Norm;
+		sc.Maneuver(burn);
+		
+		futureEpoch = sc.Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+		WhileStepping sc to (sc.Epoch == futureEpoch);
+		End;
+		
+		burn.BurnDirection = opt.GetStateVariableValues[3:5];
+		totalDV += burn.BurnDirection.Norm;
+		sc.Maneuver(burn);
+		
+		opt.SetConstraintValue("A", sc.A);
+		opt.SetConstraintValue("E", sc.E);
+		opt.SetConstraintValue("I", sc.I);
+
+		If (addLongitudeConstraint);
+			opt.SetConstraintValue("lon", sc.Longitude);
+		Else;
+			opt.SetConstraintValue("RAAN", sc.RAAN);
+			opt.SetConstraintValue("W", sc.W);
+		End;
+								 
+		opt.Minimize(totalDV);
+		
+		If (opt.OptimizationPhase == 1);
+			Report opt.NominalEvaluationCount, "   ",
+			opt.ObjectiveFunctionValue, "   ",
+			opt.MaximumInfeasibility, "   ",
+			opt.MaximumInfeasibilitySource to Console;
+		End;
+		
+	End;
+	
+	Report opt.ReturnString to Console;
+	opt.RestoreObjectsInProcess();
+		
+	
+	dv1[0] = opt.GetBestStateVariableValue("dv11");
+	dv1[1] = opt.GetBestStateVariableValue("dv12");
+	dv1[2] = opt.GetBestStateVariableValue("dv13");
+	dv2[0] = opt.GetBestStateVariableValue("dv21");
+	dv2[1] = opt.GetBestStateVariableValue("dv22");
+	dv2[2] = opt.GetBestStateVariableValue("dv23");
+	interBurnTime = TimeSpan.FromDays(opt.GetBestStateVariableValue("days"));
 EndProcedure;
 
 Define Procedure AdvanceSimToTargetedNewOrbit(Spacecraft sc, Array dv1, Array dv2, TimeSpan interBurnTime, Formation red, Formation blue);
@@ -4163,21 +4233,30 @@ Define Procedure AdvanceSimToTargetedNewOrbit(Spacecraft sc, Array dv1, Array dv
 EndProcedure;
 
 
-Define Procedure TargetNewOrbitAndAdvanceSim(
+Define Procedure TargetNewBlueOrbitAndAddBurnsToQueue(
 		Spacecraft sc,
 		Array kepState,
 		Variable longitude,
 		Array timeBoundsDays,
-		Variable doOptimization,
-		String solutionFileLabel,
-		Formation red,
-		Formation blue);
+		Variable formationIndex,
+		List<QueuedBurn> burnQueue);
 	
 	Array dv1(3);
 	Array dv2(3);
 	TimeSpan interBurnTime;
-	Call TargetNewOrbit(sc, kepState, longitude, timeBoundsDays, doOptimization, solutionFileLabel, dv1, dv2, interBurnTime);
-	Call AdvanceSimToTargetedNewOrbit(sc, dv1, dv2, interBurnTime, red, blue);
+	Call TargetNewOrbit(sc, kepState, longitude, timeBoundsDays, dv1, dv2, interBurnTime);
+	Alias newBurn = burnQueue[burnQueue.Count - 1];
+	
+	burnQueue.Count += 1;
+	newBurn.epoch = simEpoch;
+	newBurn.burnRIC = dv1;
+	newBurn.formationIndex = formationIndex;
+	
+	burnQueue.Count += 1;
+	newBurn.epoch = simEpoch + interBurnTime;
+	newBurn.burnRIC = dv2;
+	newBurn.formationIndex = formationIndex;
+	
 EndProcedure;
 
 
@@ -4302,7 +4381,7 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 	If (userChoice == choice_slew);
 		initialBluePayloadOrientationAngle = blue[0].EulerAngles[0];
 		blueSlewStartEpoch = simEpoch;
-		blueSlewCompletionEpoch = simEpoch + TimeSpan.FromHours(10);
+		blueSlewCompletionEpoch = simEpoch + slewTime;
 		Call ComputeDesiredSlewAngle(red, blue, desiredBluePayloadOrientationAngle);
 	End;
 	
@@ -4330,12 +4409,13 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 	If (userChoice == choice_evasive);
 		blueOperationsScore -= 8;
 		
-		Call AdvanceSimUplinkPeriod(red, blue);
-		Call TargetNewOrbitAndAdvanceSim(
-			blue[0], initialKepStateBlue1,
-			blue[0].Longitude + 0.3, {0.1, 0.5},
-			doOptimizationAndSaveValues,
-			"BlueSatEvasiveManeuver_" + numberOfBlueEvasiveManeuvers.ToString(), red, blue);
+		Call TargetNewBlueOrbitAndAddBurnsToQueue(
+			blue[0],
+			initialKepStateBlue1,
+			blue[0].Longitude + 0.3,
+			{0.1, 0.5},
+			0,
+			blueBurnQueue);
 		
 		numberOfBlueEvasiveManeuvers += 1;
 	End;
@@ -4344,15 +4424,21 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 		If (numberOfBlueEvasiveManeuvers > 0);
 			blueOperationsScore -= 8;
 			
-			Call AdvanceSimUplinkPeriod(red, blue);
-			Call TargetNewOrbitAndAdvanceSim(
-				blue[0], initialKepStateBlue1,
-				initialLongitudeBlue1, {0.1, 1},
-				doOptimizationAndSaveValues,
-				"BlueSatReturnToSlot_" + numberOfBlueEvasiveManeuvers.ToString(),
-				red, blue);
+			Call TargetNewBlueOrbitAndAddBurnsToQueue(
+				blue[0],
+				initialKepStateBlue1,
+				initialLongitudeBlue1,
+				{0.1, 1},
+				0,
+				blueBurnQueue);
 			numberOfBlueEvasiveManeuvers = 0;
 		End;
+		
+		initialBluePayloadOrientationAngle = blue[0].EulerAngles[0];
+		desiredBluePayloadOrientationAngle = nominalBluePayloadOrientationAngle;
+		blueSlewStartEpoch = simEpoch;
+		blueSlewCompletionEpoch = simEpoch + slewTime;
+		
 		blueIsOffNominal = 0;
 	End;
 EndProcedure;
@@ -4366,931 +4452,931 @@ Define Procedure AdvanceSimUntilBlueIsNominal(Formation red, Formation blue);
 		Call ShowOperatorActionsMenu(red, blue);
 	End;
 EndProcedure;
-
-Define Procedure DisplayModeScript(Formation red, Formation blue);
-	Optimizer opt;
-	TimeSpan initialEpoch;
-	
-	red[1].I += 0.1;
-	red[2].I += 0.1;
-	red[2].RAAN -= 30;
-	red[2].TA += 30;
-	
-	OutputLayout.BringWindowToFront(pwAngleFromPayload.ID);
-	OutputLayout.ApplyUpdates();
-	
-	pwRange.BeginBatchUpdate();
-	(pwRange.Series[0] AsType PlotScatterSeries).AddPoints(0, 0);
-	pwRange.Update();
-//	(pwRange.Series[0] AsType PlotScatterSeries).ClearPoints();
-	pwRange.EndBatchUpdate();
-	OutputLayout.BringWindowToFront(pwRange.ID);
-	
-	viewMain3D.CurrentViewpoint.ThreeDView.RightAscension = 268;
-	viewMain3D.CurrentViewpoint.ThreeDView.Declination = 7;
-	
-//Block PRESOLVED OPTIMIZATION
-	If (doOptimizationAndSaveValues);
-		Call ComputeStationKeepingManeuver(opt, blue[0], 279.25);
-		burn.BurnDirection = opt.GetBestStateVariableValues();
-		
-		Call OpenForWrite("SavedValues/BenignScript_Blue1SK1.txt");
-		file.PutLine(burn.BurnDirection[0].ToString());
-		file.PutLine(burn.BurnDirection[1].ToString());
-		file.PutLine(burn.BurnDirection[2].ToString());
-		file.Close();
-	End;
-//EndBlock PRESOLVED OPTIMIZATION
-
-	Call OpenForRead("SavedValues/BenignScript_Blue1SK1.txt");
-	burn.BurnDirection[0] = file.GetLine().ToVariable();
-	burn.BurnDirection[1] = file.GetLine().ToVariable();
-	burn.BurnDirection[2] = file.GetLine().ToVariable();
-	file.Close();
-	
-	blue[0].Maneuver(burn);
-	
-	red[0].SetKeplerianState(blue[0].GetKeplerianState());
-	red[0].E += 0.002;
-	red[0].I += 0.25;
-	red[0].TA += 0.1;
-	
-	blue[0].Save("IC");
-	red[0].Save("IC");
-	red[1].Save("IC");
-	red[2].Save("IC");
-	
-	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
-	While (1);
-		Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
-		
-		viewMain3D.ResetTails();
-		viewPayload.ResetTails();
-		viewUplink.ResetTails();
-		
-		angleFromPayloadR1.ClearPoints();
-		angleFromPayloadR2.ClearPoints();
-		angleFromPayloadR3.ClearPoints();
-		
-		rangeR1.ClearPoints();
-		rangeR2.ClearPoints();
-		rangeR3.ClearPoints();
-		
-		rangeAngleFromPayloadR1.ClearPoints();
-		rangeAngleFromPayloadR2.ClearPoints();
-		rangeAngleFromPayloadR3.ClearPoints();
-		
-		radiusLongitudeB1.ClearPoints();
-		radiusLongitudeR1.ClearPoints();
-		radiusLongitudeR2.ClearPoints();
-		radiusLongitudeR3.ClearPoints();
-		
-		blue[0].Restore("IC");
-		red[0].Restore("IC");
-		red[1].Restore("IC");
-		red[2].Restore("IC");
-	End;
-	
-EndProcedure;
-
-
-Define Procedure BenignScript(Formation red, Formation blue);
-	Optimizer opt;
-	TimeSpan initialEpoch;
-	Variable totalDV;
-	Variable dv2;
-	
-	
-	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
-	
-//Block PRESOLVED OPTIMIZATION
-	If (doOptimizationAndSaveValues);
-		Call ComputeStationKeepingManeuver(opt, blue[0], 279.25);
-		burn.BurnDirection = opt.GetBestStateVariableValues();
-		
-		Call OpenForWrite("SavedValues/BenignScript_Blue1SK1.txt");
-		file.PutLine(burn.BurnDirection[0].ToString());
-		file.PutLine(burn.BurnDirection[1].ToString());
-		file.PutLine(burn.BurnDirection[2].ToString());
-		file.Close();
-	End;
-//EndBlock PRESOLVED OPTIMIZATION
-
-	Call OpenForRead("SavedValues/BenignScript_Blue1SK1.txt");
-	burn.BurnDirection[0] = file.GetLine().ToVariable();
-	burn.BurnDirection[1] = file.GetLine().ToVariable();
-	burn.BurnDirection[2] = file.GetLine().ToVariable();
-	file.Close();
-	
-	blue[0].Maneuver(burn);
-	
-	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(2);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
-	
-	burn.AttitudeSystem = 1;
-	burn.BurnDirection[1] = 0;
-	burn.BurnDirection[2] = 0;
-	
-	//Block PRESOLVED OPTIMIZATION
-	If (doOptimizationAndSaveValues);
-		opt.Reset(1);
-		opt.AddStateVariable("dv1", -0.001, -0.01, 0);
-		opt.AddStateVariable("dv2", -0.001, -0.01, 0);
-		opt.AddStateVariable("days", 0.5, 0.1, 1);
-		opt.AddConstraint("A", 42100, 42100, 100);
-		opt.AddConstraint("E", 0, 0.0001);
-		
-		opt.SaveObjectToProcess(red[0]);
-		opt.LoadEngine();
-		While (opt.IsRunning());
-			opt.UpdateStateVariables();
-			opt.RestoreObjectsInProcess();
-			
-			burn.BurnDirection[0] = opt.GetStateVariableValue("dv1");
-			totalDV = abs(burn.BurnDirection[0]);
-			red[0].Maneuver(burn);
-			
-			futureEpoch = red[0].Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
-			WhileStepping red[0] to (red[0].Epoch == futureEpoch);
-			End;
-			
-			burn.BurnDirection[0] = opt.GetStateVariableValue("dv2");
-			totalDV += abs(burn.BurnDirection[0]);
-			red[0].Maneuver(burn);
-			
-			opt.SetConstraintValue("A", red[0].A);
-			opt.SetConstraintValue("E", red[0].E);
-									 
-			opt.Minimize(totalDV);
-			
-			If (opt.OptimizationPhase == 1);
-				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
-			End;
-		End;
-		
-		Report opt.ReturnString;
-		opt.RestoreObjectsInProcess();
-		
-		Call OpenForWrite("SavedValues/BenignScript_Red1Burn1and2.txt");
-		file.PutLine(opt.GetBestStateVariableValue("dv1").ToString());
-		file.PutLine(opt.GetBestStateVariableValue("dv2").ToString());
-		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
-		file.Close();
-	End;
-//EndBlock PRESOLVED OPTIMIZATION
-	
-	Call OpenForRead("SavedValues/BenignScript_Red1Burn1and2.txt");
-	burn.BurnDirection[0] = file.GetLine().ToVariable();
-	dv2 = file.GetLine().ToVariable();
-	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
-	file.Close();
-
-	red[0].Maneuver(burn);
-
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
-	
-	burn.BurnDirection[0] = dv2;
-	red[0].Maneuver(burn);
-	burn.AttitudeSystem = 6;
-	
-	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(4);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
-	
-EndProcedure;
-
-
-Define Procedure ObservationScript(Formation red, Formation blue);
-	
-	Array relativePos;
-	Array relativeVel;
-	Array desiredRelativePosLVC;
-	Variable relativeStateObjective;
-	Optimizer opt;
-	NloptOptions nlopt;
-	TimeSpan initialEpoch;
-	Variable maxDistance;
-	Variable minDistance;
-	Variable minAngle;
-	Variable distance;
-	Variable angle;
-	
-	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
-	
-//Block PRESOLVED OPTIMIZATION
-	If (doOptimizationAndSaveValues);
-		Call ComputeStationKeepingManeuver(opt, blue[0], 279.25);
-		burn.BurnDirection = opt.GetBestStateVariableValues();
-		
-		Call OpenForWrite("SavedValues/ObservationScript_Blue1SK1.txt");
-		file.PutLine(burn.BurnDirection[0].ToString());
-		file.PutLine(burn.BurnDirection[1].ToString());
-		file.PutLine(burn.BurnDirection[2].ToString());
-		file.Close();
-	End;
-//EndBlock PRESOLVED OPTIMIZATION
-
-	Call OpenForRead("SavedValues/ObservationScript_Blue1SK1.txt");
-	burn.BurnDirection[0] = file.GetLine().ToVariable();
-	burn.BurnDirection[1] = file.GetLine().ToVariable();
-	burn.BurnDirection[2] = file.GetLine().ToVariable();
-	file.Close();
-	
-	blue[0].Maneuver(burn);
-
-//Block PRESOLVED OPTIMIZATION
-	If (doOptimizationAndSaveValues);
-		desiredRelativePosLVC = {0, 0, 60};
-
-		opt.Reset(1);
-		opt.AddStateVariableBlock(3, "dv", 0.001, -0.01, 0.01);
-		opt.AddStateVariable("days", 7, 6.7, 7.3);
-		opt.AddConstraintBlock(3, "relativePos", 0, 0, 100);
-		opt.AddConstraint("crossTrackVel", 0, 0);
-		
-		opt.SaveObjectToProcess(red[0]);
-		opt.SaveObjectToProcess(blue[0]);
-		
-		opt.LoadEngine();
-		While (opt.IsRunning());
-			opt.UpdateStateVariables();
-			opt.RestoreObjectsInProcess();
-			burn.BurnDirection = opt.GetStateVariableValues()[0:2];
-			
-			red[0].Maneuver(burn);
-			
-			futureEpoch = blue[0].Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
-			WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
-				red[0].StepToEpoch(blue[0].Epoch);
-			End;
-			
-			relativePos = RelativeMotionUtilities.ConvertRelativePosition(0, 6, red[0], blue[0].Position - red[0].Position);
-			relativeVel = RelativeMotionUtilities.ConvertRelativeVelocity(0, 6, red[0], blue[0].GetCartesianState() - red[0].GetCartesianState());
-//			relativePos[2] = desiredRelativePosLVC[2]; // we don't care about cross track so zero it out
-			opt.SetConstraintValues({desiredRelativePosLVC - relativePos, relativeVel[2]});
-			
-			opt.Minimize(burn.BurnDirection.Norm);
-			
-			If (opt.OptimizationPhase == 1);
-				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
-			End;
-		End;
-		
-		Report opt.ReturnString;
-		opt.RestoreObjectsInProcess();
-		
-		burn.BurnDirection = opt.GetBestStateVariableValues()[0:2];
-		
-		Call OpenForWrite("SavedValues/ObservationScript_Red1Burn1.txt");
-		file.PutLine(burn.BurnDirection[0].ToString());
-		file.PutLine(burn.BurnDirection[1].ToString());
-		file.PutLine(burn.BurnDirection[2].ToString());
-		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
-		file.Close();
-	End;
-//EndBlock PRESOLVED OPTIMIZATION
-	
-	Call OpenForRead("SavedValues/ObservationScript_Red1Burn1.txt");
-	burn.BurnDirection[0] = file.GetLine().ToVariable();
-	burn.BurnDirection[1] = file.GetLine().ToVariable();
-	burn.BurnDirection[2] = file.GetLine().ToVariable();
-	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
-	file.Close();
-
-	red[0].Maneuver(burn);
-	
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
-	
-
-//Block PRESOLVED OPTIMIZATION
-	If (doOptimizationAndSaveValues);
-		desiredRelativePosLVC = RelativeMotionUtilities.ConvertRelativePosition(0, 6, red[0], blue[0].Position - red[0].Position);
-
-		opt.Reset(1);
-		opt.MaximumNominalEvaluationCount = 1800;
-		opt.AddStateVariableBlock(3, "dv", 0.001, -0.01, 0.01);
-		opt.AddConstraint("minAngle", -1e-20, 15);
-		opt.AddConstraint("minDistance", 50, 1e20);
-		opt.AddConstraint("maxDistance", -1e20, 80);
-		
-		opt.SaveObjectToProcess(red[0]);
-		opt.SaveObjectToProcess(blue[0]);
-		
-		nlopt.AlgorithmToUse = 38;
-		nlopt.SubsidiaryAlgorithmToUse = 40;
-		
-		opt.LoadEngine();
-		While (opt.IsRunning());
-			opt.UpdateStateVariables();
-			opt.RestoreObjectsInProcess();
-			burn.BurnDirection = opt.GetStateVariableValues();
-			
-			red[0].Maneuver(burn);
-			
-			futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-			Call ComputeRangeAndAngleFromPayload(blue[0], red[0], distance, angle);
-			minDistance = distance;
-			maxDistance = distance;
-			minAngle = angle;
-			WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
-				red[0].StepToEpoch(blue[0].Epoch);
-				Call ComputeRangeAndAngleFromPayload(blue[0], red[0], distance, angle);
-				If (distance < minDistance);
-					minDistance = distance;
-				End;
-				If (distance > maxDistance);
-					maxDistance = distance;
-				End;
-				If (angle < minAngle);
-					minAngle = angle;
-				End;
-			End;
-			
-			opt.SetConstraintValue("minAngle", minAngle);
-			opt.SetConstraintValue("minDistance", minDistance);
-			opt.SetConstraintValue("maxDistance", maxDistance);
-			
-			opt.Minimize(burn.BurnDirection.Norm * 1e0);
-						
-			If (opt.OptimizationPhase == 1);
-				Report opt.NominalEvaluationCount, burn.BurnDirection.Norm, minAngle, minDistance, maxDistance, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
-			End;
-		End;
-		
-		Report opt.ReturnString;
-		opt.RestoreObjectsInProcess();
-		
-		burn.BurnDirection = opt.GetBestStateVariableValues();
-		
-		Call OpenForWrite("SavedValues/ObservationScript_Red1Burn2.txt");
-		file.PutLine(burn.BurnDirection[0].ToString());
-		file.PutLine(burn.BurnDirection[1].ToString());
-		file.PutLine(burn.BurnDirection[2].ToString());
-		file.Close();
-	End;
-//EndBlock PRESOLVED OPTIMIZATION
-	
-	Call OpenForRead("SavedValues/ObservationScript_Red1Burn2.txt");
-	burn.BurnDirection[0] = file.GetLine().ToVariable();
-	burn.BurnDirection[1] = file.GetLine().ToVariable();
-	burn.BurnDirection[2] = file.GetLine().ToVariable();
-	file.Close();
-	
-	red[0].Maneuver(burn);
-	
-	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
-	
-	burn.BurnDirection = -{    0.000145506,       -0.000805460,       -0.000000254};
-	red[0].Maneuver(burn);
-	
-	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
-	
-EndProcedure;
-
-
-Define Procedure DisableScript(Formation red, Formation blue);
-	
-	Array relativePos;
-	Array desiredRelativePosLVC;
-	Optimizer opt;
-	Variable relativeStateObjective;
-	NloptOptions nlopt;
-	Array kepState;
-	Variable totalDV;
-	TimeSpan initialEpoch;
-	Array dv1(3);
-	Array dv2(3);
-	TimeSpan interBurnTime;
-	TimeSpan futureEpoch2;
-	
-	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
-	
-//Block PRESOLVED OPTIMIZATION
-	If (doOptimizationAndSaveValues);
-		Call ComputeStationKeepingManeuver(opt, blue[0], 279.25);
-		burn.BurnDirection = opt.GetBestStateVariableValues();
-		
-		Call OpenForWrite("SavedValues/DisableScript_Blue1SK1.txt");
-		file.PutLine(burn.BurnDirection[0].ToString());
-		file.PutLine(burn.BurnDirection[1].ToString());
-		file.PutLine(burn.BurnDirection[2].ToString());
-		file.Close();
-	End;
-//EndBlock PRESOLVED OPTIMIZATION
-
-	Call OpenForRead("SavedValues/DisableScript_Blue1SK1.txt");
-	burn.BurnDirection[0] = file.GetLine().ToVariable();
-	burn.BurnDirection[1] = file.GetLine().ToVariable();
-	burn.BurnDirection[2] = file.GetLine().ToVariable();
-	file.Close();
-	
-	blue[0].Maneuver(burn);
-	
-//Block PRESOLVED OPTIMIZATION
-	If (doOptimizationAndSaveValues);
-		desiredRelativePosLVC = {0, 4, 2};
-		
-		opt.Reset(1);
-		opt.AddStateVariableBlock(3, "dv", 0.001, -0.01, 0.01);
-		opt.AddConstraintBlock(3, "relativePos", 0, 0);
-		
-		opt.SaveObjectToProcess(red[0]);
-		opt.SaveObjectToProcess(blue[0]);
-		
-		opt.LoadEngine();
-		While (opt.IsRunning());
-			opt.UpdateStateVariables();
-			opt.RestoreObjectsInProcess();
-			burn.BurnDirection = opt.GetStateVariableValues();
-			
-			red[0].Maneuver(burn);
-			
-			futureEpoch = blue[0].Epoch + TimeSpan.FromDays(4);
-			WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
-				red[0].StepToEpoch(blue[0].Epoch);
-			End;
-			
-			relativePos = RelativeMotionUtilities.ConvertRelativePosition(0, 6, red[0], blue[0].Position - red[0].Position);
-			relativePos[2] = desiredRelativePosLVC[2]; // we don't care about cross track so zero it out
-			opt.SetConstraintValues(desiredRelativePosLVC - relativePos);
-			
-			opt.Minimize(burn.BurnDirection.Norm);
-			
-			If (opt.OptimizationPhase == 1);
-				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
-			End;
-		End;
-		
-		Report opt.ReturnString;
-		opt.RestoreObjectsInProcess();
-		
-		burn.BurnDirection = opt.GetBestStateVariableValues();
-		
-		Call OpenForWrite("SavedValues/DisableScript_Red1Burn1.txt");
-		file.PutLine(burn.BurnDirection[0].ToString());
-		file.PutLine(burn.BurnDirection[1].ToString());
-		file.PutLine(burn.BurnDirection[2].ToString());
-		file.Close();
-	End;
-//EndBlock PRESOLVED OPTIMIZATION
-
-	Call OpenForRead("SavedValues/DisableScript_Red1Burn1.txt");
-	burn.BurnDirection[0] = file.GetLine().ToVariable();
-	burn.BurnDirection[1] = file.GetLine().ToVariable();
-	burn.BurnDirection[2] = file.GetLine().ToVariable();
-	file.Close();
-
-	red[0].Maneuver(burn);
-	futureEpoch2 = blue[0].Epoch + TimeSpan.FromDays(4);
-	
-	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(10));
-	
-	Call ShowOperatorActionsMenu(red, blue);
-	If (userChoice == choice_evasive);
-		Call TargetNewOrbit(
-			red[0], initialKepStateRed1,
-			initialLongitudeRed1, {0.1, 5},
-			doOptimizationAndSaveValues,
-			"DisableScript_Red1ReturnToSlot1",
-			dv1, dv2, interBurnTime);
-		
-		Call AdvanceSimToTargetedNewOrbit(red[0], dv1, dv2, interBurnTime, red, blue);
-		
-		Call AdvanceSimUntilBlueIsNominal(red, blue);
-		ExitProcedure;
-	End;
-	
-	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(10));
-	
-	Call ShowOperatorActionsMenu(red, blue);
-	If (userChoice == choice_evasive);
-		// red pulls back
-	End;
-	
-	WhileStepping blue[0] to (blue[0].Longitude < red[1].Longitude);
-		Call PostBlueStepSubroutine(red, blue);
-	End;
-	
-	Variable i;
-	If (blueJammerState == 2);
-		For i = 0 to 2;
-			Call ShowOperatorActionsMenu(red, blue);
-			Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(10));
-		End;
-		
-		Call AdvanceSimUntilBlueIsNominal(red, blue);		
-		ExitProcedure;
-	End;
-	
-	kepState = blue[0].GetKeplerianState();
-	kepState[1] += 0.0012;
-	Call TargetNewOrbit(
-		red[1], kepState,
-		-999, {0.4, 0.6},
-		doOptimizationAndSaveValues,
-		"DisableScript_Red2Burn1and2",
-		dv1, dv2, interBurnTime);
-	
-	burn.BurnDirection = dv1;
-	futureEpoch = blue[0].Epoch + interBurnTime;
-		
-	Call SetRedJammerState(1, red);
-
-	Array kepStateRed2 = red[1].GetKeplerianState();
-	Array kepStateRed3 = red[2].GetKeplerianState();
-	
-	
-	red[1].Maneuver(burn);
-	burn.BurnDirection *= -1;
-	red[2].Maneuver(burn);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
-	
-	burn.BurnDirection = dv2;
-	red[1].Maneuver(burn);
-	burn.BurnDirection *= -1;
-	red[2].Maneuver(burn);
-	
-	
-	futureEpoch = futureEpoch2;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
-
-//Block PRESOLVED OPTIMIZATION
-	If (doOptimizationAndSaveValues);
-		desiredRelativePosLVC = RelativeMotionUtilities.ConvertRelativePosition(0, 6, red[0], blue[0].Position - red[0].Position);
-		
-		opt.Reset(1);
-		opt.MaximumNominalEvaluationCount = 800;
-		opt.AddStateVariableBlock(3, "dv", 0.001, -0.01, 0.01);
-		
-		opt.SaveObjectToProcess(red[0]);
-		opt.SaveObjectToProcess(blue[0]);
-		
-		nlopt.AlgorithmToUse = 38;
-		nlopt.SubsidiaryAlgorithmToUse = 40;
-		
-		opt.LoadEngine(nlopt);
-		While (opt.IsRunning());
-			opt.UpdateStateVariables();
-			opt.RestoreObjectsInProcess();
-			burn.BurnDirection = opt.GetStateVariableValues();
-			
-			red[0].Maneuver(burn);
-			
-			futureEpoch = blue[0].Epoch + TimeSpan.FromDays(0.5);
-			WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
-				red[0].StepToEpoch(blue[0].Epoch);
-			End;
-			
-			relativePos = RelativeMotionUtilities.ConvertRelativePosition(0, 6, red[0], blue[0].Position - red[0].Position);
-			relativeStateObjective = (-desiredRelativePosLVC - relativePos).Norm;
-			
-			futureEpoch = blue[0].Epoch + TimeSpan.FromDays(0.5);
-			WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
-				red[0].StepToEpoch(blue[0].Epoch);
-			End;
-			
-			relativePos = RelativeMotionUtilities.ConvertRelativePosition(0, 6, red[0], blue[0].Position - red[0].Position);
-			relativeStateObjective += (desiredRelativePosLVC - relativePos).Norm;
-			
-			opt.Minimize(burn.BurnDirection.Norm * 1e3 + relativeStateObjective*1e0);
-			
-			If (opt.OptimizationPhase == 1);
-				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
-			End;
-		End;
-		
-		Report opt.ReturnString;
-		opt.RestoreObjectsInProcess();
-		
-		burn.BurnDirection = opt.GetBestStateVariableValues();
-		
-		Call OpenForWrite("SavedValues/DisableScript_Red1Burn2.txt");
-		file.PutLine(burn.BurnDirection[0].ToString());
-		file.PutLine(burn.BurnDirection[1].ToString());
-		file.PutLine(burn.BurnDirection[2].ToString());
-		file.Close();
-	End;
-
-//EndBlock PRESOLVED OPTIMIZATION
-
-	Call OpenForRead("SavedValues/DisableScript_Red1Burn2.txt");
-	burn.BurnDirection[0] = file.GetLine().ToVariable();
-	burn.BurnDirection[1] = file.GetLine().ToVariable();
-	burn.BurnDirection[2] = file.GetLine().ToVariable();
-	file.Close();
-
-
-	red[0].Maneuver(burn);
-	
-	TimeSpan preDeployWaitTime = TimeSpan.FromDays(0.1);
-	TimeSpan rendezvousTime = TimeSpan.FromDays(0.3);
-	TimeSpan killOperationTime = TimeSpan.FromDays(0.2);
-	
-	futureEpoch = blue[0].Epoch + preDeployWaitTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
-	
-	// Deploy inspector from Red 1
-	red.Count += 1;
-	Alias deployableSat = red[red.Count - 1];
-	deployableSat.BodyScale = 200;
-	deployableSat.DisplayName = "Red" + red.Count.ToString();
-	deployableSat.Color = colorRed4;
-	deployableSat.TailLength = tailPoints/4;
-	viewMain3D.SetShowName(deployableSat.ObjectId, 1);
-	viewMain3D.SetObjectLabelFont(deployableSat.ObjectId, vf);
-	
-	deployableSat.Epoch = red[0].Epoch;
-	deployableSat.SetCartesianState(red[0].GetCartesianState());
-
-//Block PRESOLVED OPTIMIZATION
-	If (doOptimizationAndSaveValues);
-		desiredRelativePosLVC = {0, 0, 0};
-		
-		opt.Reset(1);
-		opt.AddStateVariableBlock(3, "dv", 0.001, -0.01, 0.01);
-		opt.AddConstraintBlock(3, "relativePos", 0, 0);
-		
-		opt.SaveObjectToProcess(deployableSat);
-		opt.SaveObjectToProcess(blue[0]);
-		
-		opt.LoadEngine();
-		While (opt.IsRunning());
-			opt.UpdateStateVariables();
-			opt.RestoreObjectsInProcess();
-			burn.BurnDirection = opt.GetStateVariableValues();
-			
-			deployableSat.Maneuver(burn);
-			
-			futureEpoch = blue[0].Epoch + rendezvousTime;
-			WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
-				deployableSat.StepToEpoch(blue[0].Epoch);
-			End;
-			
-			relativePos = RelativeMotionUtilities.ConvertRelativePosition(0, 6, deployableSat, blue[0].Position - deployableSat.Position);
-			opt.SetConstraintValues(desiredRelativePosLVC - relativePos);
-			
-			opt.Minimize(burn.BurnDirection.Norm);
-			
-			If (opt.OptimizationPhase == 1);
-				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
-			End;
-		End;
-		
-		Report opt.ReturnString;
-		opt.RestoreObjectsInProcess();
-		
-		burn.BurnDirection = opt.GetBestStateVariableValues();
-		Report burn.BurnDirection;
-		
-		Call OpenForWrite("SavedValues/DisableScript_Red1Burn3.txt");
-		file.PutLine(burn.BurnDirection[0].ToString());
-		file.PutLine(burn.BurnDirection[1].ToString());
-		file.PutLine(burn.BurnDirection[2].ToString());
-		file.Close();
-	End;
-//EndBlock PRESOLVED OPTIMIZATION
-	
-	Call OpenForRead("SavedValues/DisableScript_Red1Burn3.txt");
-	burn.BurnDirection[0] = file.GetLine().ToVariable();
-	burn.BurnDirection[1] = file.GetLine().ToVariable();
-	burn.BurnDirection[2] = file.GetLine().ToVariable();
-	file.Close();
-	
-	deployableSat.Maneuver(burn);
-	
-	futureEpoch = blue[0].Epoch + rendezvousTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
-	
-	deployableSat.SetCartesianState(blue[0].GetCartesianState());
-	
-	futureEpoch = blue[0].Epoch + killOperationTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
-	
-	// Inspector return to Red 1
-	
-//Block PRESOLVED OPTIMIZATION
-	If (doOptimizationAndSaveValues);
-		desiredRelativePosLVC = {0, 0, 0};
-		
-		opt.Reset(1);
-		opt.AddStateVariableBlock(3, "dv", 0.001, -0.01, 0.01);
-		opt.AddConstraintBlock(3, "relativePos", 0, 0);
-		
-		opt.SaveObjectToProcess(deployableSat);
-		opt.SaveObjectToProcess(red[0]);
-		
-		opt.LoadEngine();
-		While (opt.IsRunning());
-			opt.UpdateStateVariables();
-			opt.RestoreObjectsInProcess();
-			burn.BurnDirection = opt.GetStateVariableValues();
-			
-			deployableSat.Maneuver(burn);
-			
-			futureEpoch = red[0].Epoch + rendezvousTime;
-			WhileStepping red[0] to (red[0].Epoch == futureEpoch);
-				deployableSat.StepToEpoch(red[0].Epoch);
-			End;
-			
-			relativePos = RelativeMotionUtilities.ConvertRelativePosition(0, 6, deployableSat, red[0].Position - deployableSat.Position);
-			opt.SetConstraintValues(desiredRelativePosLVC - relativePos);
-			
-			opt.Minimize(burn.BurnDirection.Norm);
-			
-			If (opt.OptimizationPhase == 1);
-				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
-			End;
-		End;
-		
-		Report opt.ReturnString;
-		opt.RestoreObjectsInProcess();
-		
-		burn.BurnDirection = opt.GetBestStateVariableValues();
-		
-		Call OpenForWrite("SavedValues/DisableScript_Red1Burn4.txt");
-		file.PutLine(burn.BurnDirection[0].ToString());
-		file.PutLine(burn.BurnDirection[1].ToString());
-		file.PutLine(burn.BurnDirection[2].ToString());
-		file.Close();
-	End;
-//EndBlock PRESOLVED OPTIMIZATION
-	
-	Call OpenForRead("SavedValues/DisableScript_Red1Burn4.txt");
-	burn.BurnDirection[0] = file.GetLine().ToVariable();
-	burn.BurnDirection[1] = file.GetLine().ToVariable();
-	burn.BurnDirection[2] = file.GetLine().ToVariable();
-	file.Close();
-	
-	deployableSat.Maneuver(burn);
-	
-	futureEpoch = blue[0].Epoch + rendezvousTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
-	
-	red.Count -= 1;
-	
-	futureEpoch = blue[0].Epoch + preDeployWaitTime;
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
-	
-//Block PRESOLVED OPTIMIZATION
-	If (doOptimizationAndSaveValues);
-		
-		opt.Reset(1);
-		opt.AddStateVariableBlock(3, "dv1_", 0.001, -0.01, 0.01);
-		opt.AddStateVariableBlock(3, "dv2_", 0.001, -0.01, 0.01);
-		
-		opt.AddConstraint("A", 42164, 42164, 1e1);
-		opt.AddConstraint("E", 0, 1e-4);
-		opt.AddConstraint("I", 0, 2, 1);
-		opt.AddConstraint("lon", 277.2, 277.3, 1, 360);
-		
-		opt.SaveObjectToProcess(red[0]);
-		
-		opt.LoadEngine();
-		While (opt.IsRunning());
-			opt.UpdateStateVariables();
-			opt.RestoreObjectsInProcess();
-			
-			burn.BurnDirection[0] = opt.GetStateVariableValue("dv1_1");
-			burn.BurnDirection[1] = opt.GetStateVariableValue("dv1_2");
-			burn.BurnDirection[2] = opt.GetStateVariableValue("dv1_3");
-			red[0].Maneuver(burn);
-			totalDV = burn.BurnDirection.Norm;
-			
-			futureEpoch = red[0].Epoch + TimeSpan.FromDays(7);
-			WhileStepping red[0] to (red[0].Epoch == futureEpoch);
-			End;
-			
-			burn.BurnDirection[0] = opt.GetStateVariableValue("dv2_1");
-			burn.BurnDirection[1] = opt.GetStateVariableValue("dv2_2");
-			burn.BurnDirection[2] = opt.GetStateVariableValue("dv2_3");
-			red[0].Maneuver(burn);
-			totalDV += burn.BurnDirection.Norm;
-			
-			kepState = red[0].GetKeplerianState();
-			
-			opt.SetConstraintValue("A", red[0].A);
-			opt.SetConstraintValue("E", red[0].E);
-			opt.SetConstraintValue("I", red[0].I);
-			opt.SetConstraintValue("lon", red[0].Longitude);
-			
-			opt.Minimize(totalDV*1e-1);
-			
-			If (opt.OptimizationPhase == 1);
-				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
-			End;
-		End;
-		
-		Report opt.ReturnString;
-		opt.RestoreObjectsInProcess();
-		
-		burn.BurnDirection = opt.GetBestStateVariableValues()[0:2];
-		
-		Call OpenForWrite("SavedValues/DisableScript_Red1Burn5.txt");
-		file.PutLine(burn.BurnDirection[0].ToString());
-		file.PutLine(burn.BurnDirection[1].ToString());
-		file.PutLine(burn.BurnDirection[2].ToString());
-		file.Close();
-	End;
-//EndBlock PRESOLVED OPTIMIZATION
-	
-	Call OpenForRead("SavedValues/DisableScript_Red1Burn5.txt");
-	burn.BurnDirection[0] = file.GetLine().ToVariable();
-	burn.BurnDirection[1] = file.GetLine().ToVariable();
-	burn.BurnDirection[2] = file.GetLine().ToVariable();
-	file.Close();
-	
-	red[0].Maneuver(burn);
-	
-//Block PRESOLVED OPTIMIZATION
-	If (doOptimizationAndSaveValues);
-		opt.Reset(1);
-		opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
-		opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
-		opt.AddStateVariable("days", 0.5, 0.1, 1);
-		opt.AddConstraint("A",    kepStateRed2[0], kepStateRed2[0]);
-		opt.AddConstraint("E",    kepStateRed2[1], kepStateRed2[1]);
-		opt.AddConstraint("I",    kepStateRed2[2], kepStateRed2[2]);
-		opt.AddConstraint("RAAN", kepStateRed2[3], kepStateRed2[3]);
-		opt.AddConstraint("W",    kepStateRed2[4], kepStateRed2[4]);
-		
-		opt.SaveObjectToProcess(red[1]);
-		opt.LoadEngine();
-		While (opt.IsRunning());
-			opt.UpdateStateVariables();
-			opt.RestoreObjectsInProcess();
-			
-			burn.BurnDirection = opt.GetStateVariableValues[0:2];
-			totalDV = burn.BurnDirection.Norm;
-			red[1].Maneuver(burn);
-			
-			futureEpoch = red[1].Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
-			WhileStepping red[1] to (red[1].Epoch == futureEpoch);
-			End;
-			
-			burn.BurnDirection = opt.GetStateVariableValues[3:5];
-			totalDV += burn.BurnDirection.Norm;
-			red[1].Maneuver(burn);
-			
-			opt.SetConstraintValue("A", red[1].A);
-			opt.SetConstraintValue("E", red[1].E);
-			opt.SetConstraintValue("I", red[1].I);
-			opt.SetConstraintValue("RAAN", red[1].RAAN);
-			opt.SetConstraintValue("W", red[1].W);
-									 
-			opt.Minimize(totalDV);
-			
-			If (opt.OptimizationPhase == 1);
-				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
-			End;
-		End;
-		
-		Report opt.ReturnString;
-		opt.RestoreObjectsInProcess();
-		
-		Call OpenForWrite("SavedValues/DisableScript_Red2Burn3and4.txt");
-		file.PutLine(opt.GetBestStateVariableValue("dv11").ToString());
-		file.PutLine(opt.GetBestStateVariableValue("dv12").ToString());
-		file.PutLine(opt.GetBestStateVariableValue("dv13").ToString());
-		file.PutLine(opt.GetBestStateVariableValue("dv21").ToString());
-		file.PutLine(opt.GetBestStateVariableValue("dv22").ToString());
-		file.PutLine(opt.GetBestStateVariableValue("dv23").ToString());
-		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
-		file.Close();
-	End;
-//EndBlock PRESOLVED OPTIMIZATION
-	
-	Call OpenForRead("SavedValues/DisableScript_Red2Burn3and4.txt");
-	burn.BurnDirection[0] = file.GetLine().ToVariable();
-	burn.BurnDirection[1] = file.GetLine().ToVariable();
-	burn.BurnDirection[2] = file.GetLine().ToVariable();
-	dv2[0] = file.GetLine().ToVariable();
-	dv2[1] = file.GetLine().ToVariable();
-	dv2[2] = file.GetLine().ToVariable();
-	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
-	file.Close();
-	
-	Call SetRedJammerState(0, red);
-	
-	red[1].Maneuver(burn);
-	burn.BurnDirection *= -1;
-	red[2].Maneuver(burn);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
-	
-	burn.BurnDirection = dv2;
-	red[1].Maneuver(burn);
-	burn.BurnDirection *= -1;
-	red[2].Maneuver(burn);
-	
-	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
-	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
-	
-EndProcedure;
-
-
+// 
+// Define Procedure DisplayModeScript(Formation red, Formation blue);
+// 	Optimizer opt;
+// 	TimeSpan initialEpoch;
+// 	
+// 	red[1].I += 0.1;
+// 	red[2].I += 0.1;
+// 	red[2].RAAN -= 30;
+// 	red[2].TA += 30;
+// 	
+// 	OutputLayout.BringWindowToFront(pwAngleFromPayload.ID);
+// 	OutputLayout.ApplyUpdates();
+// 	
+// 	pwRange.BeginBatchUpdate();
+// 	(pwRange.Series[0] AsType PlotScatterSeries).AddPoints(0, 0);
+// 	pwRange.Update();
+// //	(pwRange.Series[0] AsType PlotScatterSeries).ClearPoints();
+// 	pwRange.EndBatchUpdate();
+// 	OutputLayout.BringWindowToFront(pwRange.ID);
+// 	
+// 	viewMain3D.CurrentViewpoint.ThreeDView.RightAscension = 268;
+// 	viewMain3D.CurrentViewpoint.ThreeDView.Declination = 7;
+// 	
+// //Block PRESOLVED OPTIMIZATION
+// 	If (doOptimizationAndSaveValues);
+// 		Call ComputeStationKeepingManeuver(opt, blue[0], 279.25);
+// 		burn.BurnDirection = opt.GetBestStateVariableValues();
+// 		
+// 		Call OpenForWrite("SavedValues/BenignScript_Blue1SK1.txt");
+// 		file.PutLine(burn.BurnDirection[0].ToString());
+// 		file.PutLine(burn.BurnDirection[1].ToString());
+// 		file.PutLine(burn.BurnDirection[2].ToString());
+// 		file.Close();
+// 	End;
+// //EndBlock PRESOLVED OPTIMIZATION
+// 
+// 	Call OpenForRead("SavedValues/BenignScript_Blue1SK1.txt");
+// 	burn.BurnDirection[0] = file.GetLine().ToVariable();
+// 	burn.BurnDirection[1] = file.GetLine().ToVariable();
+// 	burn.BurnDirection[2] = file.GetLine().ToVariable();
+// 	file.Close();
+// 	
+// 	blue[0].Maneuver(burn);
+// 	
+// 	red[0].SetKeplerianState(blue[0].GetKeplerianState());
+// 	red[0].E += 0.002;
+// 	red[0].I += 0.25;
+// 	red[0].TA += 0.1;
+// 	
+// 	blue[0].Save("IC");
+// 	red[0].Save("IC");
+// 	red[1].Save("IC");
+// 	red[2].Save("IC");
+// 	
+// 	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
+// 	While (1);
+// 		Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+// 		
+// 		viewMain3D.ResetTails();
+// 		viewPayload.ResetTails();
+// 		viewUplink.ResetTails();
+// 		
+// 		angleFromPayloadR1.ClearPoints();
+// 		angleFromPayloadR2.ClearPoints();
+// 		angleFromPayloadR3.ClearPoints();
+// 		
+// 		rangeR1.ClearPoints();
+// 		rangeR2.ClearPoints();
+// 		rangeR3.ClearPoints();
+// 		
+// 		rangeAngleFromPayloadR1.ClearPoints();
+// 		rangeAngleFromPayloadR2.ClearPoints();
+// 		rangeAngleFromPayloadR3.ClearPoints();
+// 		
+// 		radiusLongitudeB1.ClearPoints();
+// 		radiusLongitudeR1.ClearPoints();
+// 		radiusLongitudeR2.ClearPoints();
+// 		radiusLongitudeR3.ClearPoints();
+// 		
+// 		blue[0].Restore("IC");
+// 		red[0].Restore("IC");
+// 		red[1].Restore("IC");
+// 		red[2].Restore("IC");
+// 	End;
+// 	
+// EndProcedure;
+// 
+// 
+// Define Procedure BenignScript(Formation red, Formation blue);
+// 	Optimizer opt;
+// 	TimeSpan initialEpoch;
+// 	Variable totalDV;
+// 	Variable dv2;
+// 	
+// 	
+// 	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
+// 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+// 	
+// //Block PRESOLVED OPTIMIZATION
+// 	If (doOptimizationAndSaveValues);
+// 		Call ComputeStationKeepingManeuver(opt, blue[0], 279.25);
+// 		burn.BurnDirection = opt.GetBestStateVariableValues();
+// 		
+// 		Call OpenForWrite("SavedValues/BenignScript_Blue1SK1.txt");
+// 		file.PutLine(burn.BurnDirection[0].ToString());
+// 		file.PutLine(burn.BurnDirection[1].ToString());
+// 		file.PutLine(burn.BurnDirection[2].ToString());
+// 		file.Close();
+// 	End;
+// //EndBlock PRESOLVED OPTIMIZATION
+// 
+// 	Call OpenForRead("SavedValues/BenignScript_Blue1SK1.txt");
+// 	burn.BurnDirection[0] = file.GetLine().ToVariable();
+// 	burn.BurnDirection[1] = file.GetLine().ToVariable();
+// 	burn.BurnDirection[2] = file.GetLine().ToVariable();
+// 	file.Close();
+// 	
+// 	blue[0].Maneuver(burn);
+// 	
+// 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(2);
+// 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+// 	
+// 	burn.AttitudeSystem = 1;
+// 	burn.BurnDirection[1] = 0;
+// 	burn.BurnDirection[2] = 0;
+// 	
+// 	//Block PRESOLVED OPTIMIZATION
+// 	If (doOptimizationAndSaveValues);
+// 		opt.Reset(1);
+// 		opt.AddStateVariable("dv1", -0.001, -0.01, 0);
+// 		opt.AddStateVariable("dv2", -0.001, -0.01, 0);
+// 		opt.AddStateVariable("days", 0.5, 0.1, 1);
+// 		opt.AddConstraint("A", 42100, 42100, 100);
+// 		opt.AddConstraint("E", 0, 0.0001);
+// 		
+// 		opt.SaveObjectToProcess(red[0]);
+// 		opt.LoadEngine();
+// 		While (opt.IsRunning());
+// 			opt.UpdateStateVariables();
+// 			opt.RestoreObjectsInProcess();
+// 			
+// 			burn.BurnDirection[0] = opt.GetStateVariableValue("dv1");
+// 			totalDV = abs(burn.BurnDirection[0]);
+// 			red[0].Maneuver(burn);
+// 			
+// 			futureEpoch = red[0].Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+// 			WhileStepping red[0] to (red[0].Epoch == futureEpoch);
+// 			End;
+// 			
+// 			burn.BurnDirection[0] = opt.GetStateVariableValue("dv2");
+// 			totalDV += abs(burn.BurnDirection[0]);
+// 			red[0].Maneuver(burn);
+// 			
+// 			opt.SetConstraintValue("A", red[0].A);
+// 			opt.SetConstraintValue("E", red[0].E);
+// 									 
+// 			opt.Minimize(totalDV);
+// 			
+// 			If (opt.OptimizationPhase == 1);
+// 				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+// 			End;
+// 		End;
+// 		
+// 		Report opt.ReturnString;
+// 		opt.RestoreObjectsInProcess();
+// 		
+// 		Call OpenForWrite("SavedValues/BenignScript_Red1Burn1and2.txt");
+// 		file.PutLine(opt.GetBestStateVariableValue("dv1").ToString());
+// 		file.PutLine(opt.GetBestStateVariableValue("dv2").ToString());
+// 		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
+// 		file.Close();
+// 	End;
+// //EndBlock PRESOLVED OPTIMIZATION
+// 	
+// 	Call OpenForRead("SavedValues/BenignScript_Red1Burn1and2.txt");
+// 	burn.BurnDirection[0] = file.GetLine().ToVariable();
+// 	dv2 = file.GetLine().ToVariable();
+// 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
+// 	file.Close();
+// 
+// 	red[0].Maneuver(burn);
+// 
+// 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+// 	
+// 	burn.BurnDirection[0] = dv2;
+// 	red[0].Maneuver(burn);
+// 	burn.AttitudeSystem = 6;
+// 	
+// 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(4);
+// 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+// 	
+// EndProcedure;
+// 
+// 
+// Define Procedure ObservationScript(Formation red, Formation blue);
+// 	
+// 	Array relativePos;
+// 	Array relativeVel;
+// 	Array desiredRelativePosLVC;
+// 	Variable relativeStateObjective;
+// 	Optimizer opt;
+// 	NloptOptions nlopt;
+// 	TimeSpan initialEpoch;
+// 	Variable maxDistance;
+// 	Variable minDistance;
+// 	Variable minAngle;
+// 	Variable distance;
+// 	Variable angle;
+// 	
+// 	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
+// 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+// 	
+// //Block PRESOLVED OPTIMIZATION
+// 	If (doOptimizationAndSaveValues);
+// 		Call ComputeStationKeepingManeuver(opt, blue[0], 279.25);
+// 		burn.BurnDirection = opt.GetBestStateVariableValues();
+// 		
+// 		Call OpenForWrite("SavedValues/ObservationScript_Blue1SK1.txt");
+// 		file.PutLine(burn.BurnDirection[0].ToString());
+// 		file.PutLine(burn.BurnDirection[1].ToString());
+// 		file.PutLine(burn.BurnDirection[2].ToString());
+// 		file.Close();
+// 	End;
+// //EndBlock PRESOLVED OPTIMIZATION
+// 
+// 	Call OpenForRead("SavedValues/ObservationScript_Blue1SK1.txt");
+// 	burn.BurnDirection[0] = file.GetLine().ToVariable();
+// 	burn.BurnDirection[1] = file.GetLine().ToVariable();
+// 	burn.BurnDirection[2] = file.GetLine().ToVariable();
+// 	file.Close();
+// 	
+// 	blue[0].Maneuver(burn);
+// 
+// //Block PRESOLVED OPTIMIZATION
+// 	If (doOptimizationAndSaveValues);
+// 		desiredRelativePosLVC = {0, 0, 60};
+// 
+// 		opt.Reset(1);
+// 		opt.AddStateVariableBlock(3, "dv", 0.001, -0.01, 0.01);
+// 		opt.AddStateVariable("days", 7, 6.7, 7.3);
+// 		opt.AddConstraintBlock(3, "relativePos", 0, 0, 100);
+// 		opt.AddConstraint("crossTrackVel", 0, 0);
+// 		
+// 		opt.SaveObjectToProcess(red[0]);
+// 		opt.SaveObjectToProcess(blue[0]);
+// 		
+// 		opt.LoadEngine();
+// 		While (opt.IsRunning());
+// 			opt.UpdateStateVariables();
+// 			opt.RestoreObjectsInProcess();
+// 			burn.BurnDirection = opt.GetStateVariableValues()[0:2];
+// 			
+// 			red[0].Maneuver(burn);
+// 			
+// 			futureEpoch = blue[0].Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+// 			WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+// 				red[0].StepToEpoch(blue[0].Epoch);
+// 			End;
+// 			
+// 			relativePos = RelativeMotionUtilities.ConvertRelativePosition(0, 6, red[0], blue[0].Position - red[0].Position);
+// 			relativeVel = RelativeMotionUtilities.ConvertRelativeVelocity(0, 6, red[0], blue[0].GetCartesianState() - red[0].GetCartesianState());
+// //			relativePos[2] = desiredRelativePosLVC[2]; // we don't care about cross track so zero it out
+// 			opt.SetConstraintValues({desiredRelativePosLVC - relativePos, relativeVel[2]});
+// 			
+// 			opt.Minimize(burn.BurnDirection.Norm);
+// 			
+// 			If (opt.OptimizationPhase == 1);
+// 				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+// 			End;
+// 		End;
+// 		
+// 		Report opt.ReturnString;
+// 		opt.RestoreObjectsInProcess();
+// 		
+// 		burn.BurnDirection = opt.GetBestStateVariableValues()[0:2];
+// 		
+// 		Call OpenForWrite("SavedValues/ObservationScript_Red1Burn1.txt");
+// 		file.PutLine(burn.BurnDirection[0].ToString());
+// 		file.PutLine(burn.BurnDirection[1].ToString());
+// 		file.PutLine(burn.BurnDirection[2].ToString());
+// 		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
+// 		file.Close();
+// 	End;
+// //EndBlock PRESOLVED OPTIMIZATION
+// 	
+// 	Call OpenForRead("SavedValues/ObservationScript_Red1Burn1.txt");
+// 	burn.BurnDirection[0] = file.GetLine().ToVariable();
+// 	burn.BurnDirection[1] = file.GetLine().ToVariable();
+// 	burn.BurnDirection[2] = file.GetLine().ToVariable();
+// 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
+// 	file.Close();
+// 
+// 	red[0].Maneuver(burn);
+// 	
+// 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+// 	
+// 
+// //Block PRESOLVED OPTIMIZATION
+// 	If (doOptimizationAndSaveValues);
+// 		desiredRelativePosLVC = RelativeMotionUtilities.ConvertRelativePosition(0, 6, red[0], blue[0].Position - red[0].Position);
+// 
+// 		opt.Reset(1);
+// 		opt.MaximumNominalEvaluationCount = 1800;
+// 		opt.AddStateVariableBlock(3, "dv", 0.001, -0.01, 0.01);
+// 		opt.AddConstraint("minAngle", -1e-20, 15);
+// 		opt.AddConstraint("minDistance", 50, 1e20);
+// 		opt.AddConstraint("maxDistance", -1e20, 80);
+// 		
+// 		opt.SaveObjectToProcess(red[0]);
+// 		opt.SaveObjectToProcess(blue[0]);
+// 		
+// 		nlopt.AlgorithmToUse = 38;
+// 		nlopt.SubsidiaryAlgorithmToUse = 40;
+// 		
+// 		opt.LoadEngine();
+// 		While (opt.IsRunning());
+// 			opt.UpdateStateVariables();
+// 			opt.RestoreObjectsInProcess();
+// 			burn.BurnDirection = opt.GetStateVariableValues();
+// 			
+// 			red[0].Maneuver(burn);
+// 			
+// 			futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
+// 			Call ComputeRangeAndAngleFromPayload(blue[0], red[0], distance, angle);
+// 			minDistance = distance;
+// 			maxDistance = distance;
+// 			minAngle = angle;
+// 			WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+// 				red[0].StepToEpoch(blue[0].Epoch);
+// 				Call ComputeRangeAndAngleFromPayload(blue[0], red[0], distance, angle);
+// 				If (distance < minDistance);
+// 					minDistance = distance;
+// 				End;
+// 				If (distance > maxDistance);
+// 					maxDistance = distance;
+// 				End;
+// 				If (angle < minAngle);
+// 					minAngle = angle;
+// 				End;
+// 			End;
+// 			
+// 			opt.SetConstraintValue("minAngle", minAngle);
+// 			opt.SetConstraintValue("minDistance", minDistance);
+// 			opt.SetConstraintValue("maxDistance", maxDistance);
+// 			
+// 			opt.Minimize(burn.BurnDirection.Norm * 1e0);
+// 						
+// 			If (opt.OptimizationPhase == 1);
+// 				Report opt.NominalEvaluationCount, burn.BurnDirection.Norm, minAngle, minDistance, maxDistance, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+// 			End;
+// 		End;
+// 		
+// 		Report opt.ReturnString;
+// 		opt.RestoreObjectsInProcess();
+// 		
+// 		burn.BurnDirection = opt.GetBestStateVariableValues();
+// 		
+// 		Call OpenForWrite("SavedValues/ObservationScript_Red1Burn2.txt");
+// 		file.PutLine(burn.BurnDirection[0].ToString());
+// 		file.PutLine(burn.BurnDirection[1].ToString());
+// 		file.PutLine(burn.BurnDirection[2].ToString());
+// 		file.Close();
+// 	End;
+// //EndBlock PRESOLVED OPTIMIZATION
+// 	
+// 	Call OpenForRead("SavedValues/ObservationScript_Red1Burn2.txt");
+// 	burn.BurnDirection[0] = file.GetLine().ToVariable();
+// 	burn.BurnDirection[1] = file.GetLine().ToVariable();
+// 	burn.BurnDirection[2] = file.GetLine().ToVariable();
+// 	file.Close();
+// 	
+// 	red[0].Maneuver(burn);
+// 	
+// 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
+// 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+// 	
+// 	burn.BurnDirection = -{    0.000145506,       -0.000805460,       -0.000000254};
+// 	red[0].Maneuver(burn);
+// 	
+// 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
+// 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+// 	
+// EndProcedure;
+// 
+// 
+// Define Procedure DisableScript(Formation red, Formation blue);
+// 	
+// 	Array relativePos;
+// 	Array desiredRelativePosLVC;
+// 	Optimizer opt;
+// 	Variable relativeStateObjective;
+// 	NloptOptions nlopt;
+// 	Array kepState;
+// 	Variable totalDV;
+// 	TimeSpan initialEpoch;
+// 	Array dv1(3);
+// 	Array dv2(3);
+// 	TimeSpan interBurnTime;
+// 	TimeSpan futureEpoch2;
+// 	
+// 	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(1);
+// 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+// 	
+// //Block PRESOLVED OPTIMIZATION
+// 	If (doOptimizationAndSaveValues);
+// 		Call ComputeStationKeepingManeuver(opt, blue[0], 279.25);
+// 		burn.BurnDirection = opt.GetBestStateVariableValues();
+// 		
+// 		Call OpenForWrite("SavedValues/DisableScript_Blue1SK1.txt");
+// 		file.PutLine(burn.BurnDirection[0].ToString());
+// 		file.PutLine(burn.BurnDirection[1].ToString());
+// 		file.PutLine(burn.BurnDirection[2].ToString());
+// 		file.Close();
+// 	End;
+// //EndBlock PRESOLVED OPTIMIZATION
+// 
+// 	Call OpenForRead("SavedValues/DisableScript_Blue1SK1.txt");
+// 	burn.BurnDirection[0] = file.GetLine().ToVariable();
+// 	burn.BurnDirection[1] = file.GetLine().ToVariable();
+// 	burn.BurnDirection[2] = file.GetLine().ToVariable();
+// 	file.Close();
+// 	
+// 	blue[0].Maneuver(burn);
+// 	
+// //Block PRESOLVED OPTIMIZATION
+// 	If (doOptimizationAndSaveValues);
+// 		desiredRelativePosLVC = {0, 4, 2};
+// 		
+// 		opt.Reset(1);
+// 		opt.AddStateVariableBlock(3, "dv", 0.001, -0.01, 0.01);
+// 		opt.AddConstraintBlock(3, "relativePos", 0, 0);
+// 		
+// 		opt.SaveObjectToProcess(red[0]);
+// 		opt.SaveObjectToProcess(blue[0]);
+// 		
+// 		opt.LoadEngine();
+// 		While (opt.IsRunning());
+// 			opt.UpdateStateVariables();
+// 			opt.RestoreObjectsInProcess();
+// 			burn.BurnDirection = opt.GetStateVariableValues();
+// 			
+// 			red[0].Maneuver(burn);
+// 			
+// 			futureEpoch = blue[0].Epoch + TimeSpan.FromDays(4);
+// 			WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+// 				red[0].StepToEpoch(blue[0].Epoch);
+// 			End;
+// 			
+// 			relativePos = RelativeMotionUtilities.ConvertRelativePosition(0, 6, red[0], blue[0].Position - red[0].Position);
+// 			relativePos[2] = desiredRelativePosLVC[2]; // we don't care about cross track so zero it out
+// 			opt.SetConstraintValues(desiredRelativePosLVC - relativePos);
+// 			
+// 			opt.Minimize(burn.BurnDirection.Norm);
+// 			
+// 			If (opt.OptimizationPhase == 1);
+// 				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+// 			End;
+// 		End;
+// 		
+// 		Report opt.ReturnString;
+// 		opt.RestoreObjectsInProcess();
+// 		
+// 		burn.BurnDirection = opt.GetBestStateVariableValues();
+// 		
+// 		Call OpenForWrite("SavedValues/DisableScript_Red1Burn1.txt");
+// 		file.PutLine(burn.BurnDirection[0].ToString());
+// 		file.PutLine(burn.BurnDirection[1].ToString());
+// 		file.PutLine(burn.BurnDirection[2].ToString());
+// 		file.Close();
+// 	End;
+// //EndBlock PRESOLVED OPTIMIZATION
+// 
+// 	Call OpenForRead("SavedValues/DisableScript_Red1Burn1.txt");
+// 	burn.BurnDirection[0] = file.GetLine().ToVariable();
+// 	burn.BurnDirection[1] = file.GetLine().ToVariable();
+// 	burn.BurnDirection[2] = file.GetLine().ToVariable();
+// 	file.Close();
+// 
+// 	red[0].Maneuver(burn);
+// 	futureEpoch2 = blue[0].Epoch + TimeSpan.FromDays(4);
+// 	
+// 	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(10));
+// 	
+// 	Call ShowOperatorActionsMenu(red, blue);
+// 	If (userChoice == choice_evasive);
+// 		Call TargetNewOrbit(
+// 			red[0], initialKepStateRed1,
+// 			initialLongitudeRed1, {0.1, 5},
+// 			doOptimizationAndSaveValues,
+// 			"DisableScript_Red1ReturnToSlot1",
+// 			dv1, dv2, interBurnTime);
+// 		
+// 		Call AdvanceSimToTargetedNewOrbit(red[0], dv1, dv2, interBurnTime, red, blue);
+// 		
+// 		Call AdvanceSimUntilBlueIsNominal(red, blue);
+// 		ExitProcedure;
+// 	End;
+// 	
+// 	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(10));
+// 	
+// 	Call ShowOperatorActionsMenu(red, blue);
+// 	If (userChoice == choice_evasive);
+// 		// red pulls back
+// 	End;
+// 	
+// 	WhileStepping blue[0] to (blue[0].Longitude < red[1].Longitude);
+// 		Call PostBlueStepSubroutine(red, blue);
+// 	End;
+// 	
+// 	Variable i;
+// 	If (blueJammerState == 2);
+// 		For i = 0 to 2;
+// 			Call ShowOperatorActionsMenu(red, blue);
+// 			Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(10));
+// 		End;
+// 		
+// 		Call AdvanceSimUntilBlueIsNominal(red, blue);		
+// 		ExitProcedure;
+// 	End;
+// 	
+// 	kepState = blue[0].GetKeplerianState();
+// 	kepState[1] += 0.0012;
+// 	Call TargetNewOrbit(
+// 		red[1], kepState,
+// 		-999, {0.4, 0.6},
+// 		doOptimizationAndSaveValues,
+// 		"DisableScript_Red2Burn1and2",
+// 		dv1, dv2, interBurnTime);
+// 	
+// 	burn.BurnDirection = dv1;
+// 	futureEpoch = blue[0].Epoch + interBurnTime;
+// 		
+// 	Call SetRedJammerState(1, red);
+// 
+// 	Array kepStateRed2 = red[1].GetKeplerianState();
+// 	Array kepStateRed3 = red[2].GetKeplerianState();
+// 	
+// 	
+// 	red[1].Maneuver(burn);
+// 	burn.BurnDirection *= -1;
+// 	red[2].Maneuver(burn);
+// 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+// 	
+// 	burn.BurnDirection = dv2;
+// 	red[1].Maneuver(burn);
+// 	burn.BurnDirection *= -1;
+// 	red[2].Maneuver(burn);
+// 	
+// 	
+// 	futureEpoch = futureEpoch2;
+// 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+// 
+// //Block PRESOLVED OPTIMIZATION
+// 	If (doOptimizationAndSaveValues);
+// 		desiredRelativePosLVC = RelativeMotionUtilities.ConvertRelativePosition(0, 6, red[0], blue[0].Position - red[0].Position);
+// 		
+// 		opt.Reset(1);
+// 		opt.MaximumNominalEvaluationCount = 800;
+// 		opt.AddStateVariableBlock(3, "dv", 0.001, -0.01, 0.01);
+// 		
+// 		opt.SaveObjectToProcess(red[0]);
+// 		opt.SaveObjectToProcess(blue[0]);
+// 		
+// 		nlopt.AlgorithmToUse = 38;
+// 		nlopt.SubsidiaryAlgorithmToUse = 40;
+// 		
+// 		opt.LoadEngine(nlopt);
+// 		While (opt.IsRunning());
+// 			opt.UpdateStateVariables();
+// 			opt.RestoreObjectsInProcess();
+// 			burn.BurnDirection = opt.GetStateVariableValues();
+// 			
+// 			red[0].Maneuver(burn);
+// 			
+// 			futureEpoch = blue[0].Epoch + TimeSpan.FromDays(0.5);
+// 			WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+// 				red[0].StepToEpoch(blue[0].Epoch);
+// 			End;
+// 			
+// 			relativePos = RelativeMotionUtilities.ConvertRelativePosition(0, 6, red[0], blue[0].Position - red[0].Position);
+// 			relativeStateObjective = (-desiredRelativePosLVC - relativePos).Norm;
+// 			
+// 			futureEpoch = blue[0].Epoch + TimeSpan.FromDays(0.5);
+// 			WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+// 				red[0].StepToEpoch(blue[0].Epoch);
+// 			End;
+// 			
+// 			relativePos = RelativeMotionUtilities.ConvertRelativePosition(0, 6, red[0], blue[0].Position - red[0].Position);
+// 			relativeStateObjective += (desiredRelativePosLVC - relativePos).Norm;
+// 			
+// 			opt.Minimize(burn.BurnDirection.Norm * 1e3 + relativeStateObjective*1e0);
+// 			
+// 			If (opt.OptimizationPhase == 1);
+// 				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+// 			End;
+// 		End;
+// 		
+// 		Report opt.ReturnString;
+// 		opt.RestoreObjectsInProcess();
+// 		
+// 		burn.BurnDirection = opt.GetBestStateVariableValues();
+// 		
+// 		Call OpenForWrite("SavedValues/DisableScript_Red1Burn2.txt");
+// 		file.PutLine(burn.BurnDirection[0].ToString());
+// 		file.PutLine(burn.BurnDirection[1].ToString());
+// 		file.PutLine(burn.BurnDirection[2].ToString());
+// 		file.Close();
+// 	End;
+// 
+// //EndBlock PRESOLVED OPTIMIZATION
+// 
+// 	Call OpenForRead("SavedValues/DisableScript_Red1Burn2.txt");
+// 	burn.BurnDirection[0] = file.GetLine().ToVariable();
+// 	burn.BurnDirection[1] = file.GetLine().ToVariable();
+// 	burn.BurnDirection[2] = file.GetLine().ToVariable();
+// 	file.Close();
+// 
+// 
+// 	red[0].Maneuver(burn);
+// 	
+// 	TimeSpan preDeployWaitTime = TimeSpan.FromDays(0.1);
+// 	TimeSpan rendezvousTime = TimeSpan.FromDays(0.3);
+// 	TimeSpan killOperationTime = TimeSpan.FromDays(0.2);
+// 	
+// 	futureEpoch = blue[0].Epoch + preDeployWaitTime;
+// 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+// 	
+// 	// Deploy inspector from Red 1
+// 	red.Count += 1;
+// 	Alias deployableSat = red[red.Count - 1];
+// 	deployableSat.BodyScale = 200;
+// 	deployableSat.DisplayName = "Red" + red.Count.ToString();
+// 	deployableSat.Color = colorRed4;
+// 	deployableSat.TailLength = tailPoints/4;
+// 	viewMain3D.SetShowName(deployableSat.ObjectId, 1);
+// 	viewMain3D.SetObjectLabelFont(deployableSat.ObjectId, vf);
+// 	
+// 	deployableSat.Epoch = red[0].Epoch;
+// 	deployableSat.SetCartesianState(red[0].GetCartesianState());
+// 
+// //Block PRESOLVED OPTIMIZATION
+// 	If (doOptimizationAndSaveValues);
+// 		desiredRelativePosLVC = {0, 0, 0};
+// 		
+// 		opt.Reset(1);
+// 		opt.AddStateVariableBlock(3, "dv", 0.001, -0.01, 0.01);
+// 		opt.AddConstraintBlock(3, "relativePos", 0, 0);
+// 		
+// 		opt.SaveObjectToProcess(deployableSat);
+// 		opt.SaveObjectToProcess(blue[0]);
+// 		
+// 		opt.LoadEngine();
+// 		While (opt.IsRunning());
+// 			opt.UpdateStateVariables();
+// 			opt.RestoreObjectsInProcess();
+// 			burn.BurnDirection = opt.GetStateVariableValues();
+// 			
+// 			deployableSat.Maneuver(burn);
+// 			
+// 			futureEpoch = blue[0].Epoch + rendezvousTime;
+// 			WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
+// 				deployableSat.StepToEpoch(blue[0].Epoch);
+// 			End;
+// 			
+// 			relativePos = RelativeMotionUtilities.ConvertRelativePosition(0, 6, deployableSat, blue[0].Position - deployableSat.Position);
+// 			opt.SetConstraintValues(desiredRelativePosLVC - relativePos);
+// 			
+// 			opt.Minimize(burn.BurnDirection.Norm);
+// 			
+// 			If (opt.OptimizationPhase == 1);
+// 				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+// 			End;
+// 		End;
+// 		
+// 		Report opt.ReturnString;
+// 		opt.RestoreObjectsInProcess();
+// 		
+// 		burn.BurnDirection = opt.GetBestStateVariableValues();
+// 		Report burn.BurnDirection;
+// 		
+// 		Call OpenForWrite("SavedValues/DisableScript_Red1Burn3.txt");
+// 		file.PutLine(burn.BurnDirection[0].ToString());
+// 		file.PutLine(burn.BurnDirection[1].ToString());
+// 		file.PutLine(burn.BurnDirection[2].ToString());
+// 		file.Close();
+// 	End;
+// //EndBlock PRESOLVED OPTIMIZATION
+// 	
+// 	Call OpenForRead("SavedValues/DisableScript_Red1Burn3.txt");
+// 	burn.BurnDirection[0] = file.GetLine().ToVariable();
+// 	burn.BurnDirection[1] = file.GetLine().ToVariable();
+// 	burn.BurnDirection[2] = file.GetLine().ToVariable();
+// 	file.Close();
+// 	
+// 	deployableSat.Maneuver(burn);
+// 	
+// 	futureEpoch = blue[0].Epoch + rendezvousTime;
+// 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+// 	
+// 	deployableSat.SetCartesianState(blue[0].GetCartesianState());
+// 	
+// 	futureEpoch = blue[0].Epoch + killOperationTime;
+// 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+// 	
+// 	// Inspector return to Red 1
+// 	
+// //Block PRESOLVED OPTIMIZATION
+// 	If (doOptimizationAndSaveValues);
+// 		desiredRelativePosLVC = {0, 0, 0};
+// 		
+// 		opt.Reset(1);
+// 		opt.AddStateVariableBlock(3, "dv", 0.001, -0.01, 0.01);
+// 		opt.AddConstraintBlock(3, "relativePos", 0, 0);
+// 		
+// 		opt.SaveObjectToProcess(deployableSat);
+// 		opt.SaveObjectToProcess(red[0]);
+// 		
+// 		opt.LoadEngine();
+// 		While (opt.IsRunning());
+// 			opt.UpdateStateVariables();
+// 			opt.RestoreObjectsInProcess();
+// 			burn.BurnDirection = opt.GetStateVariableValues();
+// 			
+// 			deployableSat.Maneuver(burn);
+// 			
+// 			futureEpoch = red[0].Epoch + rendezvousTime;
+// 			WhileStepping red[0] to (red[0].Epoch == futureEpoch);
+// 				deployableSat.StepToEpoch(red[0].Epoch);
+// 			End;
+// 			
+// 			relativePos = RelativeMotionUtilities.ConvertRelativePosition(0, 6, deployableSat, red[0].Position - deployableSat.Position);
+// 			opt.SetConstraintValues(desiredRelativePosLVC - relativePos);
+// 			
+// 			opt.Minimize(burn.BurnDirection.Norm);
+// 			
+// 			If (opt.OptimizationPhase == 1);
+// 				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+// 			End;
+// 		End;
+// 		
+// 		Report opt.ReturnString;
+// 		opt.RestoreObjectsInProcess();
+// 		
+// 		burn.BurnDirection = opt.GetBestStateVariableValues();
+// 		
+// 		Call OpenForWrite("SavedValues/DisableScript_Red1Burn4.txt");
+// 		file.PutLine(burn.BurnDirection[0].ToString());
+// 		file.PutLine(burn.BurnDirection[1].ToString());
+// 		file.PutLine(burn.BurnDirection[2].ToString());
+// 		file.Close();
+// 	End;
+// //EndBlock PRESOLVED OPTIMIZATION
+// 	
+// 	Call OpenForRead("SavedValues/DisableScript_Red1Burn4.txt");
+// 	burn.BurnDirection[0] = file.GetLine().ToVariable();
+// 	burn.BurnDirection[1] = file.GetLine().ToVariable();
+// 	burn.BurnDirection[2] = file.GetLine().ToVariable();
+// 	file.Close();
+// 	
+// 	deployableSat.Maneuver(burn);
+// 	
+// 	futureEpoch = blue[0].Epoch + rendezvousTime;
+// 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+// 	
+// 	red.Count -= 1;
+// 	
+// 	futureEpoch = blue[0].Epoch + preDeployWaitTime;
+// 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+// 	
+// //Block PRESOLVED OPTIMIZATION
+// 	If (doOptimizationAndSaveValues);
+// 		
+// 		opt.Reset(1);
+// 		opt.AddStateVariableBlock(3, "dv1_", 0.001, -0.01, 0.01);
+// 		opt.AddStateVariableBlock(3, "dv2_", 0.001, -0.01, 0.01);
+// 		
+// 		opt.AddConstraint("A", 42164, 42164, 1e1);
+// 		opt.AddConstraint("E", 0, 1e-4);
+// 		opt.AddConstraint("I", 0, 2, 1);
+// 		opt.AddConstraint("lon", 277.2, 277.3, 1, 360);
+// 		
+// 		opt.SaveObjectToProcess(red[0]);
+// 		
+// 		opt.LoadEngine();
+// 		While (opt.IsRunning());
+// 			opt.UpdateStateVariables();
+// 			opt.RestoreObjectsInProcess();
+// 			
+// 			burn.BurnDirection[0] = opt.GetStateVariableValue("dv1_1");
+// 			burn.BurnDirection[1] = opt.GetStateVariableValue("dv1_2");
+// 			burn.BurnDirection[2] = opt.GetStateVariableValue("dv1_3");
+// 			red[0].Maneuver(burn);
+// 			totalDV = burn.BurnDirection.Norm;
+// 			
+// 			futureEpoch = red[0].Epoch + TimeSpan.FromDays(7);
+// 			WhileStepping red[0] to (red[0].Epoch == futureEpoch);
+// 			End;
+// 			
+// 			burn.BurnDirection[0] = opt.GetStateVariableValue("dv2_1");
+// 			burn.BurnDirection[1] = opt.GetStateVariableValue("dv2_2");
+// 			burn.BurnDirection[2] = opt.GetStateVariableValue("dv2_3");
+// 			red[0].Maneuver(burn);
+// 			totalDV += burn.BurnDirection.Norm;
+// 			
+// 			kepState = red[0].GetKeplerianState();
+// 			
+// 			opt.SetConstraintValue("A", red[0].A);
+// 			opt.SetConstraintValue("E", red[0].E);
+// 			opt.SetConstraintValue("I", red[0].I);
+// 			opt.SetConstraintValue("lon", red[0].Longitude);
+// 			
+// 			opt.Minimize(totalDV*1e-1);
+// 			
+// 			If (opt.OptimizationPhase == 1);
+// 				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+// 			End;
+// 		End;
+// 		
+// 		Report opt.ReturnString;
+// 		opt.RestoreObjectsInProcess();
+// 		
+// 		burn.BurnDirection = opt.GetBestStateVariableValues()[0:2];
+// 		
+// 		Call OpenForWrite("SavedValues/DisableScript_Red1Burn5.txt");
+// 		file.PutLine(burn.BurnDirection[0].ToString());
+// 		file.PutLine(burn.BurnDirection[1].ToString());
+// 		file.PutLine(burn.BurnDirection[2].ToString());
+// 		file.Close();
+// 	End;
+// //EndBlock PRESOLVED OPTIMIZATION
+// 	
+// 	Call OpenForRead("SavedValues/DisableScript_Red1Burn5.txt");
+// 	burn.BurnDirection[0] = file.GetLine().ToVariable();
+// 	burn.BurnDirection[1] = file.GetLine().ToVariable();
+// 	burn.BurnDirection[2] = file.GetLine().ToVariable();
+// 	file.Close();
+// 	
+// 	red[0].Maneuver(burn);
+// 	
+// //Block PRESOLVED OPTIMIZATION
+// 	If (doOptimizationAndSaveValues);
+// 		opt.Reset(1);
+// 		opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
+// 		opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
+// 		opt.AddStateVariable("days", 0.5, 0.1, 1);
+// 		opt.AddConstraint("A",    kepStateRed2[0], kepStateRed2[0]);
+// 		opt.AddConstraint("E",    kepStateRed2[1], kepStateRed2[1]);
+// 		opt.AddConstraint("I",    kepStateRed2[2], kepStateRed2[2]);
+// 		opt.AddConstraint("RAAN", kepStateRed2[3], kepStateRed2[3]);
+// 		opt.AddConstraint("W",    kepStateRed2[4], kepStateRed2[4]);
+// 		
+// 		opt.SaveObjectToProcess(red[1]);
+// 		opt.LoadEngine();
+// 		While (opt.IsRunning());
+// 			opt.UpdateStateVariables();
+// 			opt.RestoreObjectsInProcess();
+// 			
+// 			burn.BurnDirection = opt.GetStateVariableValues[0:2];
+// 			totalDV = burn.BurnDirection.Norm;
+// 			red[1].Maneuver(burn);
+// 			
+// 			futureEpoch = red[1].Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+// 			WhileStepping red[1] to (red[1].Epoch == futureEpoch);
+// 			End;
+// 			
+// 			burn.BurnDirection = opt.GetStateVariableValues[3:5];
+// 			totalDV += burn.BurnDirection.Norm;
+// 			red[1].Maneuver(burn);
+// 			
+// 			opt.SetConstraintValue("A", red[1].A);
+// 			opt.SetConstraintValue("E", red[1].E);
+// 			opt.SetConstraintValue("I", red[1].I);
+// 			opt.SetConstraintValue("RAAN", red[1].RAAN);
+// 			opt.SetConstraintValue("W", red[1].W);
+// 									 
+// 			opt.Minimize(totalDV);
+// 			
+// 			If (opt.OptimizationPhase == 1);
+// 				Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
+// 			End;
+// 		End;
+// 		
+// 		Report opt.ReturnString;
+// 		opt.RestoreObjectsInProcess();
+// 		
+// 		Call OpenForWrite("SavedValues/DisableScript_Red2Burn3and4.txt");
+// 		file.PutLine(opt.GetBestStateVariableValue("dv11").ToString());
+// 		file.PutLine(opt.GetBestStateVariableValue("dv12").ToString());
+// 		file.PutLine(opt.GetBestStateVariableValue("dv13").ToString());
+// 		file.PutLine(opt.GetBestStateVariableValue("dv21").ToString());
+// 		file.PutLine(opt.GetBestStateVariableValue("dv22").ToString());
+// 		file.PutLine(opt.GetBestStateVariableValue("dv23").ToString());
+// 		file.PutLine(opt.GetBestStateVariableValue("days").ToString());
+// 		file.Close();
+// 	End;
+// //EndBlock PRESOLVED OPTIMIZATION
+// 	
+// 	Call OpenForRead("SavedValues/DisableScript_Red2Burn3and4.txt");
+// 	burn.BurnDirection[0] = file.GetLine().ToVariable();
+// 	burn.BurnDirection[1] = file.GetLine().ToVariable();
+// 	burn.BurnDirection[2] = file.GetLine().ToVariable();
+// 	dv2[0] = file.GetLine().ToVariable();
+// 	dv2[1] = file.GetLine().ToVariable();
+// 	dv2[2] = file.GetLine().ToVariable();
+// 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(file.GetLine().ToVariable());
+// 	file.Close();
+// 	
+// 	Call SetRedJammerState(0, red);
+// 	
+// 	red[1].Maneuver(burn);
+// 	burn.BurnDirection *= -1;
+// 	red[2].Maneuver(burn);
+// 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+// 	
+// 	burn.BurnDirection = dv2;
+// 	red[1].Maneuver(burn);
+// 	burn.BurnDirection *= -1;
+// 	red[2].Maneuver(burn);
+// 	
+// 	futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
+// 	Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+// 	
+// EndProcedure;
+// 
+// 
 // 
 // If (userChoice == 0);
 // 	Call DisplayModeScript(red, blue);
@@ -5301,69 +5387,6 @@ EndProcedure;
 // ElseIf (userChoice == 3);
 // 	Call DisableScript(red, blue);
 // End;
-
-Variable redHasNotDisengaged = 1;
-
-Global Constant Variable queueType_none  = 0;
-Global Constant Variable queueType_blueBurn  = 1;
-Global Constant Variable queueType_redBurn  = 2;
-
-Struct QueuedAction;
-	TimeSpan epoch;
-End;
-
-
-
-Global Constant Variable redActionType_none          = 0;
-Global Constant Variable redActionType_toggleJamming  = 1;
-
-Struct QueuedRedAction extends QueuedAction;
-	Variable actionType;
-End;
-
-Struct QueuedBurn extends QueuedAction;
-	Array burnRIC;
-	Variable formationIndex;
-	Variable additionalAction;
-End;
-
-Global List<QueuedBurn> blueBurnQueue;
-Global List<QueuedBurn> redBurnQueue;
-
-TimeSpan simChoiceSpacing = TimeSpan.FromHours(4);
-TimeSpan nextChoiceEpoch;
-	
-Global Variable redIsEngaged = 1;
-
-Define Procedure GetNextQueuedActionSource(Variable source);
-	source = queueType_none;
-	If (blueBurnQueue.Count != 0);
-		source = queueType_blueBurn;
-	ElseIf (redBurnQueue.Count != 0);
-		source = queueType_redBurn;
-	End;
-	
-	If (blueBurnQueue.Count != 0 and redBurnQueue.Count != 0);
-		If (redBurnQueue[0].epoch < blueBurnQueue[0].epoch);
-			source = queueType_redBurn;
-		End;
-	End;
-EndProcedure;
-
-
-Define Procedure PopNextQueuedAction(QueuedBurn nextAction);
-	Variable nextQueuedActionSource;
-	Call GetNextQueuedActionSource(nextQueuedActionSource);
-	If (nextQueuedActionSource == queueType_none);
-		nextAction.epoch = simEpoch + TimeSpan.FromDays(1e3);
-	ElseIf (nextQueuedActionSource == queueType_blueBurn);
-		nextAction = blueBurnQueue[0];
-		blueBurnQueue.RemoveAt(0);
-	ElseIf (nextQueuedActionSource == queueType_redBurn);
-		nextAction = redBurnQueue[0];
-		redBurnQueue.RemoveAt(0);
-	End;
-EndProcedure;
 
 
 QueuedBurn nextQueuedAction;
