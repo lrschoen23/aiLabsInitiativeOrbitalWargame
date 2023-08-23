@@ -228,7 +228,7 @@
   </ProjectObjects>
   <ProjectMissionSequence>
     <ProjectExternals>
-      <ProjectExternal included="true" autosave="true" contentType="FreeFlyerScript">..\PlotUtilities.FFProcedure</ProjectExternal>
+      <ProjectExternal included="true" autosave="true" contentType="FreeFlyerScript">.\Procedures\PlotUtilities.FFProcedure</ProjectExternal>
     </ProjectExternals>
     <ProjectCommands>
       <FreeForm enabled="true">
@@ -241,7 +241,7 @@ userChoice = 3;
 simStepSizeSeconds = 1500;
 
 Global Constant Variable autoChooseNominalOperation = 0;
-Console.Show();
+//Console.Show();
 ]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
@@ -631,6 +631,11 @@ Global Variable initialBluePayloadOrientationAngle;
 Global TimeSpan slewTime = TimeSpan.FromHours(3);
 
 Global Constant Variable nominalBluePayloadOrientationAngle = blue[0].EulerAngles[0];
+
+Global Socket blueStrategyServer;
+blueStrategyServer.SocketType = "client";
+blueStrategyServer.PortNumber = 5115;
+Open blueStrategyServer;
 ]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
@@ -638,6 +643,9 @@ Global Constant Variable nominalBluePayloadOrientationAngle = blue[0].EulerAngle
         <Bookmarks />
         <Breakpoints />
         <FreeFormScript><![CDATA[
+Global Constant Variable blueStrategyRequest_disconnectServer = 0;
+Global Constant Variable blueStrategyRequest_orbitChange = 1;
+Global Constant Variable blueStrategyRequest_slew = 2;
 
 Variable redHasNotDisengaged = 1;
 
@@ -662,6 +670,7 @@ Struct QueuedBurn extends QueuedAction;
 	Array burnRIC;
 	Variable formationIndex;
 	Variable additionalAction;
+	Variable isBlue;
 End;
 
 Global List<QueuedBurn> blueBurnQueue;
@@ -699,6 +708,18 @@ Define Procedure PopNextQueuedAction(QueuedBurn nextAction);
 	ElseIf (nextQueuedActionSource == queueType_redBurn);
 		nextAction = redBurnQueue[0];
 		redBurnQueue.RemoveAt(0);
+	End;
+EndProcedure;
+
+Define Procedure GetNextQueuedActionEpoch(TimeSpan epoch);
+	Variable nextQueuedActionSource;
+	Call GetNextQueuedActionSource(nextQueuedActionSource);
+	If (nextQueuedActionSource == queueType_none);
+		epoch = simEpoch + TimeSpan.FromDays(1e3);
+	ElseIf (nextQueuedActionSource == queueType_blueBurn);
+		epoch = blueBurnQueue[0].epoch;
+	ElseIf (nextQueuedActionSource == queueType_redBurn);
+		epoch = redBurnQueue[0].epoch;
 	End;
 EndProcedure;
 ]]></FreeFormScript>
@@ -1645,6 +1666,29 @@ Define Procedure AdvanceSimToTargetedNewOrbit(Spacecraft sc, Array dv1, Array dv
 	sc.Maneuver(burn);
 EndProcedure;
 
+Define Procedure AddBurnToQueue(
+	Array dv,
+	TimeSpan epoch,
+	Variable formationIndex,
+	Variable isBlue);
+	
+	Variable last;
+	If (isBlue);
+		last = blueBurnQueue.Count;
+		blueBurnQueue.Count += 1;
+		blueBurnQueue[last].epoch = epoch;
+		blueBurnQueue[last].burnRIC = dv;
+		blueBurnQueue[last].formationIndex = formationIndex;
+		blueBurnQueue[last].isBlue = 1;
+	Else;
+		last = redBurnQueue.Count;
+		redBurnQueue.Count += 1;
+		redBurnQueue[last].epoch = epoch;
+		redBurnQueue[last].burnRIC = dv;
+		redBurnQueue[last].formationIndex = formationIndex;
+		redBurnQueue[last].isBlue = 0;
+	End;
+EndProcedure;
 
 Define Procedure TargetNewBlueOrbitAndAddBurnsToQueue(
 		Spacecraft sc,
@@ -1660,15 +1704,9 @@ Define Procedure TargetNewBlueOrbitAndAddBurnsToQueue(
 	Call TargetNewOrbit(sc, kepState, longitude, timeBoundsDays, dv1, dv2, interBurnTime);
 	Alias newBurn = burnQueue[burnQueue.Count - 1];
 	
-	burnQueue.Count += 1;
-	newBurn.epoch = simEpoch;
-	newBurn.burnRIC = dv1;
-	newBurn.formationIndex = formationIndex;
-	
-	burnQueue.Count += 1;
-	newBurn.epoch = simEpoch + interBurnTime;
-	newBurn.burnRIC = dv2;
-	newBurn.formationIndex = formationIndex;
+	burnQueue.Clear();
+	Call AddBurnToQueue(dv1, simEpoch, 0, 1);
+	Call AddBurnToQueue(dv2, simEpoch + interBurnTime, 0, 1);
 	
 EndProcedure;
 
@@ -1713,6 +1751,16 @@ Define Procedure ComputeAndExecuteBlueSlew(Formation red, Formation blue);
 	Variable slewAngle;
 	Call ComputeDesiredSlewAngle(red, blue, slewAngle);
 	Call AdvanceSimToFutureEpochWithBlueSlew(red, blue, blue[0].Epoch + TimeSpan.FromHours(10), slewAngle);
+EndProcedure;
+
+Define Procedure ExecuteQueuedBurn(QueuedBurn queuedBurn, Formation red, Formation blue);
+	If (queuedBurn.isBlue);
+		burn.BurnDirection = queuedBurn.burnRIC;
+		blue[queuedBurn.formationIndex].Maneuver(burn);
+	Else;
+		burn.BurnDirection = queuedBurn.burnRIC;
+		red[queuedBurn.formationIndex].Maneuver(burn);
+	End;
 EndProcedure;
 
 ]]></FreeFormScript>
@@ -1824,16 +1872,33 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 		End;
 	End;
 	
+	
+	Array dv1(3);
+	Array dv2(3);
+	Variable interBurnTimeDays;
 	If (userChoice == choice_evasive);
 		blueOperationsScore -= 8;
 		
-		Call TargetNewBlueOrbitAndAddBurnsToQueue(
-			blue[0],
-			initialKepStateBlue1,
-			blue[0].Longitude + 0.3,
-			{0.1, 0.5},
-			0,
-			blueBurnQueue);
+		Send blueStrategyRequest_orbitChange to blueStrategyServer;
+		Send blue[0].GetCartesianState(),
+			 blue[0].Epoch.ToDays(),
+			 initialKepStateBlue1,
+			 blue[0].Longitude + 0.3,
+			 {0.1, 0.5},
+			 0 to blueStrategyServer;
+		
+//		Call TargetNewBlueOrbitAndAddBurnsToQueue(
+//			blue[0],
+//			initialKepStateBlue1,
+//			blue[0].Longitude + 0.3,
+//			{0.1, 0.5},
+//			0,
+//			blueBurnQueue);
+		
+		Receive dv1, dv2, interBurnTimeDays from blueStrategyServer;
+		Call AddBurnToQueue(dv1, simEpoch, 0, 1);
+		Call AddBurnToQueue(dv2, simEpoch + TimeSpan.FromDays(interBurnTimeDays), 0, 1);
+	
 		
 		numberOfBlueEvasiveManeuvers += 1;
 	End;
@@ -2828,21 +2893,25 @@ End;]]></FreeFormScript>
         <FreeFormScript><![CDATA[
 
 QueuedBurn nextQueuedAction;
+TimeSpan nextQueuedActionEpoch;
 Variable nextQueuedActionIsBeforeNextChoiceEpoch;
 While (blueIsOffNominal or redIsEngaged);
 	nextChoiceEpoch = blue[0].Epoch + simChoiceSpacing;
 	
-	Call PopNextQueuedAction(nextQueuedAction);
-	While (nextQueuedAction.epoch < nextChoiceEpoch);
-		Call AdvanceSimToFutureEpoch(red, blue, nextQueuedAction.epoch);
-		// execute action
+	Call GetNextQueuedActionEpoch(nextQueuedActionEpoch);
+	While (nextQueuedActionEpoch < nextChoiceEpoch);
 		Call PopNextQueuedAction(nextQueuedAction);
+		Call AdvanceSimToFutureEpoch(red, blue, nextQueuedAction.epoch);
+
+		Call ExecuteQueuedBurn(nextQueuedAction, red, blue);
+		
+		Call GetNextQueuedActionEpoch(nextQueuedActionEpoch);
 	End;
 	
 	
 	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + simChoiceSpacing);
 	Call ShowOperatorActionsMenu(red, blue);
-	// compute new red strategy(redState, blueState, scriptType)
+	// TODO compute new red strategy(redState, blueState, scriptType)
 End;]]></FreeFormScript>
       </FreeForm>
     </ProjectCommands>
@@ -2853,7 +2922,7 @@ userChoice = 3;
 simStepSizeSeconds = 1500;
 
 Global Constant Variable autoChooseNominalOperation = 0;
-Console.Show();
+//Console.Show();
 
 
 Global TimeSpan simStepSize = TimeSpan.FromSeconds(simStepSizeSeconds);
@@ -3239,7 +3308,15 @@ Global TimeSpan slewTime = TimeSpan.FromHours(3);
 
 Global Constant Variable nominalBluePayloadOrientationAngle = blue[0].EulerAngles[0];
 
+Global Socket blueStrategyServer;
+blueStrategyServer.SocketType = "client";
+blueStrategyServer.PortNumber = 5115;
+Open blueStrategyServer;
 
+
+Global Constant Variable blueStrategyRequest_disconnectServer = 0;
+Global Constant Variable blueStrategyRequest_orbitChange = 1;
+Global Constant Variable blueStrategyRequest_slew = 2;
 
 Variable redHasNotDisengaged = 1;
 
@@ -3264,6 +3341,7 @@ Struct QueuedBurn extends QueuedAction;
 	Array burnRIC;
 	Variable formationIndex;
 	Variable additionalAction;
+	Variable isBlue;
 End;
 
 Global List<QueuedBurn> blueBurnQueue;
@@ -3301,6 +3379,18 @@ Define Procedure PopNextQueuedAction(QueuedBurn nextAction);
 	ElseIf (nextQueuedActionSource == queueType_redBurn);
 		nextAction = redBurnQueue[0];
 		redBurnQueue.RemoveAt(0);
+	End;
+EndProcedure;
+
+Define Procedure GetNextQueuedActionEpoch(TimeSpan epoch);
+	Variable nextQueuedActionSource;
+	Call GetNextQueuedActionSource(nextQueuedActionSource);
+	If (nextQueuedActionSource == queueType_none);
+		epoch = simEpoch + TimeSpan.FromDays(1e3);
+	ElseIf (nextQueuedActionSource == queueType_blueBurn);
+		epoch = blueBurnQueue[0].epoch;
+	ElseIf (nextQueuedActionSource == queueType_redBurn);
+		epoch = redBurnQueue[0].epoch;
 	End;
 EndProcedure;
 
@@ -4232,6 +4322,29 @@ Define Procedure AdvanceSimToTargetedNewOrbit(Spacecraft sc, Array dv1, Array dv
 	sc.Maneuver(burn);
 EndProcedure;
 
+Define Procedure AddBurnToQueue(
+	Array dv,
+	TimeSpan epoch,
+	Variable formationIndex,
+	Variable isBlue);
+	
+	Variable last;
+	If (isBlue);
+		last = blueBurnQueue.Count;
+		blueBurnQueue.Count += 1;
+		blueBurnQueue[last].epoch = epoch;
+		blueBurnQueue[last].burnRIC = dv;
+		blueBurnQueue[last].formationIndex = formationIndex;
+		blueBurnQueue[last].isBlue = 1;
+	Else;
+		last = redBurnQueue.Count;
+		redBurnQueue.Count += 1;
+		redBurnQueue[last].epoch = epoch;
+		redBurnQueue[last].burnRIC = dv;
+		redBurnQueue[last].formationIndex = formationIndex;
+		redBurnQueue[last].isBlue = 0;
+	End;
+EndProcedure;
 
 Define Procedure TargetNewBlueOrbitAndAddBurnsToQueue(
 		Spacecraft sc,
@@ -4247,15 +4360,9 @@ Define Procedure TargetNewBlueOrbitAndAddBurnsToQueue(
 	Call TargetNewOrbit(sc, kepState, longitude, timeBoundsDays, dv1, dv2, interBurnTime);
 	Alias newBurn = burnQueue[burnQueue.Count - 1];
 	
-	burnQueue.Count += 1;
-	newBurn.epoch = simEpoch;
-	newBurn.burnRIC = dv1;
-	newBurn.formationIndex = formationIndex;
-	
-	burnQueue.Count += 1;
-	newBurn.epoch = simEpoch + interBurnTime;
-	newBurn.burnRIC = dv2;
-	newBurn.formationIndex = formationIndex;
+	burnQueue.Clear();
+	Call AddBurnToQueue(dv1, simEpoch, 0, 1);
+	Call AddBurnToQueue(dv2, simEpoch + interBurnTime, 0, 1);
 	
 EndProcedure;
 
@@ -4300,6 +4407,16 @@ Define Procedure ComputeAndExecuteBlueSlew(Formation red, Formation blue);
 	Variable slewAngle;
 	Call ComputeDesiredSlewAngle(red, blue, slewAngle);
 	Call AdvanceSimToFutureEpochWithBlueSlew(red, blue, blue[0].Epoch + TimeSpan.FromHours(10), slewAngle);
+EndProcedure;
+
+Define Procedure ExecuteQueuedBurn(QueuedBurn queuedBurn, Formation red, Formation blue);
+	If (queuedBurn.isBlue);
+		burn.BurnDirection = queuedBurn.burnRIC;
+		blue[queuedBurn.formationIndex].Maneuver(burn);
+	Else;
+		burn.BurnDirection = queuedBurn.burnRIC;
+		red[queuedBurn.formationIndex].Maneuver(burn);
+	End;
 EndProcedure;
 
 
@@ -4406,16 +4523,33 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 		End;
 	End;
 	
+	
+	Array dv1(3);
+	Array dv2(3);
+	Variable interBurnTimeDays;
 	If (userChoice == choice_evasive);
 		blueOperationsScore -= 8;
 		
-		Call TargetNewBlueOrbitAndAddBurnsToQueue(
-			blue[0],
-			initialKepStateBlue1,
-			blue[0].Longitude + 0.3,
-			{0.1, 0.5},
-			0,
-			blueBurnQueue);
+		Send blueStrategyRequest_orbitChange to blueStrategyServer;
+		Send blue[0].GetCartesianState(),
+			 blue[0].Epoch.ToDays(),
+			 initialKepStateBlue1,
+			 blue[0].Longitude + 0.3,
+			 {0.1, 0.5},
+			 0 to blueStrategyServer;
+		
+//		Call TargetNewBlueOrbitAndAddBurnsToQueue(
+//			blue[0],
+//			initialKepStateBlue1,
+//			blue[0].Longitude + 0.3,
+//			{0.1, 0.5},
+//			0,
+//			blueBurnQueue);
+		
+		Receive dv1, dv2, interBurnTimeDays from blueStrategyServer;
+		Call AddBurnToQueue(dv1, simEpoch, 0, 1);
+		Call AddBurnToQueue(dv2, simEpoch + TimeSpan.FromDays(interBurnTimeDays), 0, 1);
+	
 		
 		numberOfBlueEvasiveManeuvers += 1;
 	End;
@@ -5390,21 +5524,25 @@ EndProcedure;
 
 
 QueuedBurn nextQueuedAction;
+TimeSpan nextQueuedActionEpoch;
 Variable nextQueuedActionIsBeforeNextChoiceEpoch;
 While (blueIsOffNominal or redIsEngaged);
 	nextChoiceEpoch = blue[0].Epoch + simChoiceSpacing;
 	
-	Call PopNextQueuedAction(nextQueuedAction);
-	While (nextQueuedAction.epoch < nextChoiceEpoch);
-		Call AdvanceSimToFutureEpoch(red, blue, nextQueuedAction.epoch);
-		// execute action
+	Call GetNextQueuedActionEpoch(nextQueuedActionEpoch);
+	While (nextQueuedActionEpoch < nextChoiceEpoch);
 		Call PopNextQueuedAction(nextQueuedAction);
+		Call AdvanceSimToFutureEpoch(red, blue, nextQueuedAction.epoch);
+
+		Call ExecuteQueuedBurn(nextQueuedAction, red, blue);
+		
+		Call GetNextQueuedActionEpoch(nextQueuedActionEpoch);
 	End;
 	
 	
 	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + simChoiceSpacing);
 	Call ShowOperatorActionsMenu(red, blue);
-	// compute new red strategy(redState, blueState, scriptType)
+	// TODO compute new red strategy(redState, blueState, scriptType)
 End;]]></ProjectScript>
   <ProjectNotes></ProjectNotes>
 </FreeFlyerProjectFile>

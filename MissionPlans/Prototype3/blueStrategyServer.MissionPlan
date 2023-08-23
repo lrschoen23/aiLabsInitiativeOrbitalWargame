@@ -1,0 +1,424 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<FreeFlyerProjectFile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" timePrecisionMode="nanosecond" schemaVersion="7.8.0.1">
+  <ProjectInformation>
+    <Author />
+    <Source />
+    <FreeFlyerVersion>7.8.1.50021</FreeFlyerVersion>
+    <RevisionNumber />
+    <Title />
+    <Subject />
+    <Category />
+    <Keywords />
+    <Comments />
+    <Notes />
+  </ProjectInformation>
+  <ProjectPreferences>
+    <General>
+      <LockProjectFromEditing>false</LockProjectFromEditing>
+    </General>
+    <OnOpen>
+      <ShowControlSequence>true</ShowControlSequence>
+      <ShowEmptyEnvironment>false</ShowEmptyEnvironment>
+      <ShowNotes>false</ShowNotes>
+      <ShowHome>false</ShowHome>
+      <ShowOutput>false</ShowOutput>
+      <CreateBackup>false</CreateBackup>
+      <BackupLocation></BackupLocation>
+    </OnOpen>
+    <OnRun>
+      <SaveMissionPlan>false</SaveMissionPlan>
+      <HideWarningMessages>false</HideWarningMessages>
+    </OnRun>
+  </ProjectPreferences>
+  <ProjectDataFiles>
+    <EarthOrientationFile useDefault="true"></EarthOrientationFile>
+    <ElectronDensityCoefficientFile useDefault="true"></ElectronDensityCoefficientFile>
+    <GeopotentialFile useDefault="true"></GeopotentialFile>
+    <HarrisPriesterDragFile useDefault="true"></HarrisPriesterDragFile>
+    <JacchiaAtmosphereModelFile useDefault="true"></JacchiaAtmosphereModelFile>
+    <LeapSecondFile useDefault="true"></LeapSecondFile>
+    <MagneticFieldFile useDefault="true"></MagneticFieldFile>
+    <PlanetaryFile useDefault="true"></PlanetaryFile>
+    <StationGeodeticsFile useDefault="true"></StationGeodeticsFile>
+    <SolidTideFile useDefault="true"></SolidTideFile>
+    <DSTFile useDefault="true"></DSTFile>
+    <StarFieldFile useDefault="true"></StarFieldFile>
+  </ProjectDataFiles>
+  <ProjectObjects>
+    <Object>
+      <SolarSystem name="FF_SolarSystem" isConstant="false" isGlobal="true">
+        <Name>FF_SolarSystem</Name>
+        <ComputePolarMotion>true</ComputePolarMotion>
+        <ApplyUT1Correction>true</ApplyUT1Correction>
+        <COUpdateInterval units="s" displayed_units="s">0</COUpdateInterval>
+        <NPUpdateInterval units="s" displayed_units="s">1800</NPUpdateInterval>
+        <IonosphereOptions>
+          <IonosphereOptions name="FF_SolarSystem_|ionoOptions|" isConstant="false" isGlobal="true">
+            <Name>FF_SolarSystem_|ionoOptions|</Name>
+            <MaximumHeight units="km" displayed_units="km">1000</MaximumHeight>
+            <MinimumHeight units="km" displayed_units="km">80</MinimumHeight>
+            <IntegrationStepSize units="km" displayed_units="km">25</IntegrationStepSize>
+            <ScaleFactor units="" displayed_units="">1</ScaleFactor>
+            <Model>0</Model>
+            <metadata dim="0" />
+          </IonosphereOptions>
+        </IonosphereOptions>
+        <NoradKeplerEqTolerance units="" displayed_units="">1e-12</NoradKeplerEqTolerance>
+        <metadata dim="0" />
+      </SolarSystem>
+    </Object>
+    <Object>
+      <ConsoleWindow name="Console" isConstant="false" isGlobal="true">
+        <Name>Console</Name>
+        <WindowTitle>Console</WindowTitle>
+        <WordWrap>false</WordWrap>
+        <CurrentTextColor>0</CurrentTextColor>
+        <BackColor>16777215</BackColor>
+        <Dimension units="" displayed_units="">50</Dimension>
+        <DockMode>3</DockMode>
+        <CurrentFontType>0</CurrentFontType>
+        <UseStdOut>false</UseStdOut>
+        <ShowOnRun>true</ShowOnRun>
+        <metadata dim="0" />
+      </ConsoleWindow>
+    </Object>
+    <Object>
+      <ConsoleWindow name="ConsoleSolver" isConstant="false" isGlobal="false">
+        <Name>ConsoleSolver</Name>
+        <WindowTitle>Console</WindowTitle>
+        <WordWrap>false</WordWrap>
+        <CurrentTextColor>0</CurrentTextColor>
+        <BackColor>16777215</BackColor>
+        <Dimension units="" displayed_units="">50</Dimension>
+        <DockMode>4</DockMode>
+        <CurrentFontType>0</CurrentFontType>
+        <UseStdOut>false</UseStdOut>
+        <ShowOnRun>true</ShowOnRun>
+        <metadata dim="0" />
+      </ConsoleWindow>
+    </Object>
+  </ProjectObjects>
+  <ProjectMissionSequence>
+    <ProjectExternals />
+    <ProjectCommands>
+      <FreeForm enabled="true">
+        <Label>FreeForm</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[
+Global Constant Variable blueStrategyRequest_disconnectServer = 0;
+Global Constant Variable blueStrategyRequest_orbitChange = 1;
+Global Constant Variable blueStrategyRequest_slew = 2;
+
+Variable strategyRequest;
+
+Array initialCartState(6);
+Array desiredKepState(6);
+Variable desiredLongitude;
+Variable initialEpochDays;
+Variable computationDelayHours;
+Array interBurnTimeBoundsDays(2);
+
+Array dv1(3);
+Array dv2(3);
+Variable interBurnTimeDays;
+
+TimeSpan interBurnTime;
+
+Global ImpulsiveBurn burn;
+burn.AttitudeSystem = 6;
+
+Spacecraft sc;]]></FreeFormScript>
+      </FreeForm>
+      <FreeForm enabled="true">
+        <Label>FreeForm</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[
+Define Procedure TargetNewOrbit(
+		Spacecraft sc,
+		Array kepState,
+		Variable longitude,
+		Array timeBoundsDays,
+		Array dv1,
+		Array dv2,
+		TimeSpan interBurnTime);
+	Variable totalDV;
+	TimeSpan futureEpoch;
+	Variable addLongitudeConstraint;
+	Optimizer opt;
+	
+	opt.Reset(1);
+	opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
+	opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
+	opt.AddStateVariable("days", timeBoundsDays.Mean, timeBoundsDays[0], timeBoundsDays[1]);
+	opt.AddConstraint("A",    kepState[0], kepState[0], 100);
+	opt.AddConstraint("E",    kepState[1], kepState[1]);
+	opt.AddConstraint("I",    kepState[2], kepState[2], 100, 360);
+	
+	addLongitudeConstraint = longitude != -999;
+	If (addLongitudeConstraint);
+		opt.AddConstraint("lon",   longitude, longitude, 100, 360);
+	Else;
+		opt.AddConstraint("RAAN", kepState[3], kepState[3], 100, 360);
+		opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
+	End;
+	
+	opt.SaveObjectToProcess(sc);
+	opt.MaximumNominalEvaluationCount = 1000;
+	opt.LoadEngine();
+	While (opt.IsRunning());
+		opt.UpdateStateVariables();
+		opt.RestoreObjectsInProcess();
+		
+		burn.BurnDirection = opt.GetStateVariableValues[0:2];
+		totalDV = burn.BurnDirection.Norm;
+		sc.Maneuver(burn);
+		
+		futureEpoch = sc.Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+		WhileStepping sc to (sc.Epoch == futureEpoch);
+		End;
+		
+		burn.BurnDirection = opt.GetStateVariableValues[3:5];
+		totalDV += burn.BurnDirection.Norm;
+		sc.Maneuver(burn);
+		
+		opt.SetConstraintValue("A", sc.A);
+		opt.SetConstraintValue("E", sc.E);
+		opt.SetConstraintValue("I", sc.I);
+
+		If (addLongitudeConstraint);
+			opt.SetConstraintValue("lon", sc.Longitude);
+		Else;
+			opt.SetConstraintValue("RAAN", sc.RAAN);
+			opt.SetConstraintValue("W", sc.W);
+		End;
+								 
+		opt.Minimize(totalDV);
+		
+		If (opt.OptimizationPhase == 1);
+			Report opt.NominalEvaluationCount, "   ",
+			opt.ObjectiveFunctionValue, "   ",
+			opt.MaximumInfeasibility, "   ",
+			opt.MaximumInfeasibilitySource to Console;
+		End;
+		
+	End;
+	
+	Report opt.ReturnString to Console;
+	opt.RestoreObjectsInProcess();
+		
+	
+	dv1[0] = opt.GetBestStateVariableValue("dv11");
+	dv1[1] = opt.GetBestStateVariableValue("dv12");
+	dv1[2] = opt.GetBestStateVariableValue("dv13");
+	dv2[0] = opt.GetBestStateVariableValue("dv21");
+	dv2[1] = opt.GetBestStateVariableValue("dv22");
+	dv2[2] = opt.GetBestStateVariableValue("dv23");
+	interBurnTime = TimeSpan.FromDays(opt.GetBestStateVariableValue("days"));
+EndProcedure;]]></FreeFormScript>
+      </FreeForm>
+      <FreeForm enabled="true">
+        <Label>FreeForm</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[
+Socket connection;
+connection.SocketType = "server";
+connection.PortNumber = 5115;
+connection.SocketTimeout = -1;
+
+Report "Listening on port ", connection.PortNumber.ToString(), "..." to Console;
+Open connection;
+Report "Connected" to Console;
+
+Variable clientIsRunning = 1;
+
+While (clientIsRunning);
+	Receive strategyRequest from connection;
+	Report "" to Console;
+	Report "Recieved request: " to Console;
+	If (strategyRequest == blueStrategyRequest_orbitChange);
+		Report "Orbit Change" to Console;
+		Receive initialCartState,
+				initialEpochDays,
+				desiredKepState,
+				desiredLongitude,
+				interBurnTimeBoundsDays,
+				computationDelayHours from connection;
+	
+		sc.Epoch = TimeSpan.FromDays(initialEpochDays);
+		sc.SetCartesianState(initialCartState);
+		sc.StepToEpoch(sc.Epoch + TimeSpan.FromHours(computationDelayHours));
+		Call TargetNewOrbit(
+			sc,
+			desiredKepState,
+			desiredLongitude,
+			interBurnTimeBoundsDays,
+			dv1,
+			dv2,
+			interBurnTime);
+		
+		Send dv1, dv2, interBurnTime.ToDays() to connection;
+	ElseIf (strategyRequest == blueStrategyRequest_slew);
+		Report "Slew" to Console;
+	ElseIf (strategyRequest == blueStrategyRequest_disconnectServer);
+		clientIsRunning = 0;
+	End;
+End;]]></FreeFormScript>
+      </FreeForm>
+    </ProjectCommands>
+  </ProjectMissionSequence>
+  <ProjectScript><![CDATA[
+Global Constant Variable blueStrategyRequest_disconnectServer = 0;
+Global Constant Variable blueStrategyRequest_orbitChange = 1;
+Global Constant Variable blueStrategyRequest_slew = 2;
+
+Variable strategyRequest;
+
+Array initialCartState(6);
+Array desiredKepState(6);
+Variable desiredLongitude;
+Variable initialEpochDays;
+Variable computationDelayHours;
+Array interBurnTimeBoundsDays(2);
+
+Array dv1(3);
+Array dv2(3);
+Variable interBurnTimeDays;
+
+TimeSpan interBurnTime;
+
+Global ImpulsiveBurn burn;
+burn.AttitudeSystem = 6;
+
+Spacecraft sc;
+
+Define Procedure TargetNewOrbit(
+		Spacecraft sc,
+		Array kepState,
+		Variable longitude,
+		Array timeBoundsDays,
+		Array dv1,
+		Array dv2,
+		TimeSpan interBurnTime);
+	Variable totalDV;
+	TimeSpan futureEpoch;
+	Variable addLongitudeConstraint;
+	Optimizer opt;
+	
+	opt.Reset(1);
+	opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
+	opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
+	opt.AddStateVariable("days", timeBoundsDays.Mean, timeBoundsDays[0], timeBoundsDays[1]);
+	opt.AddConstraint("A",    kepState[0], kepState[0], 100);
+	opt.AddConstraint("E",    kepState[1], kepState[1]);
+	opt.AddConstraint("I",    kepState[2], kepState[2], 100, 360);
+	
+	addLongitudeConstraint = longitude != -999;
+	If (addLongitudeConstraint);
+		opt.AddConstraint("lon",   longitude, longitude, 100, 360);
+	Else;
+		opt.AddConstraint("RAAN", kepState[3], kepState[3], 100, 360);
+		opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
+	End;
+	
+	opt.SaveObjectToProcess(sc);
+	opt.MaximumNominalEvaluationCount = 1000;
+	opt.LoadEngine();
+	While (opt.IsRunning());
+		opt.UpdateStateVariables();
+		opt.RestoreObjectsInProcess();
+		
+		burn.BurnDirection = opt.GetStateVariableValues[0:2];
+		totalDV = burn.BurnDirection.Norm;
+		sc.Maneuver(burn);
+		
+		futureEpoch = sc.Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+		WhileStepping sc to (sc.Epoch == futureEpoch);
+		End;
+		
+		burn.BurnDirection = opt.GetStateVariableValues[3:5];
+		totalDV += burn.BurnDirection.Norm;
+		sc.Maneuver(burn);
+		
+		opt.SetConstraintValue("A", sc.A);
+		opt.SetConstraintValue("E", sc.E);
+		opt.SetConstraintValue("I", sc.I);
+
+		If (addLongitudeConstraint);
+			opt.SetConstraintValue("lon", sc.Longitude);
+		Else;
+			opt.SetConstraintValue("RAAN", sc.RAAN);
+			opt.SetConstraintValue("W", sc.W);
+		End;
+								 
+		opt.Minimize(totalDV);
+		
+		If (opt.OptimizationPhase == 1);
+			Report opt.NominalEvaluationCount, "   ",
+			opt.ObjectiveFunctionValue, "   ",
+			opt.MaximumInfeasibility, "   ",
+			opt.MaximumInfeasibilitySource to Console;
+		End;
+		
+	End;
+	
+	Report opt.ReturnString to Console;
+	opt.RestoreObjectsInProcess();
+		
+	
+	dv1[0] = opt.GetBestStateVariableValue("dv11");
+	dv1[1] = opt.GetBestStateVariableValue("dv12");
+	dv1[2] = opt.GetBestStateVariableValue("dv13");
+	dv2[0] = opt.GetBestStateVariableValue("dv21");
+	dv2[1] = opt.GetBestStateVariableValue("dv22");
+	dv2[2] = opt.GetBestStateVariableValue("dv23");
+	interBurnTime = TimeSpan.FromDays(opt.GetBestStateVariableValue("days"));
+EndProcedure;
+
+Socket connection;
+connection.SocketType = "server";
+connection.PortNumber = 5115;
+connection.SocketTimeout = -1;
+
+Report "Listening on port ", connection.PortNumber.ToString(), "..." to Console;
+Open connection;
+Report "Connected" to Console;
+
+Variable clientIsRunning = 1;
+
+While (clientIsRunning);
+	Receive strategyRequest from connection;
+	Report "" to Console;
+	Report "Recieved request: " to Console;
+	If (strategyRequest == blueStrategyRequest_orbitChange);
+		Report "Orbit Change" to Console;
+		Receive initialCartState,
+				initialEpochDays,
+				desiredKepState,
+				desiredLongitude,
+				interBurnTimeBoundsDays,
+				computationDelayHours from connection;
+	
+		sc.Epoch = TimeSpan.FromDays(initialEpochDays);
+		sc.SetCartesianState(initialCartState);
+		sc.StepToEpoch(sc.Epoch + TimeSpan.FromHours(computationDelayHours));
+		Call TargetNewOrbit(
+			sc,
+			desiredKepState,
+			desiredLongitude,
+			interBurnTimeBoundsDays,
+			dv1,
+			dv2,
+			interBurnTime);
+		
+		Send dv1, dv2, interBurnTime.ToDays() to connection;
+	ElseIf (strategyRequest == blueStrategyRequest_slew);
+		Report "Slew" to Console;
+	ElseIf (strategyRequest == blueStrategyRequest_disconnectServer);
+		clientIsRunning = 0;
+	End;
+End;]]></ProjectScript>
+  <ProjectNotes></ProjectNotes>
+</FreeFlyerProjectFile>
