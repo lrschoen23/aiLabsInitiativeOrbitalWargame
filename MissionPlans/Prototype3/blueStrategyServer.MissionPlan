@@ -99,7 +99,9 @@
     </Object>
   </ProjectObjects>
   <ProjectMissionSequence>
-    <ProjectExternals />
+    <ProjectExternals>
+      <ProjectExternal included="true" autosave="true" contentType="FreeFlyerScript">.\Procedures\Common.FFProcedure</ProjectExternal>
+    </ProjectExternals>
     <ProjectCommands>
       <FreeForm enabled="true">
         <Label>FreeForm</Label>
@@ -128,7 +130,8 @@ TimeSpan interBurnTime;
 Global ImpulsiveBurn burn;
 burn.AttitudeSystem = 6;
 
-Spacecraft sc;]]></FreeFormScript>
+Spacecraft sc;
+Call InitializeForceModel((sc.Propagator AsType Integrator).ForceModel);]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
         <Label>FreeForm</Label>
@@ -294,7 +297,7 @@ While (1);
 	Report "Connected" to Console;
 	
 	Receive stepSizeSeconds from connection;
-	sc.Propagator.StepSize = TimeSpan.FromSeconds(stepSizeSeconds);
+	sc.Propagator.StepSize = TimeSpan.FromSeconds(800);
 	
 	Try;
 		While (1);
@@ -363,6 +366,7 @@ Global ImpulsiveBurn burn;
 burn.AttitudeSystem = 6;
 
 Spacecraft sc;
+Call InitializeForceModel((sc.Propagator AsType Integrator).ForceModel);
 
 Define Procedure ComputeStationKeepingManeuver(Optimizer opt, Spacecraft sc, Variable longitude);
 	TimeSpan initialEpoch;
@@ -518,7 +522,7 @@ While (1);
 	Report "Connected" to Console;
 	
 	Receive stepSizeSeconds from connection;
-	sc.Propagator.StepSize = TimeSpan.FromSeconds(stepSizeSeconds);
+	sc.Propagator.StepSize = TimeSpan.FromSeconds(800);
 	
 	Try;
 		While (1);

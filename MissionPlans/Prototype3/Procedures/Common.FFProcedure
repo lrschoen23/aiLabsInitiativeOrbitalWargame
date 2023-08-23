@@ -1,0 +1,6 @@
+
+Define Procedure InitializeForceModel(ForceModel fm);
+	fm.PlanetFieldDegree[2] = 2;
+	fm.PlanetFieldOrder[2] = 2;
+	fm.Drag = 0;
+EndProcedure;
