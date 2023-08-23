@@ -72,9 +72,9 @@
         <Name>Console</Name>
         <WindowTitle>Console</WindowTitle>
         <WordWrap>false</WordWrap>
-        <CurrentTextColor>0</CurrentTextColor>
-        <BackColor>16777215</BackColor>
-        <Dimension units="" displayed_units="">70</Dimension>
+        <CurrentTextColor>12245189</CurrentTextColor>
+        <BackColor>2039583</BackColor>
+        <Dimension units="" displayed_units="">40</Dimension>
         <DockMode>3</DockMode>
         <CurrentFontType>0</CurrentFontType>
         <UseStdOut>false</UseStdOut>
@@ -87,9 +87,9 @@
         <Name>ConsoleSolver</Name>
         <WindowTitle>Console</WindowTitle>
         <WordWrap>false</WordWrap>
-        <CurrentTextColor>0</CurrentTextColor>
-        <BackColor>16777215</BackColor>
-        <Dimension units="" displayed_units="">70</Dimension>
+        <CurrentTextColor>12245189</CurrentTextColor>
+        <BackColor>2039583</BackColor>
+        <Dimension units="" displayed_units="">90</Dimension>
         <DockMode>4</DockMode>
         <CurrentFontType>0</CurrentFontType>
         <UseStdOut>false</UseStdOut>
@@ -135,6 +135,41 @@ Spacecraft sc;]]></FreeFormScript>
         <Bookmarks />
         <Breakpoints />
         <FreeFormScript><![CDATA[
+Define Procedure ComputeStationKeepingManeuver(Optimizer opt, Spacecraft sc, Variable longitude);
+	TimeSpan initialEpoch;
+	opt.Reset(1);
+	opt.AddStateVariableBlock(3, "dv", 0.0001, -0.001, 0.001, 1, 1e-6);
+	
+	opt.SaveObjectToProcess(sc);
+	
+	opt.MaximumNominalEvaluationCount = 100;
+	opt.LoadEngine();
+	While (opt.IsRunning() and opt.GetBestObjectiveFunctionValue() < 24*4);
+		opt.UpdateStateVariables();
+		opt.RestoreObjectsInProcess();
+		burn.BurnDirection = opt.GetStateVariableValues();
+		
+		sc.Maneuver(burn);
+		
+		initialEpoch = sc.Epoch;
+		While (abs(sc.Longitude - longitude) < 0.05);
+			sc.Step(TimeSpan.FromSeconds(1000));
+		End;
+		
+		opt.Maximize((sc.Epoch - initialEpoch).ToHours());
+		
+		If (opt.OptimizationPhase == 1);
+			Report opt.NominalEvaluationCount, "   ",
+			opt.ObjectiveFunctionValue, "   ",
+			opt.MaximumInfeasibility, "   ",
+			opt.MaximumInfeasibilitySource to ConsoleSolver;
+		End;
+	End;
+	
+	Report opt.ReturnString to ConsoleSolver;
+	opt.RestoreObjectsInProcess();
+EndProcedure;
+
 Define Procedure TargetNewOrbit(
 		Spacecraft sc,
 		Array kepState,
@@ -164,10 +199,13 @@ Define Procedure TargetNewOrbit(
 		opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
 	End;
 	
-	Report sc.GetCartesianState().ToColumnMatrix, sc.Epoch;
 	opt.SaveObjectToProcess(sc);
 	opt.MaximumNominalEvaluationCount = 1000;
-	opt.LoadEngine();
+	
+	IpoptOptions ipopt;
+	ipopt.Tolerance = 1e-4;
+	
+	opt.LoadEngine(ipopt);
 	While (opt.IsRunning());
 		opt.UpdateStateVariables();
 		opt.RestoreObjectsInProcess();
@@ -217,6 +255,21 @@ Define Procedure TargetNewOrbit(
 	dv2[1] = opt.GetBestStateVariableValue("dv22");
 	dv2[2] = opt.GetBestStateVariableValue("dv23");
 	interBurnTime = TimeSpan.FromDays(opt.GetBestStateVariableValue("days"));
+	
+	If (addLongitudeConstraint);
+		burn.BurnDirection = dv1;
+		sc.Maneuver(burn);
+		
+		futureEpoch = sc.Epoch + interBurnTime;
+		WhileStepping sc to (sc.Epoch == futureEpoch);
+		End;
+		
+		burn.BurnDirection = dv2;
+		sc.Maneuver(burn);
+		
+		Call ComputeStationKeepingManeuver(opt, sc, longitude);
+		dv2 += opt.GetBestStateVariableValues();
+	End;
 EndProcedure;]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
@@ -311,6 +364,41 @@ burn.AttitudeSystem = 6;
 
 Spacecraft sc;
 
+Define Procedure ComputeStationKeepingManeuver(Optimizer opt, Spacecraft sc, Variable longitude);
+	TimeSpan initialEpoch;
+	opt.Reset(1);
+	opt.AddStateVariableBlock(3, "dv", 0.0001, -0.001, 0.001, 1, 1e-6);
+	
+	opt.SaveObjectToProcess(sc);
+	
+	opt.MaximumNominalEvaluationCount = 100;
+	opt.LoadEngine();
+	While (opt.IsRunning() and opt.GetBestObjectiveFunctionValue() < 24*4);
+		opt.UpdateStateVariables();
+		opt.RestoreObjectsInProcess();
+		burn.BurnDirection = opt.GetStateVariableValues();
+		
+		sc.Maneuver(burn);
+		
+		initialEpoch = sc.Epoch;
+		While (abs(sc.Longitude - longitude) < 0.05);
+			sc.Step(TimeSpan.FromSeconds(1000));
+		End;
+		
+		opt.Maximize((sc.Epoch - initialEpoch).ToHours());
+		
+		If (opt.OptimizationPhase == 1);
+			Report opt.NominalEvaluationCount, "   ",
+			opt.ObjectiveFunctionValue, "   ",
+			opt.MaximumInfeasibility, "   ",
+			opt.MaximumInfeasibilitySource to ConsoleSolver;
+		End;
+	End;
+	
+	Report opt.ReturnString to ConsoleSolver;
+	opt.RestoreObjectsInProcess();
+EndProcedure;
+
 Define Procedure TargetNewOrbit(
 		Spacecraft sc,
 		Array kepState,
@@ -340,10 +428,13 @@ Define Procedure TargetNewOrbit(
 		opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
 	End;
 	
-	Report sc.GetCartesianState().ToColumnMatrix, sc.Epoch;
 	opt.SaveObjectToProcess(sc);
 	opt.MaximumNominalEvaluationCount = 1000;
-	opt.LoadEngine();
+	
+	IpoptOptions ipopt;
+	ipopt.Tolerance = 1e-4;
+	
+	opt.LoadEngine(ipopt);
 	While (opt.IsRunning());
 		opt.UpdateStateVariables();
 		opt.RestoreObjectsInProcess();
@@ -393,6 +484,21 @@ Define Procedure TargetNewOrbit(
 	dv2[1] = opt.GetBestStateVariableValue("dv22");
 	dv2[2] = opt.GetBestStateVariableValue("dv23");
 	interBurnTime = TimeSpan.FromDays(opt.GetBestStateVariableValue("days"));
+	
+	If (addLongitudeConstraint);
+		burn.BurnDirection = dv1;
+		sc.Maneuver(burn);
+		
+		futureEpoch = sc.Epoch + interBurnTime;
+		WhileStepping sc to (sc.Epoch == futureEpoch);
+		End;
+		
+		burn.BurnDirection = dv2;
+		sc.Maneuver(burn);
+		
+		Call ComputeStationKeepingManeuver(opt, sc, longitude);
+		dv2 += opt.GetBestStateVariableValues();
+	End;
 EndProcedure;
 
 Socket connection;

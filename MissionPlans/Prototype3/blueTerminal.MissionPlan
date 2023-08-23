@@ -225,6 +225,20 @@
         <metadata dim="0" />
       </UserInterface>
     </Object>
+    <Object>
+      <UserInterface name="UserInterface1" isConstant="false" isGlobal="false">
+        <Name>UserInterface1</Name>
+        <General>
+          <Title></Title>
+          <ContinueButtonLabel>&amp;Continue</ContinueButtonLabel>
+          <LabelColumnWidth units="pixel" displayed_units="pixel">200</LabelColumnWidth>
+          <DataColumnWidth units="pixel" displayed_units="pixel">400</DataColumnWidth>
+          <NavigationType>Ordered Access</NavigationType>
+          <Elements dim="0" />
+        </General>
+        <metadata dim="0" />
+      </UserInterface>
+    </Object>
   </ProjectObjects>
   <ProjectMissionSequence>
     <ProjectExternals>
@@ -1613,7 +1627,6 @@ Define Procedure TargetNewOrbit(
 	Save sc as "IC";
 	sc.StepToEpoch(sc.Epoch + uplinkPeriod);
 	
-	Report sc.GetCartesianState().ToColumnMatrix, sc.Epoch;
 	opt.SaveObjectToProcess(sc);
 	opt.MaximumNominalEvaluationCount = 1000;
 	opt.LoadEngine();
@@ -1656,7 +1669,6 @@ Define Procedure TargetNewOrbit(
 	End;
 	
 	Report opt.ReturnString to Console;
-	Report sc.GetCartesianState().ToColumnMatrix, sc.Epoch;
 	opt.RestoreObjectsInProcess();
 	Restore sc from "IC";
 		
@@ -1668,7 +1680,6 @@ Define Procedure TargetNewOrbit(
 	dv2[1] = opt.GetBestStateVariableValue("dv22");
 	dv2[2] = opt.GetBestStateVariableValue("dv23");
 	interBurnTime = TimeSpan.FromDays(opt.GetBestStateVariableValue("days"));
-	Report dv1, dv2, interBurnTime;
 EndProcedure;
 
 Define Procedure AdvanceSimToTargetedNewOrbit(Spacecraft sc, Array dv1, Array dv2, TimeSpan interBurnTime, Formation red, Formation blue);
@@ -1929,14 +1940,26 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 		If (numberOfBlueEvasiveManeuvers > 0);
 			blueOperationsScore -= 8;
 			
-			Call TargetNewBlueOrbitAndAddBurnsToQueue(
-				blue[0],
-				initialKepStateBlue1,
-				initialLongitudeBlue1,
-				{0.1, 1},
-				0,
-				uplinkTime,
-				blueBurnQueue);
+			Send blueStrategyRequest_orbitChange to blueStrategyServer;
+			Send blue[0].GetCartesianState(),
+				 blue[0].Epoch.ToDays(),
+				 initialKepStateBlue1,
+				 initialLongitudeBlue1,
+				 {0.1, 1},
+				 uplinkTime.ToHours() to blueStrategyServer;
+			
+			Receive dv1, dv2, interBurnTimeDays from blueStrategyServer;
+			Call AddBurnToQueue(dv1, uplinkTime + simEpoch, 0, 1);
+			Call AddBurnToQueue(dv2, uplinkTime + simEpoch + TimeSpan.FromDays(interBurnTimeDays), 0, 1);
+			
+//			Call TargetNewBlueOrbitAndAddBurnsToQueue(
+//				blue[0],
+//				initialKepStateBlue1,
+//				initialLongitudeBlue1,
+//				{0.1, 1},
+//				0,
+//				uplinkTime,
+//				blueBurnQueue);
 			numberOfBlueEvasiveManeuvers = 0;
 		End;
 		
@@ -4296,7 +4319,6 @@ Define Procedure TargetNewOrbit(
 	Save sc as "IC";
 	sc.StepToEpoch(sc.Epoch + uplinkPeriod);
 	
-	Report sc.GetCartesianState().ToColumnMatrix, sc.Epoch;
 	opt.SaveObjectToProcess(sc);
 	opt.MaximumNominalEvaluationCount = 1000;
 	opt.LoadEngine();
@@ -4339,7 +4361,6 @@ Define Procedure TargetNewOrbit(
 	End;
 	
 	Report opt.ReturnString to Console;
-	Report sc.GetCartesianState().ToColumnMatrix, sc.Epoch;
 	opt.RestoreObjectsInProcess();
 	Restore sc from "IC";
 		
@@ -4351,7 +4372,6 @@ Define Procedure TargetNewOrbit(
 	dv2[1] = opt.GetBestStateVariableValue("dv22");
 	dv2[2] = opt.GetBestStateVariableValue("dv23");
 	interBurnTime = TimeSpan.FromDays(opt.GetBestStateVariableValue("days"));
-	Report dv1, dv2, interBurnTime;
 EndProcedure;
 
 Define Procedure AdvanceSimToTargetedNewOrbit(Spacecraft sc, Array dv1, Array dv2, TimeSpan interBurnTime, Formation red, Formation blue);
@@ -4607,14 +4627,26 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 		If (numberOfBlueEvasiveManeuvers > 0);
 			blueOperationsScore -= 8;
 			
-			Call TargetNewBlueOrbitAndAddBurnsToQueue(
-				blue[0],
-				initialKepStateBlue1,
-				initialLongitudeBlue1,
-				{0.1, 1},
-				0,
-				uplinkTime,
-				blueBurnQueue);
+			Send blueStrategyRequest_orbitChange to blueStrategyServer;
+			Send blue[0].GetCartesianState(),
+				 blue[0].Epoch.ToDays(),
+				 initialKepStateBlue1,
+				 initialLongitudeBlue1,
+				 {0.1, 1},
+				 uplinkTime.ToHours() to blueStrategyServer;
+			
+			Receive dv1, dv2, interBurnTimeDays from blueStrategyServer;
+			Call AddBurnToQueue(dv1, uplinkTime + simEpoch, 0, 1);
+			Call AddBurnToQueue(dv2, uplinkTime + simEpoch + TimeSpan.FromDays(interBurnTimeDays), 0, 1);
+			
+//			Call TargetNewBlueOrbitAndAddBurnsToQueue(
+//				blue[0],
+//				initialKepStateBlue1,
+//				initialLongitudeBlue1,
+//				{0.1, 1},
+//				0,
+//				uplinkTime,
+//				blueBurnQueue);
 			numberOfBlueEvasiveManeuvers = 0;
 		End;
 		
