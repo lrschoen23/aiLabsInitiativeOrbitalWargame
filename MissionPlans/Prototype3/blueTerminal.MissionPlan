@@ -1580,101 +1580,6 @@ Define Procedure AdvanceSimUplinkPeriod(Formation red, Formation blue);
 EndProcedure;
 
 
-Define Procedure TargetNewOrbit(
-		Spacecraft sc,
-		Array kepState,
-		Variable longitude,
-		Array timeBoundsDays,
-		Array dv1,
-		Array dv2,
-		TimeSpan interBurnTime,
-		TimeSpan uplinkPeriod);
-	Variable totalDV;
-	TimeSpan futureEpoch;
-	Variable addLongitudeConstraint;
-	Optimizer opt;
-	
-	opt.Reset(1);
-	opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
-	opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
-	opt.AddStateVariable("days", timeBoundsDays.Mean, timeBoundsDays[0], timeBoundsDays[1]);
-	opt.AddConstraint("A",    kepState[0], kepState[0], 100);
-	opt.AddConstraint("E",    kepState[1], kepState[1]);
-	opt.AddConstraint("I",    kepState[2], kepState[2], 100, 360);
-	
-	addLongitudeConstraint = longitude != -999;
-	If (addLongitudeConstraint);
-		opt.AddConstraint("lon",   longitude, longitude, 100, 360);
-	Else;
-		opt.AddConstraint("RAAN", kepState[3], kepState[3], 100, 360);
-		opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
-	End;
-	
-	Save sc as "IC";
-	sc.StepToEpoch(sc.Epoch + uplinkPeriod);
-	
-	opt.SaveObjectToProcess(sc);
-	opt.MaximumNominalEvaluationCount = 1000;
-	opt.LoadEngine();
-	While (opt.IsRunning());
-		opt.UpdateStateVariables();
-		opt.RestoreObjectsInProcess();
-		
-		burn.BurnDirection = opt.GetStateVariableValues[0:2];
-		totalDV = burn.BurnDirection.Norm;
-		sc.Maneuver(burn);
-		
-		futureEpoch = sc.Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
-		WhileStepping sc to (sc.Epoch == futureEpoch);
-		End;
-		
-		burn.BurnDirection = opt.GetStateVariableValues[3:5];
-		totalDV += burn.BurnDirection.Norm;
-		sc.Maneuver(burn);
-		
-		opt.SetConstraintValue("A", sc.A);
-		opt.SetConstraintValue("E", sc.E);
-		opt.SetConstraintValue("I", sc.I);
-
-		If (addLongitudeConstraint);
-			opt.SetConstraintValue("lon", sc.Longitude);
-		Else;
-			opt.SetConstraintValue("RAAN", sc.RAAN);
-			opt.SetConstraintValue("W", sc.W);
-		End;
-								 
-		opt.Minimize(totalDV);
-		
-		If (opt.OptimizationPhase == 1);
-			Report opt.NominalEvaluationCount, "   ",
-			opt.ObjectiveFunctionValue, "   ",
-			opt.MaximumInfeasibility, "   ",
-			opt.MaximumInfeasibilitySource to Console;
-		End;
-		
-	End;
-	
-	Report opt.ReturnString to Console;
-	opt.RestoreObjectsInProcess();
-	Restore sc from "IC";
-		
-	
-	dv1[0] = opt.GetBestStateVariableValue("dv11");
-	dv1[1] = opt.GetBestStateVariableValue("dv12");
-	dv1[2] = opt.GetBestStateVariableValue("dv13");
-	dv2[0] = opt.GetBestStateVariableValue("dv21");
-	dv2[1] = opt.GetBestStateVariableValue("dv22");
-	dv2[2] = opt.GetBestStateVariableValue("dv23");
-	interBurnTime = TimeSpan.FromDays(opt.GetBestStateVariableValue("days"));
-EndProcedure;
-
-Define Procedure AdvanceSimToTargetedNewOrbit(Spacecraft sc, Array dv1, Array dv2, TimeSpan interBurnTime, Formation red, Formation blue);
-	burn.BurnDirection = dv1;
-	sc.Maneuver(burn);
-	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + interBurnTime);
-	burn.BurnDirection = dv2;
-	sc.Maneuver(burn);
-EndProcedure;
 
 Define Procedure AddBurnToQueue(
 	Array dv,
@@ -1702,26 +1607,6 @@ Define Procedure AddBurnToQueue(
 	End;
 EndProcedure;
 
-Define Procedure TargetNewBlueOrbitAndAddBurnsToQueue(
-		Spacecraft sc,
-		Array kepState,
-		Variable longitude,
-		Array timeBoundsDays,
-		Variable formationIndex,
-		TimeSpan uplinkPeriod,
-		List<QueuedBurn> burnQueue);
-	
-	Array dv1(3);
-	Array dv2(3);
-	TimeSpan interBurnTime;
-	Call TargetNewOrbit(sc, kepState, longitude, timeBoundsDays, dv1, dv2, interBurnTime, uplinkPeriod);
-	Alias newBurn = burnQueue[burnQueue.Count - 1];
-	
-	burnQueue.Clear();
-	Call AddBurnToQueue(dv1, uplinkPeriod + simEpoch, 0, 1);
-	Call AddBurnToQueue(dv2, uplinkPeriod + simEpoch + interBurnTime, 0, 1);
-	
-EndProcedure;
 
 Define Procedure GetCartStateOfClosestRedAtTimeOffset(Formation red, Formation blue, TimeSpan offest, Array cartRedState, Array cartBlueState);
 	Variable index = 0;
@@ -1749,48 +1634,6 @@ Define Procedure GetCartStateOfClosestRedAtTimeOffset(Formation red, Formation b
 	End;
 EndProcedure;
 
-
-Define Procedure ComputeDesiredSlewAngle(Formation red, Formation blue, Variable slewAngle);
-	Variable redIndex = 0;
-	Variable i = 0;
-	For i = 0 to red.Count - 1;
-		If (blue[0].Range(red[i]) < blue[0].Range(red[redIndex]));
-			redIndex = i;
-		End;
-	End;
-	
-	Optimizer opt;
-	opt.Reset(1);
-	
-	Variable initialEulerAngle = blue[0].EulerAngles[0];
-	opt.AddStateVariable("angle", initialEulerAngle+90, 0, 360, 100);
-	
-	Variable range;
-	Variable angle;
-	opt.MaximumNominalEvaluationCount = 50;
-	opt.LoadEngine();
-	
-	While (opt.IsRunning());
-		opt.UpdateStateVariables();
-		
-		blue[0].EulerAngles[0] = opt.GetStateVariableValue(0);
-		Call ComputeRangeAndAngleFromPayload(blue[0], red[redIndex], range, angle);
-		opt.Maximize(angle);
-			
-		If (opt.OptimizationPhase == 1);
-			Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource, blue[0].EulerAngles[0];
-		End;
-	End;
-	
-	blue[0].EulerAngles[0] = initialEulerAngle;
-	slewAngle = opt.GetBestStateVariableValue("angle");
-EndProcedure;
-
-Define Procedure ComputeAndExecuteBlueSlew(Formation red, Formation blue);
-	Variable slewAngle;
-	Call ComputeDesiredSlewAngle(red, blue, slewAngle);
-	Call AdvanceSimToFutureEpochWithBlueSlew(red, blue, blue[0].Epoch + TimeSpan.FromHours(10), slewAngle);
-EndProcedure;
 
 Define Procedure AddFutureBurnMarkerToQueue(
 	TimeSpan epoch,
@@ -1961,8 +1804,6 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 			 (simEpoch + uplinkTime).ToDays() to blueStrategyServer;
 		
 		Call AddFutureBlueSlewToQueue(simEpoch + uplinkTime);
-		
-//		Call ComputeDesiredSlewAngle(red, blue, desiredBluePayloadOrientationAngle);
 	End;
 	
 	If (userChoice == choice_secondaryComms);
@@ -4334,101 +4175,6 @@ Define Procedure AdvanceSimUplinkPeriod(Formation red, Formation blue);
 EndProcedure;
 
 
-Define Procedure TargetNewOrbit(
-		Spacecraft sc,
-		Array kepState,
-		Variable longitude,
-		Array timeBoundsDays,
-		Array dv1,
-		Array dv2,
-		TimeSpan interBurnTime,
-		TimeSpan uplinkPeriod);
-	Variable totalDV;
-	TimeSpan futureEpoch;
-	Variable addLongitudeConstraint;
-	Optimizer opt;
-	
-	opt.Reset(1);
-	opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
-	opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
-	opt.AddStateVariable("days", timeBoundsDays.Mean, timeBoundsDays[0], timeBoundsDays[1]);
-	opt.AddConstraint("A",    kepState[0], kepState[0], 100);
-	opt.AddConstraint("E",    kepState[1], kepState[1]);
-	opt.AddConstraint("I",    kepState[2], kepState[2], 100, 360);
-	
-	addLongitudeConstraint = longitude != -999;
-	If (addLongitudeConstraint);
-		opt.AddConstraint("lon",   longitude, longitude, 100, 360);
-	Else;
-		opt.AddConstraint("RAAN", kepState[3], kepState[3], 100, 360);
-		opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
-	End;
-	
-	Save sc as "IC";
-	sc.StepToEpoch(sc.Epoch + uplinkPeriod);
-	
-	opt.SaveObjectToProcess(sc);
-	opt.MaximumNominalEvaluationCount = 1000;
-	opt.LoadEngine();
-	While (opt.IsRunning());
-		opt.UpdateStateVariables();
-		opt.RestoreObjectsInProcess();
-		
-		burn.BurnDirection = opt.GetStateVariableValues[0:2];
-		totalDV = burn.BurnDirection.Norm;
-		sc.Maneuver(burn);
-		
-		futureEpoch = sc.Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
-		WhileStepping sc to (sc.Epoch == futureEpoch);
-		End;
-		
-		burn.BurnDirection = opt.GetStateVariableValues[3:5];
-		totalDV += burn.BurnDirection.Norm;
-		sc.Maneuver(burn);
-		
-		opt.SetConstraintValue("A", sc.A);
-		opt.SetConstraintValue("E", sc.E);
-		opt.SetConstraintValue("I", sc.I);
-
-		If (addLongitudeConstraint);
-			opt.SetConstraintValue("lon", sc.Longitude);
-		Else;
-			opt.SetConstraintValue("RAAN", sc.RAAN);
-			opt.SetConstraintValue("W", sc.W);
-		End;
-								 
-		opt.Minimize(totalDV);
-		
-		If (opt.OptimizationPhase == 1);
-			Report opt.NominalEvaluationCount, "   ",
-			opt.ObjectiveFunctionValue, "   ",
-			opt.MaximumInfeasibility, "   ",
-			opt.MaximumInfeasibilitySource to Console;
-		End;
-		
-	End;
-	
-	Report opt.ReturnString to Console;
-	opt.RestoreObjectsInProcess();
-	Restore sc from "IC";
-		
-	
-	dv1[0] = opt.GetBestStateVariableValue("dv11");
-	dv1[1] = opt.GetBestStateVariableValue("dv12");
-	dv1[2] = opt.GetBestStateVariableValue("dv13");
-	dv2[0] = opt.GetBestStateVariableValue("dv21");
-	dv2[1] = opt.GetBestStateVariableValue("dv22");
-	dv2[2] = opt.GetBestStateVariableValue("dv23");
-	interBurnTime = TimeSpan.FromDays(opt.GetBestStateVariableValue("days"));
-EndProcedure;
-
-Define Procedure AdvanceSimToTargetedNewOrbit(Spacecraft sc, Array dv1, Array dv2, TimeSpan interBurnTime, Formation red, Formation blue);
-	burn.BurnDirection = dv1;
-	sc.Maneuver(burn);
-	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + interBurnTime);
-	burn.BurnDirection = dv2;
-	sc.Maneuver(burn);
-EndProcedure;
 
 Define Procedure AddBurnToQueue(
 	Array dv,
@@ -4456,26 +4202,6 @@ Define Procedure AddBurnToQueue(
 	End;
 EndProcedure;
 
-Define Procedure TargetNewBlueOrbitAndAddBurnsToQueue(
-		Spacecraft sc,
-		Array kepState,
-		Variable longitude,
-		Array timeBoundsDays,
-		Variable formationIndex,
-		TimeSpan uplinkPeriod,
-		List<QueuedBurn> burnQueue);
-	
-	Array dv1(3);
-	Array dv2(3);
-	TimeSpan interBurnTime;
-	Call TargetNewOrbit(sc, kepState, longitude, timeBoundsDays, dv1, dv2, interBurnTime, uplinkPeriod);
-	Alias newBurn = burnQueue[burnQueue.Count - 1];
-	
-	burnQueue.Clear();
-	Call AddBurnToQueue(dv1, uplinkPeriod + simEpoch, 0, 1);
-	Call AddBurnToQueue(dv2, uplinkPeriod + simEpoch + interBurnTime, 0, 1);
-	
-EndProcedure;
 
 Define Procedure GetCartStateOfClosestRedAtTimeOffset(Formation red, Formation blue, TimeSpan offest, Array cartRedState, Array cartBlueState);
 	Variable index = 0;
@@ -4503,48 +4229,6 @@ Define Procedure GetCartStateOfClosestRedAtTimeOffset(Formation red, Formation b
 	End;
 EndProcedure;
 
-
-Define Procedure ComputeDesiredSlewAngle(Formation red, Formation blue, Variable slewAngle);
-	Variable redIndex = 0;
-	Variable i = 0;
-	For i = 0 to red.Count - 1;
-		If (blue[0].Range(red[i]) < blue[0].Range(red[redIndex]));
-			redIndex = i;
-		End;
-	End;
-	
-	Optimizer opt;
-	opt.Reset(1);
-	
-	Variable initialEulerAngle = blue[0].EulerAngles[0];
-	opt.AddStateVariable("angle", initialEulerAngle+90, 0, 360, 100);
-	
-	Variable range;
-	Variable angle;
-	opt.MaximumNominalEvaluationCount = 50;
-	opt.LoadEngine();
-	
-	While (opt.IsRunning());
-		opt.UpdateStateVariables();
-		
-		blue[0].EulerAngles[0] = opt.GetStateVariableValue(0);
-		Call ComputeRangeAndAngleFromPayload(blue[0], red[redIndex], range, angle);
-		opt.Maximize(angle);
-			
-		If (opt.OptimizationPhase == 1);
-			Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource, blue[0].EulerAngles[0];
-		End;
-	End;
-	
-	blue[0].EulerAngles[0] = initialEulerAngle;
-	slewAngle = opt.GetBestStateVariableValue("angle");
-EndProcedure;
-
-Define Procedure ComputeAndExecuteBlueSlew(Formation red, Formation blue);
-	Variable slewAngle;
-	Call ComputeDesiredSlewAngle(red, blue, slewAngle);
-	Call AdvanceSimToFutureEpochWithBlueSlew(red, blue, blue[0].Epoch + TimeSpan.FromHours(10), slewAngle);
-EndProcedure;
 
 Define Procedure AddFutureBurnMarkerToQueue(
 	TimeSpan epoch,
@@ -4710,8 +4394,6 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 			 (simEpoch + uplinkTime).ToDays() to blueStrategyServer;
 		
 		Call AddFutureBlueSlewToQueue(simEpoch + uplinkTime);
-		
-//		Call ComputeDesiredSlewAngle(red, blue, desiredBluePayloadOrientationAngle);
 	End;
 	
 	If (userChoice == choice_secondaryComms);
