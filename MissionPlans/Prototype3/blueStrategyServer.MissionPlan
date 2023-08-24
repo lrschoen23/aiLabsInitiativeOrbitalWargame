@@ -108,10 +108,6 @@
         <Bookmarks />
         <Breakpoints />
         <FreeFormScript><![CDATA[
-Global Constant Variable blueStrategyRequest_disconnectServer = 0;
-Global Constant Variable blueStrategyRequest_orbitChange = 1;
-Global Constant Variable blueStrategyRequest_slew = 2;
-
 Variable strategyRequest;
 
 Array blueCartState(6);
@@ -131,8 +127,6 @@ Variable interBurnTimeDays;
 TimeSpan interBurnTime;
 Variable epochDays;
 
-Global ImpulsiveBurn burn;
-burn.AttitudeSystem = 6;
 
 Spacecraft blue1;
 Spacecraft red;
@@ -141,12 +135,12 @@ Call InitializeBlue1(blue1);]]></FreeFormScript>
       <FreeForm enabled="true">
         <Label>FreeForm</Label>
         <Bookmarks />
-        <Breakpoints>
-          <Breakpoint line="149" enabled="true" />
-        </Breakpoints>
+        <Breakpoints />
         <FreeFormScript><![CDATA[
-Define Procedure ComputeStationKeepingManeuver(Optimizer opt, Spacecraft sc, Variable longitude);
+Define Procedure ComputeStationKeepingManeuver(Spacecraft sc, Variable longitude, Array dv);
 	TimeSpan initialEpoch;
+	
+	Optimizer opt;
 	opt.Reset(1);
 	opt.AddStateVariableBlock(3, "dv", 0.0001, -0.001, 0.001, 1, 1e-6);
 	
@@ -178,6 +172,8 @@ Define Procedure ComputeStationKeepingManeuver(Optimizer opt, Spacecraft sc, Var
 	
 	Report opt.ReturnString to ConsoleSolver;
 	opt.RestoreObjectsInProcess();
+	
+	dv = opt.GetBestStateVariableValues();
 EndProcedure;
 
 Define Procedure TargetNewOrbit(
@@ -266,6 +262,7 @@ Define Procedure TargetNewOrbit(
 	dv2[2] = opt.GetBestStateVariableValue("dv23");
 	interBurnTime = TimeSpan.FromDays(opt.GetBestStateVariableValue("days"));
 	
+	Array extraDv;
 	If (addLongitudeConstraint);
 		burn.BurnDirection = dv1;
 		sc.Maneuver(burn);
@@ -277,8 +274,8 @@ Define Procedure TargetNewOrbit(
 		burn.BurnDirection = dv2;
 		sc.Maneuver(burn);
 		
-		Call ComputeStationKeepingManeuver(opt, sc, longitude);
-		dv2 += opt.GetBestStateVariableValues();
+		Call ComputeStationKeepingManeuver(sc, longitude, extraDv);
+		dv2 += extraDv;
 	End;
 EndProcedure;
 
@@ -299,36 +296,9 @@ Define Procedure ComputeDesiredSlewAngle(Spacecraft red, Spacecraft blue, Variab
 		End;
 	End;
 	blue.EulerAngles[0] = initialEulerAngle;
-	
-	
-	
-//	Optimizer opt;
-//	opt.Reset(1);
-//	
-//	opt.AddStateVariable("angle", initialEulerAngle+90, 0, 360, 100);
-//	
-//	opt.MaximumNominalEvaluationCount = 50;
-//	opt.LoadEngine();
-//	
-//	While (opt.IsRunning());
-//		opt.UpdateStateVariables();
-//		
-//		blue.EulerAngles[0] = opt.GetStateVariableValue(0);
-//		Call ComputeRangeAndAngleFromPayload(blue, red, range, angle);
-//		opt.Maximize(angle);
-//			
-//		If (opt.OptimizationPhase == 1);
-//			Report opt.NominalEvaluationCount, "   ",
-//			opt.ObjectiveFunctionValue, "   ",
-//			opt.MaximumInfeasibility, "   ",
-//			opt.MaximumInfeasibilitySource, "   ",
-//			blue.EulerAngles[0] to ConsoleSolver;
-//		End;
-//	End;
-//	
-//	blue.EulerAngles[0] = initialEulerAngle;
-//	slewAngle = opt.GetBestStateVariableValue("angle");
-EndProcedure;]]></FreeFormScript>
+EndProcedure;
+
+]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
         <Label>FreeForm</Label>
@@ -337,7 +307,7 @@ EndProcedure;]]></FreeFormScript>
         <FreeFormScript><![CDATA[
 Socket connection;
 connection.SocketType = "server";
-connection.PortNumber = 5115;
+connection.PortNumber = blueStrategyServerPort;
 connection.SocketTimeout = -1;
 
 
@@ -400,6 +370,20 @@ While (1);
 				Call ComputeDesiredSlewAngle(red, blue1, slewAngle);
 				Report "Sending data..." to Console;
 				Send slewAngle to connection;
+				Report "Data transfer complete" to Console;
+				
+			ElseIf (strategyRequest == blueStrategyRequest_stationKeep);
+				Report "Station Keep" to Console;
+				Receive blueCartState,
+						epochDays,
+						desiredLongitude from connection;
+				
+				blue1.Epoch = TimeSpan.FromDays(epochDays);
+				blue1.SetCartesianState(blueCartState);
+				
+				Call ComputeStationKeepingManeuver(blue1, desiredLongitude, dv1);
+				Report "Sending data..." to Console;
+				Send dv1 to connection;
 				Report "Data transfer complete" to Console;
 			End;
 		End;
@@ -414,10 +398,6 @@ End;]]></FreeFormScript>
     </ProjectCommands>
   </ProjectMissionSequence>
   <ProjectScript><![CDATA[
-Global Constant Variable blueStrategyRequest_disconnectServer = 0;
-Global Constant Variable blueStrategyRequest_orbitChange = 1;
-Global Constant Variable blueStrategyRequest_slew = 2;
-
 Variable strategyRequest;
 
 Array blueCartState(6);
@@ -437,15 +417,15 @@ Variable interBurnTimeDays;
 TimeSpan interBurnTime;
 Variable epochDays;
 
-Global ImpulsiveBurn burn;
-burn.AttitudeSystem = 6;
 
 Spacecraft blue1;
 Spacecraft red;
 Call InitializeBlue1(blue1);
 
-Define Procedure ComputeStationKeepingManeuver(Optimizer opt, Spacecraft sc, Variable longitude);
+Define Procedure ComputeStationKeepingManeuver(Spacecraft sc, Variable longitude, Array dv);
 	TimeSpan initialEpoch;
+	
+	Optimizer opt;
 	opt.Reset(1);
 	opt.AddStateVariableBlock(3, "dv", 0.0001, -0.001, 0.001, 1, 1e-6);
 	
@@ -477,6 +457,8 @@ Define Procedure ComputeStationKeepingManeuver(Optimizer opt, Spacecraft sc, Var
 	
 	Report opt.ReturnString to ConsoleSolver;
 	opt.RestoreObjectsInProcess();
+	
+	dv = opt.GetBestStateVariableValues();
 EndProcedure;
 
 Define Procedure TargetNewOrbit(
@@ -565,6 +547,7 @@ Define Procedure TargetNewOrbit(
 	dv2[2] = opt.GetBestStateVariableValue("dv23");
 	interBurnTime = TimeSpan.FromDays(opt.GetBestStateVariableValue("days"));
 	
+	Array extraDv;
 	If (addLongitudeConstraint);
 		burn.BurnDirection = dv1;
 		sc.Maneuver(burn);
@@ -576,8 +559,8 @@ Define Procedure TargetNewOrbit(
 		burn.BurnDirection = dv2;
 		sc.Maneuver(burn);
 		
-		Call ComputeStationKeepingManeuver(opt, sc, longitude);
-		dv2 += opt.GetBestStateVariableValues();
+		Call ComputeStationKeepingManeuver(sc, longitude, extraDv);
+		dv2 += extraDv;
 	End;
 EndProcedure;
 
@@ -598,40 +581,13 @@ Define Procedure ComputeDesiredSlewAngle(Spacecraft red, Spacecraft blue, Variab
 		End;
 	End;
 	blue.EulerAngles[0] = initialEulerAngle;
-	
-	
-	
-//	Optimizer opt;
-//	opt.Reset(1);
-//	
-//	opt.AddStateVariable("angle", initialEulerAngle+90, 0, 360, 100);
-//	
-//	opt.MaximumNominalEvaluationCount = 50;
-//	opt.LoadEngine();
-//	
-//	While (opt.IsRunning());
-//		opt.UpdateStateVariables();
-//		
-//		blue.EulerAngles[0] = opt.GetStateVariableValue(0);
-//		Call ComputeRangeAndAngleFromPayload(blue, red, range, angle);
-//		opt.Maximize(angle);
-//			
-//		If (opt.OptimizationPhase == 1);
-//			Report opt.NominalEvaluationCount, "   ",
-//			opt.ObjectiveFunctionValue, "   ",
-//			opt.MaximumInfeasibility, "   ",
-//			opt.MaximumInfeasibilitySource, "   ",
-//			blue.EulerAngles[0] to ConsoleSolver;
-//		End;
-//	End;
-//	
-//	blue.EulerAngles[0] = initialEulerAngle;
-//	slewAngle = opt.GetBestStateVariableValue("angle");
 EndProcedure;
+
+
 
 Socket connection;
 connection.SocketType = "server";
-connection.PortNumber = 5115;
+connection.PortNumber = blueStrategyServerPort;
 connection.SocketTimeout = -1;
 
 
@@ -694,6 +650,20 @@ While (1);
 				Call ComputeDesiredSlewAngle(red, blue1, slewAngle);
 				Report "Sending data..." to Console;
 				Send slewAngle to connection;
+				Report "Data transfer complete" to Console;
+				
+			ElseIf (strategyRequest == blueStrategyRequest_stationKeep);
+				Report "Station Keep" to Console;
+				Receive blueCartState,
+						epochDays,
+						desiredLongitude from connection;
+				
+				blue1.Epoch = TimeSpan.FromDays(epochDays);
+				blue1.SetCartesianState(blueCartState);
+				
+				Call ComputeStationKeepingManeuver(blue1, desiredLongitude, dv1);
+				Report "Sending data..." to Console;
+				Send dv1 to connection;
 				Report "Data transfer complete" to Console;
 			End;
 		End;

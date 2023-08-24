@@ -252,7 +252,8 @@
         <Breakpoints />
         <FreeFormScript><![CDATA[//Show MainMenu;
 
-userChoice = 3;
+//Global Constant Variable gameMode = userChoice;
+Global Constant Variable gameMode = gameMode_displayMode;
 simStepSizeSeconds = 1000;
 
 Global Constant Variable autoChooseNominalOperation = 0;
@@ -510,28 +511,6 @@ viewMain3D.SetObjectIcon(red[2].ObjectId,  "Icons/jammingWarning.png");
 viewUplink.SetObjectIcon(red[2].ObjectId,  "Icons/jammingWarning.png");
 viewPayload.SetObjectIcon(red[2].ObjectId, "Icons/jammingWarning.png");
 
-Global ImpulsiveBurn burn;
-burn.AttitudeSystem = 6;
-
-
-Global FileInterface file;
-
-
-Define Procedure OpenForRead(String filename);
-	file.Filename = filename;
-	file.ReadMode = 1;
-	file.WriteMode = 0;
-	file.Open();
-EndProcedure;
-
-Define Procedure OpenForWrite(String filename);
-	file.Filename = filename;
-	file.ReadMode = 0;
-	file.WriteMode = 1;
-	file.Open();
-EndProcedure;
-
-
 
 // Set initial states
 blue[0].Epoch = simStartEpoch;
@@ -631,11 +610,20 @@ End;
 
 Global Socket blueStrategyServer;
 blueStrategyServer.SocketType = "client";
-blueStrategyServer.PortNumber = 5115;
+blueStrategyServer.PortNumber = blueStrategyServerPort;
 blueStrategyServer.SocketTimeout = 60;
 Open blueStrategyServer;
 
 Send simStepSize.ToSeconds() to blueStrategyServer;
+
+Global Socket redStrategyServer;
+redStrategyServer.SocketType = "client";
+redStrategyServer.PortNumber = redStrategyServerPort;
+redStrategyServer.SocketTimeout = 60;
+Open redStrategyServer;
+
+Send simStepSize.ToSeconds() to redStrategyServer;
+Send gameMode to redStrategyServer;
 ]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
@@ -643,10 +631,6 @@ Send simStepSize.ToSeconds() to blueStrategyServer;
         <Bookmarks />
         <Breakpoints />
         <FreeFormScript><![CDATA[
-Global Constant Variable blueStrategyRequest_disconnectServer = 0;
-Global Constant Variable blueStrategyRequest_orbitChange = 1;
-Global Constant Variable blueStrategyRequest_slew = 2;
-
 Variable redHasNotDisengaged = 1;
 
 Global Constant Variable queueType_none  = 0;
@@ -1224,39 +1208,6 @@ Define Procedure ComputePredict(
 	
 EndProcedure;
 
-
-Define Procedure ComputeStationKeepingManeuver(Optimizer opt, Spacecraft sc, Variable longitude);
-	TimeSpan initialEpoch;
-	opt.Reset(1);
-	opt.AddStateVariableBlock(3, "dv", 0.0001, -0.001, 0.001, 1, 1e-6);
-	
-	opt.SaveObjectToProcess(sc);
-	
-	opt.MaximumNominalEvaluationCount = 50;
-	opt.LoadEngine();
-	While (opt.IsRunning());
-		opt.UpdateStateVariables();
-		opt.RestoreObjectsInProcess();
-		burn.BurnDirection = opt.GetStateVariableValues();
-		
-		sc.Maneuver(burn);
-		
-		initialEpoch = sc.Epoch;
-		While (abs(sc.Longitude - longitude) < 0.05);
-			sc.Step(TimeSpan.FromSeconds(30));
-		End;
-		
-		opt.Maximize((sc.Epoch - initialEpoch).ToHours());
-		
-		If (opt.OptimizationPhase == 1);
-			Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, burn.BurnDirection.Norm, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
-		End;
-	End;
-	
-	Report opt.ReturnString;
-	opt.RestoreObjectsInProcess();
-EndProcedure;
-
 Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 	Variable angle;
 	Variable i;
@@ -1703,6 +1654,61 @@ Define Procedure ExecuteQueuedAction(QueuedBurn queuedAction, Formation red, For
 		burn.BurnDirection = queuedAction.burnRIC;
 		red[queuedAction.formationIndex].Maneuver(burn);
 	End;
+EndProcedure;
+
+
+Define Procedure RequestBlueEvasiveManeuverFromServer(Formation blue);
+	blueBurnQueue.Clear();
+	Send blueStrategyRequest_orbitChange to blueStrategyServer;
+	Send blue[0].GetCartesianState(),
+		 blue[0].Epoch.ToDays(),
+		 initialKepStateBlue1,
+		 blue[0].Longitude + 0.3,
+		 {0.1, 0.5},
+		 uplinkTime.ToHours() to blueStrategyServer;
+	
+	Call AddFutureBurnMarkerToQueue(uplinkTime + simEpoch, 0, 1);
+EndProcedure;
+
+
+Define Procedure RequestBlueReturnToNominalFromServer(Formation blue);
+	blueOperationsScore -= 8;
+	
+	blueBurnQueue.Clear();
+	Send blueStrategyRequest_orbitChange to blueStrategyServer;
+	Send blue[0].GetCartesianState(),
+		 blue[0].Epoch.ToDays(),
+		 initialKepStateBlue1,
+		 initialLongitudeBlue1,
+		 {0.1, 1},
+		 uplinkTime.ToHours() to blueStrategyServer;
+	
+	Call AddFutureBurnMarkerToQueue(uplinkTime + simEpoch, 0, 1);
+EndProcedure;
+
+Define Procedure RequestBlueSlewFromServer(Formation red, Formation blue);
+	Array redCartState;
+	Array blueCartState;
+	
+	initialBluePayloadOrientationAngle = blue[0].EulerAngles[0];
+	Call GetCartStateOfClosestRedAtTimeOffset(red, blue, uplinkTime, redCartState, blueCartState);
+	
+	Send blueStrategyRequest_slew to blueStrategyServer;
+	Send redCartState,
+		 blueCartState,
+		 (simEpoch + uplinkTime).ToDays() to blueStrategyServer;
+	
+	Call AddFutureBlueSlewToQueue(simEpoch + uplinkTime);
+EndProcedure;
+
+Define Procedure RequestBlueStationKeepFromServer(Formation blue, Array dv);
+	dv.Dimension = 3;
+	Send blueStrategyRequest_stationKeep to blueStrategyServer;
+	Send blue[0].GetCartesianState(),
+		 blue[0].Epoch.ToDays(),
+		 blue[0].Longitude to blueStrategyServer;
+	
+	Receive dv from blueStrategyServer;
 EndProcedure;]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
@@ -1792,18 +1798,8 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 		blueIsOffNominal = 1;
 	End;
 	
-	Array redCartState;
-	Array blueCartState;
 	If (userChoice == choice_slew);
-		initialBluePayloadOrientationAngle = blue[0].EulerAngles[0];
-		Call GetCartStateOfClosestRedAtTimeOffset(red, blue, uplinkTime, redCartState, blueCartState);
-		
-		Send blueStrategyRequest_slew to blueStrategyServer;
-		Send redCartState,
-			 blueCartState,
-			 (simEpoch + uplinkTime).ToDays() to blueStrategyServer;
-		
-		Call AddFutureBlueSlewToQueue(simEpoch + uplinkTime);
+		Call RequestBlueSlewFromServer(red, blue);
 	End;
 	
 	If (userChoice == choice_secondaryComms);
@@ -1834,35 +1830,13 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 	If (userChoice == choice_evasive);
 		blueOperationsScore -= 8;
 		
-		blueBurnQueue.Clear();
-		Send blueStrategyRequest_orbitChange to blueStrategyServer;
-		Send blue[0].GetCartesianState(),
-			 blue[0].Epoch.ToDays(),
-			 initialKepStateBlue1,
-			 blue[0].Longitude + 0.3,
-			 {0.1, 0.5},
-			 uplinkTime.ToHours() to blueStrategyServer;
-		
-		Call AddFutureBurnMarkerToQueue(uplinkTime + simEpoch, 0, 1);
-
+		Call RequestBlueEvasiveManeuverFromServer(blue);
 		numberOfBlueEvasiveManeuvers += 1;
 	End;
 	
 	If (userChoice == choice_returnToNominal);
 		If (numberOfBlueEvasiveManeuvers > 0);
-			blueOperationsScore -= 8;
-			
-			blueBurnQueue.Clear();
-			Send blueStrategyRequest_orbitChange to blueStrategyServer;
-			Send blue[0].GetCartesianState(),
-				 blue[0].Epoch.ToDays(),
-				 initialKepStateBlue1,
-				 initialLongitudeBlue1,
-				 {0.1, 1},
-				 uplinkTime.ToHours() to blueStrategyServer;
-			
-			Call AddFutureBurnMarkerToQueue(uplinkTime + simEpoch, 0, 1);
-			
+			Call RequestBlueReturnToNominalFromServer(blue);
 			numberOfBlueEvasiveManeuvers = 0;
 		End;
 		
@@ -1888,13 +1862,8 @@ Define Procedure AdvanceSimUntilBlueIsNominal(Formation red, Formation blue);
 		Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(5));
 		Call ShowOperatorActionsMenu(red, blue);
 	End;
-EndProcedure;]]></FreeFormScript>
-      </FreeForm>
-      <FreeForm enabled="false">
-        <Label>Game Scripts</Label>
-        <Bookmarks />
-        <Breakpoints />
-        <FreeFormScript><![CDATA[
+EndProcedure;
+
 Define Procedure DisplayModeScript(Formation red, Formation blue);
 	Optimizer opt;
 	TimeSpan initialEpoch;
@@ -1914,33 +1883,18 @@ Define Procedure DisplayModeScript(Formation red, Formation blue);
 	pwRange.EndBatchUpdate();
 	OutputLayout.BringWindowToFront(pwRange.ID);
 	
-	viewMain3D.CurrentViewpoint.ThreeDView.RightAscension = 268;
-	viewMain3D.CurrentViewpoint.ThreeDView.Declination = 7;
-	
-//Block PRESOLVED OPTIMIZATION
-	If (doOptimizationAndSaveValues);
-		Call ComputeStationKeepingManeuver(opt, blue[0], 279.25);
-		burn.BurnDirection = opt.GetBestStateVariableValues();
-		
-		Call OpenForWrite("SavedValues/BenignScript_Blue1SK1.txt");
-		file.PutLine(burn.BurnDirection[0].ToString());
-		file.PutLine(burn.BurnDirection[1].ToString());
-		file.PutLine(burn.BurnDirection[2].ToString());
-		file.Close();
-	End;
-//EndBlock PRESOLVED OPTIMIZATION
+	viewMain3D.CurrentViewpoint.ThreeDView.RightAscension = 277;
+	viewMain3D.CurrentViewpoint.ThreeDView.Declination = 6;
 
-	Call OpenForRead("SavedValues/BenignScript_Blue1SK1.txt");
-	burn.BurnDirection[0] = file.GetLine().ToVariable();
-	burn.BurnDirection[1] = file.GetLine().ToVariable();
-	burn.BurnDirection[2] = file.GetLine().ToVariable();
-	file.Close();
+	Array dv;
+	Call RequestBlueStationKeepFromServer(blue, dv);
+	burn.BurnDirection = dv;
 	
 	blue[0].Maneuver(burn);
 	
 	red[0].SetKeplerianState(blue[0].GetKeplerianState());
-	red[0].E += 0.002;
-	red[0].I += 0.25;
+	red[0].E += 0.0022;
+	red[0].I -= 0.20;
 	red[0].TA += 0.1;
 	
 	blue[0].Save("IC");
@@ -1979,7 +1933,14 @@ Define Procedure DisplayModeScript(Formation red, Formation blue);
 		red[2].Restore("IC");
 	End;
 	
-EndProcedure;
+EndProcedure;]]></FreeFormScript>
+      </FreeForm>
+      <FreeForm enabled="false">
+        <Label>Game Scripts</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[
+
 
 
 Define Procedure BenignScript(Formation red, Formation blue);
@@ -2841,6 +2802,10 @@ End;]]></FreeFormScript>
         <Breakpoints />
         <FreeFormScript><![CDATA[
 
+If (gameMode == gameMode_displayMode);
+	Call DisplayModeScript(red, blue);
+End;
+
 QueuedBurn nextQueuedAction;
 TimeSpan nextQueuedActionEpoch;
 Variable nextQueuedActionIsBeforeNextChoiceEpoch;
@@ -2871,7 +2836,8 @@ End;]]></FreeFormScript>
   </ProjectMissionSequence>
   <ProjectScript><![CDATA[//Show MainMenu;
 
-userChoice = 3;
+//Global Constant Variable gameMode = userChoice;
+Global Constant Variable gameMode = gameMode_displayMode;
 simStepSizeSeconds = 1000;
 
 Global Constant Variable autoChooseNominalOperation = 0;
@@ -3124,28 +3090,6 @@ viewMain3D.SetObjectIcon(red[2].ObjectId,  "Icons/jammingWarning.png");
 viewUplink.SetObjectIcon(red[2].ObjectId,  "Icons/jammingWarning.png");
 viewPayload.SetObjectIcon(red[2].ObjectId, "Icons/jammingWarning.png");
 
-Global ImpulsiveBurn burn;
-burn.AttitudeSystem = 6;
-
-
-Global FileInterface file;
-
-
-Define Procedure OpenForRead(String filename);
-	file.Filename = filename;
-	file.ReadMode = 1;
-	file.WriteMode = 0;
-	file.Open();
-EndProcedure;
-
-Define Procedure OpenForWrite(String filename);
-	file.Filename = filename;
-	file.ReadMode = 0;
-	file.WriteMode = 1;
-	file.Open();
-EndProcedure;
-
-
 
 // Set initial states
 blue[0].Epoch = simStartEpoch;
@@ -3245,16 +3189,21 @@ End;
 
 Global Socket blueStrategyServer;
 blueStrategyServer.SocketType = "client";
-blueStrategyServer.PortNumber = 5115;
+blueStrategyServer.PortNumber = blueStrategyServerPort;
 blueStrategyServer.SocketTimeout = 60;
 Open blueStrategyServer;
 
 Send simStepSize.ToSeconds() to blueStrategyServer;
 
+Global Socket redStrategyServer;
+redStrategyServer.SocketType = "client";
+redStrategyServer.PortNumber = redStrategyServerPort;
+redStrategyServer.SocketTimeout = 60;
+Open redStrategyServer;
 
-Global Constant Variable blueStrategyRequest_disconnectServer = 0;
-Global Constant Variable blueStrategyRequest_orbitChange = 1;
-Global Constant Variable blueStrategyRequest_slew = 2;
+Send simStepSize.ToSeconds() to redStrategyServer;
+Send gameMode to redStrategyServer;
+
 
 Variable redHasNotDisengaged = 1;
 
@@ -3818,39 +3767,6 @@ Define Procedure ComputePredict(
 	
 EndProcedure;
 
-
-Define Procedure ComputeStationKeepingManeuver(Optimizer opt, Spacecraft sc, Variable longitude);
-	TimeSpan initialEpoch;
-	opt.Reset(1);
-	opt.AddStateVariableBlock(3, "dv", 0.0001, -0.001, 0.001, 1, 1e-6);
-	
-	opt.SaveObjectToProcess(sc);
-	
-	opt.MaximumNominalEvaluationCount = 50;
-	opt.LoadEngine();
-	While (opt.IsRunning());
-		opt.UpdateStateVariables();
-		opt.RestoreObjectsInProcess();
-		burn.BurnDirection = opt.GetStateVariableValues();
-		
-		sc.Maneuver(burn);
-		
-		initialEpoch = sc.Epoch;
-		While (abs(sc.Longitude - longitude) < 0.05);
-			sc.Step(TimeSpan.FromSeconds(30));
-		End;
-		
-		opt.Maximize((sc.Epoch - initialEpoch).ToHours());
-		
-		If (opt.OptimizationPhase == 1);
-			Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, burn.BurnDirection.Norm, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource;
-		End;
-	End;
-	
-	Report opt.ReturnString;
-	opt.RestoreObjectsInProcess();
-EndProcedure;
-
 Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 	Variable angle;
 	Variable i;
@@ -4298,6 +4214,61 @@ Define Procedure ExecuteQueuedAction(QueuedBurn queuedAction, Formation red, For
 		red[queuedAction.formationIndex].Maneuver(burn);
 	End;
 EndProcedure;
+
+
+Define Procedure RequestBlueEvasiveManeuverFromServer(Formation blue);
+	blueBurnQueue.Clear();
+	Send blueStrategyRequest_orbitChange to blueStrategyServer;
+	Send blue[0].GetCartesianState(),
+		 blue[0].Epoch.ToDays(),
+		 initialKepStateBlue1,
+		 blue[0].Longitude + 0.3,
+		 {0.1, 0.5},
+		 uplinkTime.ToHours() to blueStrategyServer;
+	
+	Call AddFutureBurnMarkerToQueue(uplinkTime + simEpoch, 0, 1);
+EndProcedure;
+
+
+Define Procedure RequestBlueReturnToNominalFromServer(Formation blue);
+	blueOperationsScore -= 8;
+	
+	blueBurnQueue.Clear();
+	Send blueStrategyRequest_orbitChange to blueStrategyServer;
+	Send blue[0].GetCartesianState(),
+		 blue[0].Epoch.ToDays(),
+		 initialKepStateBlue1,
+		 initialLongitudeBlue1,
+		 {0.1, 1},
+		 uplinkTime.ToHours() to blueStrategyServer;
+	
+	Call AddFutureBurnMarkerToQueue(uplinkTime + simEpoch, 0, 1);
+EndProcedure;
+
+Define Procedure RequestBlueSlewFromServer(Formation red, Formation blue);
+	Array redCartState;
+	Array blueCartState;
+	
+	initialBluePayloadOrientationAngle = blue[0].EulerAngles[0];
+	Call GetCartStateOfClosestRedAtTimeOffset(red, blue, uplinkTime, redCartState, blueCartState);
+	
+	Send blueStrategyRequest_slew to blueStrategyServer;
+	Send redCartState,
+		 blueCartState,
+		 (simEpoch + uplinkTime).ToDays() to blueStrategyServer;
+	
+	Call AddFutureBlueSlewToQueue(simEpoch + uplinkTime);
+EndProcedure;
+
+Define Procedure RequestBlueStationKeepFromServer(Formation blue, Array dv);
+	dv.Dimension = 3;
+	Send blueStrategyRequest_stationKeep to blueStrategyServer;
+	Send blue[0].GetCartesianState(),
+		 blue[0].Epoch.ToDays(),
+		 blue[0].Longitude to blueStrategyServer;
+	
+	Receive dv from blueStrategyServer;
+EndProcedure;
 Global UserInterface OperatorActions;
 
 Global Constant Variable choice_nominal = 1;
@@ -4381,18 +4352,8 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 		blueIsOffNominal = 1;
 	End;
 	
-	Array redCartState;
-	Array blueCartState;
 	If (userChoice == choice_slew);
-		initialBluePayloadOrientationAngle = blue[0].EulerAngles[0];
-		Call GetCartStateOfClosestRedAtTimeOffset(red, blue, uplinkTime, redCartState, blueCartState);
-		
-		Send blueStrategyRequest_slew to blueStrategyServer;
-		Send redCartState,
-			 blueCartState,
-			 (simEpoch + uplinkTime).ToDays() to blueStrategyServer;
-		
-		Call AddFutureBlueSlewToQueue(simEpoch + uplinkTime);
+		Call RequestBlueSlewFromServer(red, blue);
 	End;
 	
 	If (userChoice == choice_secondaryComms);
@@ -4423,35 +4384,13 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 	If (userChoice == choice_evasive);
 		blueOperationsScore -= 8;
 		
-		blueBurnQueue.Clear();
-		Send blueStrategyRequest_orbitChange to blueStrategyServer;
-		Send blue[0].GetCartesianState(),
-			 blue[0].Epoch.ToDays(),
-			 initialKepStateBlue1,
-			 blue[0].Longitude + 0.3,
-			 {0.1, 0.5},
-			 uplinkTime.ToHours() to blueStrategyServer;
-		
-		Call AddFutureBurnMarkerToQueue(uplinkTime + simEpoch, 0, 1);
-
+		Call RequestBlueEvasiveManeuverFromServer(blue);
 		numberOfBlueEvasiveManeuvers += 1;
 	End;
 	
 	If (userChoice == choice_returnToNominal);
 		If (numberOfBlueEvasiveManeuvers > 0);
-			blueOperationsScore -= 8;
-			
-			blueBurnQueue.Clear();
-			Send blueStrategyRequest_orbitChange to blueStrategyServer;
-			Send blue[0].GetCartesianState(),
-				 blue[0].Epoch.ToDays(),
-				 initialKepStateBlue1,
-				 initialLongitudeBlue1,
-				 {0.1, 1},
-				 uplinkTime.ToHours() to blueStrategyServer;
-			
-			Call AddFutureBurnMarkerToQueue(uplinkTime + simEpoch, 0, 1);
-			
+			Call RequestBlueReturnToNominalFromServer(blue);
 			numberOfBlueEvasiveManeuvers = 0;
 		End;
 		
@@ -4473,92 +4412,79 @@ Define Procedure AdvanceSimUntilBlueIsNominal(Formation red, Formation blue);
 		Call ShowOperatorActionsMenu(red, blue);
 	End;
 EndProcedure;
+
+Define Procedure DisplayModeScript(Formation red, Formation blue);
+	Optimizer opt;
+	TimeSpan initialEpoch;
+	
+	red[1].I += 0.1;
+	red[2].I += 0.1;
+	red[2].RAAN -= 30;
+	red[2].TA += 30;
+	
+	OutputLayout.BringWindowToFront(pwAngleFromPayload.ID);
+	OutputLayout.ApplyUpdates();
+	
+	pwRange.BeginBatchUpdate();
+	(pwRange.Series[0] AsType PlotScatterSeries).AddPoints(0, 0);
+	pwRange.Update();
+//	(pwRange.Series[0] AsType PlotScatterSeries).ClearPoints();
+	pwRange.EndBatchUpdate();
+	OutputLayout.BringWindowToFront(pwRange.ID);
+	
+	viewMain3D.CurrentViewpoint.ThreeDView.RightAscension = 277;
+	viewMain3D.CurrentViewpoint.ThreeDView.Declination = 6;
+
+	Array dv;
+	Call RequestBlueStationKeepFromServer(blue, dv);
+	burn.BurnDirection = dv;
+	
+	blue[0].Maneuver(burn);
+	
+	red[0].SetKeplerianState(blue[0].GetKeplerianState());
+	red[0].E += 0.0022;
+	red[0].I -= 0.20;
+	red[0].TA += 0.1;
+	
+	blue[0].Save("IC");
+	red[0].Save("IC");
+	red[1].Save("IC");
+	red[2].Save("IC");
+	
+	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
+	While (1);
+		Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
+		
+		viewMain3D.ResetTails();
+		viewPayload.ResetTails();
+		viewUplink.ResetTails();
+		
+		angleFromPayloadR1.ClearPoints();
+		angleFromPayloadR2.ClearPoints();
+		angleFromPayloadR3.ClearPoints();
+		
+		rangeR1.ClearPoints();
+		rangeR2.ClearPoints();
+		rangeR3.ClearPoints();
+		
+		rangeAngleFromPayloadR1.ClearPoints();
+		rangeAngleFromPayloadR2.ClearPoints();
+		rangeAngleFromPayloadR3.ClearPoints();
+		
+		radiusLongitudeB1.ClearPoints();
+		radiusLongitudeR1.ClearPoints();
+		radiusLongitudeR2.ClearPoints();
+		radiusLongitudeR3.ClearPoints();
+		
+		blue[0].Restore("IC");
+		red[0].Restore("IC");
+		red[1].Restore("IC");
+		red[2].Restore("IC");
+	End;
+	
+EndProcedure;
 // 
-// Define Procedure DisplayModeScript(Formation red, Formation blue);
-// 	Optimizer opt;
-// 	TimeSpan initialEpoch;
-// 	
-// 	red[1].I += 0.1;
-// 	red[2].I += 0.1;
-// 	red[2].RAAN -= 30;
-// 	red[2].TA += 30;
-// 	
-// 	OutputLayout.BringWindowToFront(pwAngleFromPayload.ID);
-// 	OutputLayout.ApplyUpdates();
-// 	
-// 	pwRange.BeginBatchUpdate();
-// 	(pwRange.Series[0] AsType PlotScatterSeries).AddPoints(0, 0);
-// 	pwRange.Update();
-// //	(pwRange.Series[0] AsType PlotScatterSeries).ClearPoints();
-// 	pwRange.EndBatchUpdate();
-// 	OutputLayout.BringWindowToFront(pwRange.ID);
-// 	
-// 	viewMain3D.CurrentViewpoint.ThreeDView.RightAscension = 268;
-// 	viewMain3D.CurrentViewpoint.ThreeDView.Declination = 7;
-// 	
-// //Block PRESOLVED OPTIMIZATION
-// 	If (doOptimizationAndSaveValues);
-// 		Call ComputeStationKeepingManeuver(opt, blue[0], 279.25);
-// 		burn.BurnDirection = opt.GetBestStateVariableValues();
-// 		
-// 		Call OpenForWrite("SavedValues/BenignScript_Blue1SK1.txt");
-// 		file.PutLine(burn.BurnDirection[0].ToString());
-// 		file.PutLine(burn.BurnDirection[1].ToString());
-// 		file.PutLine(burn.BurnDirection[2].ToString());
-// 		file.Close();
-// 	End;
-// //EndBlock PRESOLVED OPTIMIZATION
 // 
-// 	Call OpenForRead("SavedValues/BenignScript_Blue1SK1.txt");
-// 	burn.BurnDirection[0] = file.GetLine().ToVariable();
-// 	burn.BurnDirection[1] = file.GetLine().ToVariable();
-// 	burn.BurnDirection[2] = file.GetLine().ToVariable();
-// 	file.Close();
-// 	
-// 	blue[0].Maneuver(burn);
-// 	
-// 	red[0].SetKeplerianState(blue[0].GetKeplerianState());
-// 	red[0].E += 0.002;
-// 	red[0].I += 0.25;
-// 	red[0].TA += 0.1;
-// 	
-// 	blue[0].Save("IC");
-// 	red[0].Save("IC");
-// 	red[1].Save("IC");
-// 	red[2].Save("IC");
-// 	
-// 	TimeSpan futureEpoch = blue[0].Epoch + TimeSpan.FromDays(7);
-// 	While (1);
-// 		Call AdvanceSimToFutureEpoch(red, blue, futureEpoch);
-// 		
-// 		viewMain3D.ResetTails();
-// 		viewPayload.ResetTails();
-// 		viewUplink.ResetTails();
-// 		
-// 		angleFromPayloadR1.ClearPoints();
-// 		angleFromPayloadR2.ClearPoints();
-// 		angleFromPayloadR3.ClearPoints();
-// 		
-// 		rangeR1.ClearPoints();
-// 		rangeR2.ClearPoints();
-// 		rangeR3.ClearPoints();
-// 		
-// 		rangeAngleFromPayloadR1.ClearPoints();
-// 		rangeAngleFromPayloadR2.ClearPoints();
-// 		rangeAngleFromPayloadR3.ClearPoints();
-// 		
-// 		radiusLongitudeB1.ClearPoints();
-// 		radiusLongitudeR1.ClearPoints();
-// 		radiusLongitudeR2.ClearPoints();
-// 		radiusLongitudeR3.ClearPoints();
-// 		
-// 		blue[0].Restore("IC");
-// 		red[0].Restore("IC");
-// 		red[1].Restore("IC");
-// 		red[2].Restore("IC");
-// 	End;
-// 	
-// EndProcedure;
 // 
 // 
 // Define Procedure BenignScript(Formation red, Formation blue);
@@ -5409,6 +5335,10 @@ EndProcedure;
 // 	Call DisableScript(red, blue);
 // End;
 
+
+If (gameMode == gameMode_displayMode);
+	Call DisplayModeScript(red, blue);
+End;
 
 QueuedBurn nextQueuedAction;
 TimeSpan nextQueuedActionEpoch;

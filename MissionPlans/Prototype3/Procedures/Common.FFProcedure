@@ -5,11 +5,29 @@ Global Constant Variable baseI = 0.5;
 Global Constant Variable sensorIndexUplink = 0;
 Global Constant Variable sensorIndexPayload = 1;
 
+Global Constant Variable blueStrategyRequest_disconnectServer = 0;
+Global Constant Variable blueStrategyRequest_orbitChange      = 1;
+Global Constant Variable blueStrategyRequest_slew             = 2;
+Global Constant Variable blueStrategyRequest_stationKeep      = 3;
+
+Global Constant Variable gameMode_displayMode       = 0;
+Global Constant Variable gameMode_benignScript      = 1;
+Global Constant Variable gameMode_observationScript = 2;
+Global Constant Variable gameMode_disableScript     = 3;
+
+
+Global Constant Variable blueStrategyServerPort = 5115;
+Global Constant Variable redStrategyServerPort = 5116;
+
+Global ImpulsiveBurn burn;
+burn.AttitudeSystem = 6;
+
 Define Procedure InitializeForceModel(ForceModel fm);
 	fm.PlanetFieldDegree[2] = 2;
 	fm.PlanetFieldOrder[2] = 2;
 	fm.Drag = 0;
 EndProcedure;
+
 
 Define Procedure InitializeBlue1(Spacecraft blue1);
 	blue1.SetKeplerianState({42164,
@@ -49,3 +67,4 @@ Define Procedure ComputeRangeAndAngleFromPayload(Spacecraft blue, Spacecraft red
 	range = positionBCS.Norm;
 	angle = deg(acos(positionBCS.Normalized.DotProduct(blue.Sensors[sensorIndexPayload].BoresightUnitVector.Normalized)));
 EndProcedure;
+
