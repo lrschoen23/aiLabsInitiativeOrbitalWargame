@@ -114,29 +114,36 @@ Global Constant Variable blueStrategyRequest_slew = 2;
 
 Variable strategyRequest;
 
+Array blueCartState(6);
+Array redCartState(6);
 Array initialCartState(6);
 Array desiredKepState(6);
 Variable desiredLongitude;
 Variable initialEpochDays;
 Variable computationDelayHours;
 Array interBurnTimeBoundsDays(2);
+Variable slewAngle;
 
 Array dv1(3);
 Array dv2(3);
 Variable interBurnTimeDays;
 
 TimeSpan interBurnTime;
+Variable epochDays;
 
 Global ImpulsiveBurn burn;
 burn.AttitudeSystem = 6;
 
-Spacecraft sc;
-Call InitializeForceModel((sc.Propagator AsType Integrator).ForceModel);]]></FreeFormScript>
+Spacecraft blue1;
+Spacecraft red;
+Call InitializeBlue1(blue1);]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
         <Label>FreeForm</Label>
         <Bookmarks />
-        <Breakpoints />
+        <Breakpoints>
+          <Breakpoint line="149" enabled="true" />
+        </Breakpoints>
         <FreeFormScript><![CDATA[
 Define Procedure ComputeStationKeepingManeuver(Optimizer opt, Spacecraft sc, Variable longitude);
 	TimeSpan initialEpoch;
@@ -155,7 +162,7 @@ Define Procedure ComputeStationKeepingManeuver(Optimizer opt, Spacecraft sc, Var
 		sc.Maneuver(burn);
 		
 		initialEpoch = sc.Epoch;
-		While (abs(sc.Longitude - longitude) < 0.05);
+		While (abs(sc.Longitude - longitude) < 0.02);
 			sc.Step(TimeSpan.FromSeconds(1000));
 		End;
 		
@@ -273,6 +280,54 @@ Define Procedure TargetNewOrbit(
 		Call ComputeStationKeepingManeuver(opt, sc, longitude);
 		dv2 += opt.GetBestStateVariableValues();
 	End;
+EndProcedure;
+
+
+Define Procedure ComputeDesiredSlewAngle(Spacecraft red, Spacecraft blue, Variable slewAngle);
+	Variable bestAngleFromPayload = 0;
+	
+	Variable range;
+	Variable angle;
+	Variable i;
+	Variable initialEulerAngle = blue.EulerAngles[0];
+	For i = 0 to 360 step 5;
+		blue.EulerAngles[0] = i;
+		Call ComputeRangeAndAngleFromPayload(blue, red, range, angle);
+		If (angle > bestAngleFromPayload);
+			slewAngle = i;
+			bestAngleFromPayload = angle;
+		End;
+	End;
+	blue.EulerAngles[0] = initialEulerAngle;
+	
+	
+	
+//	Optimizer opt;
+//	opt.Reset(1);
+//	
+//	opt.AddStateVariable("angle", initialEulerAngle+90, 0, 360, 100);
+//	
+//	opt.MaximumNominalEvaluationCount = 50;
+//	opt.LoadEngine();
+//	
+//	While (opt.IsRunning());
+//		opt.UpdateStateVariables();
+//		
+//		blue.EulerAngles[0] = opt.GetStateVariableValue(0);
+//		Call ComputeRangeAndAngleFromPayload(blue, red, range, angle);
+//		opt.Maximize(angle);
+//			
+//		If (opt.OptimizationPhase == 1);
+//			Report opt.NominalEvaluationCount, "   ",
+//			opt.ObjectiveFunctionValue, "   ",
+//			opt.MaximumInfeasibility, "   ",
+//			opt.MaximumInfeasibilitySource, "   ",
+//			blue.EulerAngles[0] to ConsoleSolver;
+//		End;
+//	End;
+//	
+//	blue.EulerAngles[0] = initialEulerAngle;
+//	slewAngle = opt.GetBestStateVariableValue("angle");
 EndProcedure;]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
@@ -297,7 +352,7 @@ While (1);
 	Report "Connected" to Console;
 	
 	Receive stepSizeSeconds from connection;
-	sc.Propagator.StepSize = TimeSpan.FromSeconds(800);
+	blue1.Propagator.StepSize = TimeSpan.FromSeconds(800);
 	
 	Try;
 		While (1);
@@ -314,11 +369,11 @@ While (1);
 						interBurnTimeBoundsDays,
 						computationDelayHours from connection;
 			
-				sc.Epoch = TimeSpan.FromDays(initialEpochDays);
-				sc.SetCartesianState(initialCartState);
-				sc.StepToEpoch(sc.Epoch + TimeSpan.FromHours(computationDelayHours));
+				blue1.Epoch = TimeSpan.FromDays(initialEpochDays);
+				blue1.SetCartesianState(initialCartState);
+				blue1.StepToEpoch(blue1.Epoch + TimeSpan.FromHours(computationDelayHours));
 				Call TargetNewOrbit(
-					sc,
+					blue1,
 					desiredKepState,
 					desiredLongitude,
 					interBurnTimeBoundsDays,
@@ -329,13 +384,29 @@ While (1);
 				Report "Sending data..." to Console;
 				Send dv1, dv2, interBurnTime.ToDays() to connection;
 				Report "Data transfer complete" to Console;
+				
 			ElseIf (strategyRequest == blueStrategyRequest_slew);
 				Report "Slew" to Console;
+				Receive redCartState,
+						blueCartState,
+						epochDays from connection;
+				
+				blue1.Epoch = TimeSpan.FromDays(epochDays);
+				blue1.SetCartesianState(blueCartState);
+				
+				red.Epoch = TimeSpan.FromDays(epochDays);
+				red.SetCartesianState(redCartState);
+				
+				Call ComputeDesiredSlewAngle(red, blue1, slewAngle);
+				Report "Sending data..." to Console;
+				Send slewAngle to connection;
+				Report "Data transfer complete" to Console;
 			End;
 		End;
 	End;
 	
 	Close connection;
+	Report "" to Console;
 	Report "Disconnected" to Console;
 	Report "" to Console;
 End;]]></FreeFormScript>
@@ -349,24 +420,29 @@ Global Constant Variable blueStrategyRequest_slew = 2;
 
 Variable strategyRequest;
 
+Array blueCartState(6);
+Array redCartState(6);
 Array initialCartState(6);
 Array desiredKepState(6);
 Variable desiredLongitude;
 Variable initialEpochDays;
 Variable computationDelayHours;
 Array interBurnTimeBoundsDays(2);
+Variable slewAngle;
 
 Array dv1(3);
 Array dv2(3);
 Variable interBurnTimeDays;
 
 TimeSpan interBurnTime;
+Variable epochDays;
 
 Global ImpulsiveBurn burn;
 burn.AttitudeSystem = 6;
 
-Spacecraft sc;
-Call InitializeForceModel((sc.Propagator AsType Integrator).ForceModel);
+Spacecraft blue1;
+Spacecraft red;
+Call InitializeBlue1(blue1);
 
 Define Procedure ComputeStationKeepingManeuver(Optimizer opt, Spacecraft sc, Variable longitude);
 	TimeSpan initialEpoch;
@@ -385,7 +461,7 @@ Define Procedure ComputeStationKeepingManeuver(Optimizer opt, Spacecraft sc, Var
 		sc.Maneuver(burn);
 		
 		initialEpoch = sc.Epoch;
-		While (abs(sc.Longitude - longitude) < 0.05);
+		While (abs(sc.Longitude - longitude) < 0.02);
 			sc.Step(TimeSpan.FromSeconds(1000));
 		End;
 		
@@ -505,6 +581,54 @@ Define Procedure TargetNewOrbit(
 	End;
 EndProcedure;
 
+
+Define Procedure ComputeDesiredSlewAngle(Spacecraft red, Spacecraft blue, Variable slewAngle);
+	Variable bestAngleFromPayload = 0;
+	
+	Variable range;
+	Variable angle;
+	Variable i;
+	Variable initialEulerAngle = blue.EulerAngles[0];
+	For i = 0 to 360 step 5;
+		blue.EulerAngles[0] = i;
+		Call ComputeRangeAndAngleFromPayload(blue, red, range, angle);
+		If (angle > bestAngleFromPayload);
+			slewAngle = i;
+			bestAngleFromPayload = angle;
+		End;
+	End;
+	blue.EulerAngles[0] = initialEulerAngle;
+	
+	
+	
+//	Optimizer opt;
+//	opt.Reset(1);
+//	
+//	opt.AddStateVariable("angle", initialEulerAngle+90, 0, 360, 100);
+//	
+//	opt.MaximumNominalEvaluationCount = 50;
+//	opt.LoadEngine();
+//	
+//	While (opt.IsRunning());
+//		opt.UpdateStateVariables();
+//		
+//		blue.EulerAngles[0] = opt.GetStateVariableValue(0);
+//		Call ComputeRangeAndAngleFromPayload(blue, red, range, angle);
+//		opt.Maximize(angle);
+//			
+//		If (opt.OptimizationPhase == 1);
+//			Report opt.NominalEvaluationCount, "   ",
+//			opt.ObjectiveFunctionValue, "   ",
+//			opt.MaximumInfeasibility, "   ",
+//			opt.MaximumInfeasibilitySource, "   ",
+//			blue.EulerAngles[0] to ConsoleSolver;
+//		End;
+//	End;
+//	
+//	blue.EulerAngles[0] = initialEulerAngle;
+//	slewAngle = opt.GetBestStateVariableValue("angle");
+EndProcedure;
+
 Socket connection;
 connection.SocketType = "server";
 connection.PortNumber = 5115;
@@ -522,7 +646,7 @@ While (1);
 	Report "Connected" to Console;
 	
 	Receive stepSizeSeconds from connection;
-	sc.Propagator.StepSize = TimeSpan.FromSeconds(800);
+	blue1.Propagator.StepSize = TimeSpan.FromSeconds(800);
 	
 	Try;
 		While (1);
@@ -539,11 +663,11 @@ While (1);
 						interBurnTimeBoundsDays,
 						computationDelayHours from connection;
 			
-				sc.Epoch = TimeSpan.FromDays(initialEpochDays);
-				sc.SetCartesianState(initialCartState);
-				sc.StepToEpoch(sc.Epoch + TimeSpan.FromHours(computationDelayHours));
+				blue1.Epoch = TimeSpan.FromDays(initialEpochDays);
+				blue1.SetCartesianState(initialCartState);
+				blue1.StepToEpoch(blue1.Epoch + TimeSpan.FromHours(computationDelayHours));
 				Call TargetNewOrbit(
-					sc,
+					blue1,
 					desiredKepState,
 					desiredLongitude,
 					interBurnTimeBoundsDays,
@@ -554,13 +678,29 @@ While (1);
 				Report "Sending data..." to Console;
 				Send dv1, dv2, interBurnTime.ToDays() to connection;
 				Report "Data transfer complete" to Console;
+				
 			ElseIf (strategyRequest == blueStrategyRequest_slew);
 				Report "Slew" to Console;
+				Receive redCartState,
+						blueCartState,
+						epochDays from connection;
+				
+				blue1.Epoch = TimeSpan.FromDays(epochDays);
+				blue1.SetCartesianState(blueCartState);
+				
+				red.Epoch = TimeSpan.FromDays(epochDays);
+				red.SetCartesianState(redCartState);
+				
+				Call ComputeDesiredSlewAngle(red, blue1, slewAngle);
+				Report "Sending data..." to Console;
+				Send slewAngle to connection;
+				Report "Data transfer complete" to Console;
 			End;
 		End;
 	End;
 	
 	Close connection;
+	Report "" to Console;
 	Report "Disconnected" to Console;
 	Report "" to Console;
 End;]]></ProjectScript>

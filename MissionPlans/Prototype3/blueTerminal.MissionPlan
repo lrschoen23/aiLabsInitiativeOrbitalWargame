@@ -303,26 +303,8 @@ blueJammer.Longitude = -100;
 blueJammer.Speed = 0;
 blueJammer.Height = 1000;
 
-Global Constant Variable sensorIndexUplink = 0;
-Global Constant Variable sensorIndexPayload = 1;
 
-blue[0].AddSensor("uplink");
-blue[0].Sensors[sensorIndexUplink].ConeHalfAngle = 15;
-blue[0].Sensors[sensorIndexUplink].ProjectionHeight = 30000;
-blue[0].Sensors[sensorIndexUplink].Color = ColorTools.Purple;
-blue[0].Sensors[sensorIndexUplink].Opacity = 0.1;
-blue[0].Sensors[sensorIndexUplink].AttitudeMatrix = [
-	0, 0, 1;
-	1, 0, 0;
-	0, 1, 0
-];
-
-blue[0].AddSensor("payload");
-blue[0].Sensors[sensorIndexPayload].BoresightUnitVector = {0, 0, 1};
-blue[0].Sensors[sensorIndexPayload].ConeHalfAngle = 10;
-blue[0].Sensors[sensorIndexPayload].ProjectionHeight = 50;
-blue[0].Sensors[sensorIndexPayload].Color = ColorTools.Lime;
-blue[0].Sensors[sensorIndexPayload].Opacity = 0.1;
+Call InitializeBlue1(blue[0]);
 
 
 // Set up overlays
@@ -552,23 +534,13 @@ EndProcedure;
 
 
 // Set initial states
-Variable baseRAAN = 40;
-Variable baseI = 0.5;
-blue[0].SetKeplerianState({42164,
-                           1e-6,
-                           baseI,
-                           baseRAAN,
-                           1,
-                           1});
-                           
 blue[0].Epoch = simStartEpoch;
 blue[0].Color = colorBlue1;
 blue[0].BodyScale = 1000;
 blue[0].DisplayName = "BlueSat";
 blue[0].Propagator.StepSize = simStepSize;
-blue[0].EulerAngles[1] = 90;
 blue[0].TailLength = tailPoints;
-Call InitializeForceModel((blue[0].Propagator AsType Integrator).ForceModel);
+
 viewMain3D.SetShowName(blue[0].ObjectId, 1);
 viewMain3D.SetObjectLabelFont(blue[0].ObjectId, vf);
 viewMain3D.SetLineWidth(blue[0].ObjectId, 0, 2);
@@ -692,6 +664,7 @@ Global Constant Variable redActionType_toggleJamming  = 1;
 
 Global Constant Variable additionalAction_none                 = 0;
 Global Constant Variable additionalAction_retrieveOrbitChange  = 1;
+Global Constant Variable additionalAction_retrieveSlew         = 2;
 
 Struct QueuedRedAction extends QueuedAction;
 	Variable actionType;
@@ -1284,14 +1257,6 @@ Define Procedure ComputeStationKeepingManeuver(Optimizer opt, Spacecraft sc, Var
 	opt.RestoreObjectsInProcess();
 EndProcedure;
 
-Define Procedure ComputeRangeAndAngleFromPayload(Spacecraft blue, Spacecraft red, Variable range, Variable angle);
-	Array positionBCS;
-	
-	positionBCS = AttitudeConvert(0, 3, blue, red.Position - blue.Position);
-	range = positionBCS.Norm;
-	angle = deg(acos(positionBCS.Normalized.DotProduct(blue.Sensors[sensorIndexPayload].BoresightUnitVector.Normalized)));
-EndProcedure;
-
 Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 	Variable angle;
 	Variable i;
@@ -1573,9 +1538,19 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue);
 	End;
 	
 	Variable slewRateDegPerSecond;
+	Variable angleDifference;
 	If (blueSlewCompletionEpoch > simEpoch);
-		slewRateDegPerSecond = (desiredBluePayloadOrientationAngle - initialBluePayloadOrientationAngle) / (blueSlewCompletionEpoch - blueSlewStartEpoch).ToSeconds();
+//		If (abs(desiredBluePayloadOrientationAngle - initialBluePayloadOrientationAngle) > 180);
+//			slewRateDegPerSecond *= -1;
+//		End;
+		angleDifference = (desiredBluePayloadOrientationAngle - initialBluePayloadOrientationAngle + 180) % 360 - 180;
+		If (angleDifference < -180);
+			angleDifference += 360;
+		End;
+		slewRateDegPerSecond = angleDifference / (blueSlewCompletionEpoch - blueSlewStartEpoch).ToSeconds();
 		blue[0].EulerAngles[0] = initialBluePayloadOrientationAngle + slewRateDegPerSecond * (simEpoch - blueSlewStartEpoch).ToSeconds();
+	Else;
+		blue[0].EulerAngles[0] = desiredBluePayloadOrientationAngle;
 	End;
 	
 	Call UpdateDataReadouts(red, blue);
@@ -1748,6 +1723,32 @@ Define Procedure TargetNewBlueOrbitAndAddBurnsToQueue(
 	
 EndProcedure;
 
+Define Procedure GetCartStateOfClosestRedAtTimeOffset(Formation red, Formation blue, TimeSpan offest, Array cartRedState, Array cartBlueState);
+	Variable index = 0;
+	Variable i = 0;
+	
+	blue[0].Save("subroutine");
+	blue[0].StepToEpoch(blue[0].Epoch + offest);
+	For i = 0 to red.Count - 1;
+		red[i].Save("subroutine");
+		red[i].StepToEpoch(blue[0].Epoch);
+	End;
+	
+	For i = 0 to red.Count - 1;
+		If (blue[0].Range(red[i]) < blue[0].Range(red[index]));
+			index = i;
+		End;
+	End;
+	
+	cartRedState = red[index].GetCartesianState();
+	cartBlueState = blue[0].GetCartesianState();
+	
+	blue[0].Restore("subroutine");
+	For i = 0 to red.Count - 1;
+		red[i].Restore("subroutine");
+	End;
+EndProcedure;
+
 
 Define Procedure ComputeDesiredSlewAngle(Formation red, Formation blue, Variable slewAngle);
 	Variable redIndex = 0;
@@ -1776,9 +1777,9 @@ Define Procedure ComputeDesiredSlewAngle(Formation red, Formation blue, Variable
 		Call ComputeRangeAndAngleFromPayload(blue[0], red[redIndex], range, angle);
 		opt.Maximize(angle);
 			
-//		If (opt.OptimizationPhase == 1);
-//			Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource, blue[0].EulerAngles[0];
-//		End;
+		If (opt.OptimizationPhase == 1);
+			Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource, blue[0].EulerAngles[0];
+		End;
 	End;
 	
 	blue[0].EulerAngles[0] = initialEulerAngle;
@@ -1816,6 +1817,17 @@ Define Procedure AddFutureBurnMarkerToQueue(
 	End;
 EndProcedure;
 
+Define Procedure AddFutureBlueSlewToQueue(TimeSpan epoch);
+	Variable last;
+	last = blueBurnQueue.Count;
+	blueBurnQueue.Count += 1;
+	blueBurnQueue[last].epoch = epoch;
+	blueBurnQueue[last].burnRIC = {0, 0, 0};
+	blueBurnQueue[last].formationIndex = 0;
+	blueBurnQueue[last].isBlue = 1;
+	blueBurnQueue[last].additionalAction = additionalAction_retrieveSlew;
+EndProcedure;
+
 Define Procedure RetrieveBlueOrbitChangeFromServerAndAddToQueue();
 	Array dv1(3);
 	Array dv2(3);
@@ -1826,6 +1838,14 @@ Define Procedure RetrieveBlueOrbitChangeFromServerAndAddToQueue();
 EndProcedure;
 
 
+Define Procedure RetrieveBlueSlewFromServer();
+	Receive desiredBluePayloadOrientationAngle from blueStrategyServer;
+	
+	blueSlewStartEpoch = simEpoch;
+	blueSlewCompletionEpoch = blueSlewStartEpoch + slewTime;
+EndProcedure;
+
+
 Define Procedure ExecuteQueuedAction(QueuedBurn queuedAction, Formation red, Formation blue);
 	If (queuedAction.isBlue);
 		burn.BurnDirection = queuedAction.burnRIC;
@@ -1833,6 +1853,8 @@ Define Procedure ExecuteQueuedAction(QueuedBurn queuedAction, Formation red, For
 		
 		If (queuedAction.additionalAction == additionalAction_retrieveOrbitChange);
 			Call RetrieveBlueOrbitChangeFromServerAndAddToQueue();
+		ElseIf (queuedAction.additionalAction == additionalAction_retrieveSlew);
+			Call RetrieveBlueSlewFromServer();
 		End;
 	Else;
 		burn.BurnDirection = queuedAction.burnRIC;
@@ -1927,11 +1949,20 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 		blueIsOffNominal = 1;
 	End;
 	
+	Array redCartState;
+	Array blueCartState;
 	If (userChoice == choice_slew);
 		initialBluePayloadOrientationAngle = blue[0].EulerAngles[0];
-		blueSlewStartEpoch = simEpoch;
-		blueSlewCompletionEpoch = simEpoch + slewTime;
-		Call ComputeDesiredSlewAngle(red, blue, desiredBluePayloadOrientationAngle);
+		Call GetCartStateOfClosestRedAtTimeOffset(red, blue, uplinkTime, redCartState, blueCartState);
+		
+		Send blueStrategyRequest_slew to blueStrategyServer;
+		Send redCartState,
+			 blueCartState,
+			 (simEpoch + uplinkTime).ToDays() to blueStrategyServer;
+		
+		Call AddFutureBlueSlewToQueue(simEpoch + uplinkTime);
+		
+//		Call ComputeDesiredSlewAngle(red, blue, desiredBluePayloadOrientationAngle);
 	End;
 	
 	If (userChoice == choice_secondaryComms);
@@ -3046,26 +3077,8 @@ blueJammer.Longitude = -100;
 blueJammer.Speed = 0;
 blueJammer.Height = 1000;
 
-Global Constant Variable sensorIndexUplink = 0;
-Global Constant Variable sensorIndexPayload = 1;
 
-blue[0].AddSensor("uplink");
-blue[0].Sensors[sensorIndexUplink].ConeHalfAngle = 15;
-blue[0].Sensors[sensorIndexUplink].ProjectionHeight = 30000;
-blue[0].Sensors[sensorIndexUplink].Color = ColorTools.Purple;
-blue[0].Sensors[sensorIndexUplink].Opacity = 0.1;
-blue[0].Sensors[sensorIndexUplink].AttitudeMatrix = [
-	0, 0, 1;
-	1, 0, 0;
-	0, 1, 0
-];
-
-blue[0].AddSensor("payload");
-blue[0].Sensors[sensorIndexPayload].BoresightUnitVector = {0, 0, 1};
-blue[0].Sensors[sensorIndexPayload].ConeHalfAngle = 10;
-blue[0].Sensors[sensorIndexPayload].ProjectionHeight = 50;
-blue[0].Sensors[sensorIndexPayload].Color = ColorTools.Lime;
-blue[0].Sensors[sensorIndexPayload].Opacity = 0.1;
+Call InitializeBlue1(blue[0]);
 
 
 // Set up overlays
@@ -3295,23 +3308,13 @@ EndProcedure;
 
 
 // Set initial states
-Variable baseRAAN = 40;
-Variable baseI = 0.5;
-blue[0].SetKeplerianState({42164,
-                           1e-6,
-                           baseI,
-                           baseRAAN,
-                           1,
-                           1});
-                           
 blue[0].Epoch = simStartEpoch;
 blue[0].Color = colorBlue1;
 blue[0].BodyScale = 1000;
 blue[0].DisplayName = "BlueSat";
 blue[0].Propagator.StepSize = simStepSize;
-blue[0].EulerAngles[1] = 90;
 blue[0].TailLength = tailPoints;
-Call InitializeForceModel((blue[0].Propagator AsType Integrator).ForceModel);
+
 viewMain3D.SetShowName(blue[0].ObjectId, 1);
 viewMain3D.SetObjectLabelFont(blue[0].ObjectId, vf);
 viewMain3D.SetLineWidth(blue[0].ObjectId, 0, 2);
@@ -3430,6 +3433,7 @@ Global Constant Variable redActionType_toggleJamming  = 1;
 
 Global Constant Variable additionalAction_none                 = 0;
 Global Constant Variable additionalAction_retrieveOrbitChange  = 1;
+Global Constant Variable additionalAction_retrieveSlew         = 2;
 
 Struct QueuedRedAction extends QueuedAction;
 	Variable actionType;
@@ -4007,14 +4011,6 @@ Define Procedure ComputeStationKeepingManeuver(Optimizer opt, Spacecraft sc, Var
 	opt.RestoreObjectsInProcess();
 EndProcedure;
 
-Define Procedure ComputeRangeAndAngleFromPayload(Spacecraft blue, Spacecraft red, Variable range, Variable angle);
-	Array positionBCS;
-	
-	positionBCS = AttitudeConvert(0, 3, blue, red.Position - blue.Position);
-	range = positionBCS.Norm;
-	angle = deg(acos(positionBCS.Normalized.DotProduct(blue.Sensors[sensorIndexPayload].BoresightUnitVector.Normalized)));
-EndProcedure;
-
 Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 	Variable angle;
 	Variable i;
@@ -4296,9 +4292,19 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue);
 	End;
 	
 	Variable slewRateDegPerSecond;
+	Variable angleDifference;
 	If (blueSlewCompletionEpoch > simEpoch);
-		slewRateDegPerSecond = (desiredBluePayloadOrientationAngle - initialBluePayloadOrientationAngle) / (blueSlewCompletionEpoch - blueSlewStartEpoch).ToSeconds();
+//		If (abs(desiredBluePayloadOrientationAngle - initialBluePayloadOrientationAngle) > 180);
+//			slewRateDegPerSecond *= -1;
+//		End;
+		angleDifference = (desiredBluePayloadOrientationAngle - initialBluePayloadOrientationAngle + 180) % 360 - 180;
+		If (angleDifference < -180);
+			angleDifference += 360;
+		End;
+		slewRateDegPerSecond = angleDifference / (blueSlewCompletionEpoch - blueSlewStartEpoch).ToSeconds();
 		blue[0].EulerAngles[0] = initialBluePayloadOrientationAngle + slewRateDegPerSecond * (simEpoch - blueSlewStartEpoch).ToSeconds();
+	Else;
+		blue[0].EulerAngles[0] = desiredBluePayloadOrientationAngle;
 	End;
 	
 	Call UpdateDataReadouts(red, blue);
@@ -4471,6 +4477,32 @@ Define Procedure TargetNewBlueOrbitAndAddBurnsToQueue(
 	
 EndProcedure;
 
+Define Procedure GetCartStateOfClosestRedAtTimeOffset(Formation red, Formation blue, TimeSpan offest, Array cartRedState, Array cartBlueState);
+	Variable index = 0;
+	Variable i = 0;
+	
+	blue[0].Save("subroutine");
+	blue[0].StepToEpoch(blue[0].Epoch + offest);
+	For i = 0 to red.Count - 1;
+		red[i].Save("subroutine");
+		red[i].StepToEpoch(blue[0].Epoch);
+	End;
+	
+	For i = 0 to red.Count - 1;
+		If (blue[0].Range(red[i]) < blue[0].Range(red[index]));
+			index = i;
+		End;
+	End;
+	
+	cartRedState = red[index].GetCartesianState();
+	cartBlueState = blue[0].GetCartesianState();
+	
+	blue[0].Restore("subroutine");
+	For i = 0 to red.Count - 1;
+		red[i].Restore("subroutine");
+	End;
+EndProcedure;
+
 
 Define Procedure ComputeDesiredSlewAngle(Formation red, Formation blue, Variable slewAngle);
 	Variable redIndex = 0;
@@ -4499,9 +4531,9 @@ Define Procedure ComputeDesiredSlewAngle(Formation red, Formation blue, Variable
 		Call ComputeRangeAndAngleFromPayload(blue[0], red[redIndex], range, angle);
 		opt.Maximize(angle);
 			
-//		If (opt.OptimizationPhase == 1);
-//			Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource, blue[0].EulerAngles[0];
-//		End;
+		If (opt.OptimizationPhase == 1);
+			Report opt.NominalEvaluationCount, opt.ObjectiveFunctionValue, opt.MaximumInfeasibility, opt.MaximumInfeasibilitySource, blue[0].EulerAngles[0];
+		End;
 	End;
 	
 	blue[0].EulerAngles[0] = initialEulerAngle;
@@ -4539,6 +4571,17 @@ Define Procedure AddFutureBurnMarkerToQueue(
 	End;
 EndProcedure;
 
+Define Procedure AddFutureBlueSlewToQueue(TimeSpan epoch);
+	Variable last;
+	last = blueBurnQueue.Count;
+	blueBurnQueue.Count += 1;
+	blueBurnQueue[last].epoch = epoch;
+	blueBurnQueue[last].burnRIC = {0, 0, 0};
+	blueBurnQueue[last].formationIndex = 0;
+	blueBurnQueue[last].isBlue = 1;
+	blueBurnQueue[last].additionalAction = additionalAction_retrieveSlew;
+EndProcedure;
+
 Define Procedure RetrieveBlueOrbitChangeFromServerAndAddToQueue();
 	Array dv1(3);
 	Array dv2(3);
@@ -4549,6 +4592,14 @@ Define Procedure RetrieveBlueOrbitChangeFromServerAndAddToQueue();
 EndProcedure;
 
 
+Define Procedure RetrieveBlueSlewFromServer();
+	Receive desiredBluePayloadOrientationAngle from blueStrategyServer;
+	
+	blueSlewStartEpoch = simEpoch;
+	blueSlewCompletionEpoch = blueSlewStartEpoch + slewTime;
+EndProcedure;
+
+
 Define Procedure ExecuteQueuedAction(QueuedBurn queuedAction, Formation red, Formation blue);
 	If (queuedAction.isBlue);
 		burn.BurnDirection = queuedAction.burnRIC;
@@ -4556,6 +4607,8 @@ Define Procedure ExecuteQueuedAction(QueuedBurn queuedAction, Formation red, For
 		
 		If (queuedAction.additionalAction == additionalAction_retrieveOrbitChange);
 			Call RetrieveBlueOrbitChangeFromServerAndAddToQueue();
+		ElseIf (queuedAction.additionalAction == additionalAction_retrieveSlew);
+			Call RetrieveBlueSlewFromServer();
 		End;
 	Else;
 		burn.BurnDirection = queuedAction.burnRIC;
@@ -4645,11 +4698,20 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 		blueIsOffNominal = 1;
 	End;
 	
+	Array redCartState;
+	Array blueCartState;
 	If (userChoice == choice_slew);
 		initialBluePayloadOrientationAngle = blue[0].EulerAngles[0];
-		blueSlewStartEpoch = simEpoch;
-		blueSlewCompletionEpoch = simEpoch + slewTime;
-		Call ComputeDesiredSlewAngle(red, blue, desiredBluePayloadOrientationAngle);
+		Call GetCartStateOfClosestRedAtTimeOffset(red, blue, uplinkTime, redCartState, blueCartState);
+		
+		Send blueStrategyRequest_slew to blueStrategyServer;
+		Send redCartState,
+			 blueCartState,
+			 (simEpoch + uplinkTime).ToDays() to blueStrategyServer;
+		
+		Call AddFutureBlueSlewToQueue(simEpoch + uplinkTime);
+		
+//		Call ComputeDesiredSlewAngle(red, blue, desiredBluePayloadOrientationAngle);
 	End;
 	
 	If (userChoice == choice_secondaryComms);
