@@ -1852,6 +1852,7 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 		If (numberOfBlueEvasiveManeuvers > 0);
 			blueOperationsScore -= 8;
 			
+			blueBurnQueue.Clear();
 			Send blueStrategyRequest_orbitChange to blueStrategyServer;
 			Send blue[0].GetCartesianState(),
 				 blue[0].Epoch.ToDays(),
@@ -1860,9 +1861,7 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 				 {0.1, 1},
 				 uplinkTime.ToHours() to blueStrategyServer;
 			
-			Receive dv1, dv2, interBurnTimeDays from blueStrategyServer;
-			Call AddBurnToQueue(dv1, uplinkTime + simEpoch, 0, 1);
-			Call AddBurnToQueue(dv2, uplinkTime + simEpoch + TimeSpan.FromDays(interBurnTimeDays), 0, 1);
+			Call AddFutureBurnMarkerToQueue(uplinkTime + simEpoch, 0, 1);
 			
 			numberOfBlueEvasiveManeuvers = 0;
 		End;
@@ -4442,6 +4441,7 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 		If (numberOfBlueEvasiveManeuvers > 0);
 			blueOperationsScore -= 8;
 			
+			blueBurnQueue.Clear();
 			Send blueStrategyRequest_orbitChange to blueStrategyServer;
 			Send blue[0].GetCartesianState(),
 				 blue[0].Epoch.ToDays(),
@@ -4450,9 +4450,7 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 				 {0.1, 1},
 				 uplinkTime.ToHours() to blueStrategyServer;
 			
-			Receive dv1, dv2, interBurnTimeDays from blueStrategyServer;
-			Call AddBurnToQueue(dv1, uplinkTime + simEpoch, 0, 1);
-			Call AddBurnToQueue(dv2, uplinkTime + simEpoch + TimeSpan.FromDays(interBurnTimeDays), 0, 1);
+			Call AddFutureBurnMarkerToQueue(uplinkTime + simEpoch, 0, 1);
 			
 			numberOfBlueEvasiveManeuvers = 0;
 		End;
