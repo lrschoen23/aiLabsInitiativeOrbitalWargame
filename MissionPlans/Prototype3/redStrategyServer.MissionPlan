@@ -134,7 +134,22 @@ Formation blue;
 Call InitializeFormations(red, blue);
 blue[0].Propagator.StepSize = TimeSpan.FromSeconds(800);
 
-Global List<QueuedAction> actions;]]></FreeFormScript>
+(blue[0].Propagator AsType Integrator).FixedStep = 0;
+(red[0].Propagator AsType Integrator).FixedStep = 0;
+(red[1].Propagator AsType Integrator).FixedStep = 0;
+(red[2].Propagator AsType Integrator).FixedStep = 0;
+
+Global List<QueuedAction> actions;
+
+Global Array lastStableBlueGeoOrbit(6);
+
+Global Variable lastBlueRadius;
+Global Variable lastBlueLongitude;
+
+Global Socket connection;
+connection.SocketType = "server";
+connection.PortNumber = redStrategyServerPort;
+connection.SocketTimeout = -1;]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
         <Label>FreeForm</Label>
@@ -153,6 +168,7 @@ Define Procedure ComputeStationKeepingManeuver(Optimizer opt, Spacecraft sc, Var
 	While (opt.IsRunning() and opt.GetBestObjectiveFunctionValue() < 24*4);
 		opt.UpdateStateVariables();
 		opt.RestoreObjectsInProcess();
+		
 		burn.BurnDirection = opt.GetStateVariableValues();
 		
 		sc.Maneuver(burn);
@@ -298,10 +314,206 @@ Define Procedure ComputeDesiredSlewAngle(Spacecraft red, Spacecraft blue, Variab
 EndProcedure;
 
 
-Define Procedure ComputeDisableScriptStrategy();
+Define Procedure HasBlueManeuvered(Spacecraft blue, Variable blueHasManeuvered);
+	blueHasManeuvered = 0;
+	If (abs(blue.Radius - lastBlueRadius) > 5
+			or abs(blue.Longitude - lastBlueLongitude) > 0.15);
+		blueHasManeuvered = 1;
+		lastBlueLongitude = blue.Longitude;
+		lastBlueRadius = blue.Radius;
+	End;
+EndProcedure;
+
+
+Define Procedure ComputeDisableScriptRed2And3TransitManeuvers(
+		Spacecraft red,
+		Spacecraft blue,
+		TimeSpan incursionEpoch,
+		Array dv1,
+		Array dv2,
+		Array dv3,
+		TimeSpan interBurnTime1,
+		TimeSpan interBurnTime2);
+	TimeSpan arrivalTimeDelta = incursionEpoch - blue.Epoch;
+	
+	Optimizer opt;
+	opt.Reset(1);
+	opt.AddStateVariableBlock(3, "dv1", 0.0001, -0.001, 0.001);
+	opt.AddStateVariableBlock(3, "dv2", 0.0001, -0.001, 0.001);
+	opt.AddStateVariableBlock(3, "dv3", 0.0001, -0.001, 0.001);
+	opt.AddStateVariable("interBurnTime1", arrivalTimeDelta.Scaled(0.3).ToDays(), 0.1, arrivalTimeDelta.ToDays());
+	opt.AddStateVariable("interBurnTime2", arrivalTimeDelta.Scaled(0.3).ToDays(), 0.1, arrivalTimeDelta.ToDays());
+	
+	opt.AddConstraint("E",    0, 0.0001);
+	opt.AddConstraint("arrivalRadius", 42164 - 70, 42164 + 70);
+	opt.AddConstraint("arrivalLonDelta", -0.1, 0.1);
+	opt.AddConstraint("coastTime", 0, arrivalTimeDelta.ToDays());
+
+	opt.SaveObjectToProcess(red);
+	opt.SaveObjectToProcess(blue);
+	opt.MaximumNominalEvaluationCount = 80;
+
+	IpoptOptions ipopt;
+	ipopt.Tolerance = 1e-4;
+	
+	TimeSpan epochToStepTo;
+	Variable totalDV;
+	
+	opt.LoadEngine(ipopt);
+	While (opt.IsRunning());
+		opt.UpdateStateVariables();
+		opt.RestoreObjectsInProcess();
+		
+		burn.BurnDirection = opt.GetStateVariableValues[0:2];
+		totalDV = burn.BurnDirection.Norm;
+		red.Maneuver(burn);
+		
+		interBurnTime1 = TimeSpan.FromDays(opt.GetStateVariableValue("interBurnTime1"));
+		epochToStepTo = red.Epoch + interBurnTime1;
+		WhileStepping red to (red.Epoch == epochToStepTo);
+			blue.StepToEpoch(red.Epoch);
+		End;
+
+		burn.BurnDirection = opt.GetStateVariableValues[3:5];
+		totalDV += burn.BurnDirection.Norm;
+		red.Maneuver(burn);
+		
+		interBurnTime2 = TimeSpan.FromDays(opt.GetStateVariableValue("interBurnTime2"));
+		epochToStepTo = red.Epoch + interBurnTime2;
+		WhileStepping red to (red.Epoch == epochToStepTo);
+			blue.StepToEpoch(red.Epoch);
+		End;
+
+		burn.BurnDirection = opt.GetStateVariableValues[6:8];
+		totalDV += burn.BurnDirection.Norm;
+		red.Maneuver(burn);
+		
+		opt.SetConstraintValue("E", red.E);
+		
+		WhileStepping red to (red.Epoch == incursionEpoch);
+			blue.StepToEpoch(red.Epoch);
+		End;
+		
+		opt.SetConstraintValue("coastTime", (interBurnTime1 + interBurnTime2).ToDays());
+		opt.SetConstraintValue("arrivalRadius", red.Radius);
+		opt.SetConstraintValue("arrivalLonDelta", blue.Longitude - red.Longitude);
+							 
+		opt.Minimize(totalDV);
+		
+		If (opt.OptimizationPhase == 1);
+			Report opt.NominalEvaluationCount, "   ",
+			opt.ObjectiveFunctionValue, "   ",
+			opt.MaximumInfeasibility, "   ",
+			opt.MaximumInfeasibilitySource to ConsoleSolver;
+		End;
+	End;
+	
+	Report opt.ReturnString to ConsoleSolver;
+	opt.RestoreObjectsInProcess();
+		
+	
+	dv1[0] = opt.GetBestStateVariableValue("dv11");
+	dv1[1] = opt.GetBestStateVariableValue("dv12");
+	dv1[2] = opt.GetBestStateVariableValue("dv13");
+	dv2[0] = opt.GetBestStateVariableValue("dv21");
+	dv2[1] = opt.GetBestStateVariableValue("dv22");
+	dv2[2] = opt.GetBestStateVariableValue("dv23");
+	dv3[0] = opt.GetBestStateVariableValue("dv31");
+	dv3[1] = opt.GetBestStateVariableValue("dv32");
+	dv3[2] = opt.GetBestStateVariableValue("dv33");
+	interBurnTime1 = TimeSpan.FromDays(opt.GetBestStateVariableValue("interBurnTime1"));
+	interBurnTime2 = TimeSpan.FromDays(opt.GetBestStateVariableValue("interBurnTime2"));
+EndProcedure;
+
+
+Define Procedure IsBlueInStableGeoOrbit(Spacecraft blue, Variable blueIsInStableGeoOrbit);
+	blueIsInStableGeoOrbit = 0;
+	If (abs(blue.Radius - 42164) < 5);
+		If (blue.E < 0.001);
+			blueIsInStableGeoOrbit = 1;
+		End;
+	End;
+	
+EndProcedure;
+
+Define Procedure WillUpdateOccur(Spacecraft blue, Variable updateWillOccur);
+	updateWillOccur = 1;
+	Variable blueHasManeuvered;
+	Call HasBlueManeuvered(blue, blueHasManeuvered);
+	If (!blueHasManeuvered);
+		updateWillOccur = 0;
+		Report "Blue has not maneuvered since last update" to Console;
+		ExitProcedure;
+	End;
+	
+	Variable blueIsInStableGeoOrbit;
+	Call IsBlueInStableGeoOrbit(blue, blueIsInStableGeoOrbit);
+	If (!blueIsInStableGeoOrbit);
+		updateWillOccur = 0;
+		Report "Blue is not in a stable GEO orbit" to Console;
+		ExitProcedure;
+	End;
+	
+	
+EndProcedure;
+
+
+Define Procedure ComputeDisableScriptStrategy(Formation red, Formation blue);
 	actions.Clear();
 	
+	
 	TimeSpan incursionEpoch = simStartEpoch + TimeSpan.FromHours(24*4 + 1);
+	If (blue[0].Epoch > incursionEpoch);
+		// TODO return to nominal
+		Report "exit past epoch" to Console;
+		ExitProcedure;
+	End;
+	
+	Variable updateWillOccur = 0;
+	Call WillUpdateOccur(blue[0], updateWillOccur);
+	If (!updateWillOccur);
+		Send 0 to connection;
+		Report "No update will occur" to Console;
+		ExitProcedure;
+	End;
+
+	Send 1 to connection;
+	
+	Array dv1(3);
+	Array dv2(3);
+	Array dv3(3);
+	TimeSpan interBurnTime1;
+	TimeSpan interBurnTime2;
+	
+	Alias lastAction = actions[actions.Count - 1];
+	
+	Call ComputeDisableScriptRed2And3TransitManeuvers(
+	red[1],
+	blue[0],
+	incursionEpoch,
+	dv1, dv2, dv3,
+	interBurnTime1, interBurnTime2);
+	
+	actions.Count += 1;
+	lastAction.epoch = red[1].Epoch;
+	lastAction.burnRIC = dv1;
+	lastAction.additionalAction = additionalAction_none;
+	lastAction.isBlue = 0;
+	lastAction.formationIndex = 1;
+	
+	actions.Count += 1;
+	lastAction.epoch = red[1].Epoch + interBurnTime1;
+	lastAction.burnRIC = dv2;
+	lastAction.additionalAction = additionalAction_none;
+	lastAction.isBlue = 0;
+	lastAction.formationIndex = 1;
+	
+	actions.Count += 1;
+	lastAction.epoch = red[1].Epoch + interBurnTime1 + interBurnTime2;
+	lastAction.burnRIC = dv3;
+	lastAction.additionalAction = additionalAction_none;
+	lastAction.isBlue = 0;
+	lastAction.formationIndex = 1;
 	
 EndProcedure;]]></FreeFormScript>
       </FreeForm>
@@ -310,14 +522,10 @@ EndProcedure;]]></FreeFormScript>
         <Bookmarks />
         <Breakpoints />
         <FreeFormScript><![CDATA[
-Socket connection;
-connection.SocketType = "server";
-connection.PortNumber = redStrategyServerPort;
-connection.SocketTimeout = -1;
-
-
 Variable stepSizeSeconds;
 Variable gameMode;
+Variable uplinkTimeDays;
+TimeSpan epochToStepTo;
 
 Variable i;
 
@@ -330,9 +538,17 @@ While (1);
 	Report "Connected" to Console;
 	
 	Receive stepSizeSeconds from connection;
-	blue[0].Propagator.StepSize = TimeSpan.FromSeconds(800);
+	stepSizeSeconds = 800;
+	blue[0].Propagator.StepSize = TimeSpan.FromSeconds(stepSizeSeconds);
+	red[0].Propagator.StepSize = TimeSpan.FromSeconds(stepSizeSeconds);
+	red[1].Propagator.StepSize = TimeSpan.FromSeconds(stepSizeSeconds);
+	red[2].Propagator.StepSize = TimeSpan.FromSeconds(stepSizeSeconds);
 	
 	Receive gameMode from connection;
+	
+	// Reset these globals so we get an initial strategy update
+	lastBlueRadius = 0;
+	lastBlueLongitude = -999;
 	
 	Try;
 		While (1);
@@ -347,10 +563,31 @@ While (1);
 						red1CartState,
 						red2CartState,
 						red3CartState,
-						epochDays from connection;
+						epochDays,
+						uplinkTimeDays from connection;
 				
+				blue[0].Epoch = TimeSpan.FromDays(epochDays);
+				red[0].Epoch = TimeSpan.FromDays(epochDays);
+				red[1].Epoch = TimeSpan.FromDays(epochDays);
+				red[2].Epoch = TimeSpan.FromDays(epochDays);
 				
+				blue[0].SetCartesianState(blueCartState);
+				red[0].SetCartesianState(red1CartState);
+				red[1].SetCartesianState(red2CartState);
+				red[2].SetCartesianState(red3CartState);
 				
+				epochToStepTo = blue[0].Epoch + TimeSpan.FromDays(uplinkTimeDays);
+				WhileStepping blue[0] to (blue[0].Epoch == epochToStepTo);
+					red.StepToEpoch(blue[0].Epoch);
+				End;
+				
+				If (gameMode == gameMode_benignScript);
+					// TODO
+				ElseIf (gameMode == gameMode_observationScript);
+					// TODO
+				ElseIf (gameMode == gameMode_disableScript);
+					Call ComputeDisableScriptStrategy(red, blue);
+				End;
 				
 				Report "Sending data..." to Console;
 				Send actions.Count to connection;
@@ -400,7 +637,22 @@ Formation blue;
 Call InitializeFormations(red, blue);
 blue[0].Propagator.StepSize = TimeSpan.FromSeconds(800);
 
+(blue[0].Propagator AsType Integrator).FixedStep = 0;
+(red[0].Propagator AsType Integrator).FixedStep = 0;
+(red[1].Propagator AsType Integrator).FixedStep = 0;
+(red[2].Propagator AsType Integrator).FixedStep = 0;
+
 Global List<QueuedAction> actions;
+
+Global Array lastStableBlueGeoOrbit(6);
+
+Global Variable lastBlueRadius;
+Global Variable lastBlueLongitude;
+
+Global Socket connection;
+connection.SocketType = "server";
+connection.PortNumber = redStrategyServerPort;
+connection.SocketTimeout = -1;
 
 Define Procedure ComputeStationKeepingManeuver(Optimizer opt, Spacecraft sc, Variable longitude);
 	TimeSpan initialEpoch;
@@ -414,6 +666,7 @@ Define Procedure ComputeStationKeepingManeuver(Optimizer opt, Spacecraft sc, Var
 	While (opt.IsRunning() and opt.GetBestObjectiveFunctionValue() < 24*4);
 		opt.UpdateStateVariables();
 		opt.RestoreObjectsInProcess();
+		
 		burn.BurnDirection = opt.GetStateVariableValues();
 		
 		sc.Maneuver(burn);
@@ -559,21 +812,213 @@ Define Procedure ComputeDesiredSlewAngle(Spacecraft red, Spacecraft blue, Variab
 EndProcedure;
 
 
-Define Procedure ComputeDisableScriptStrategy();
-	actions.Clear();
+Define Procedure HasBlueManeuvered(Spacecraft blue, Variable blueHasManeuvered);
+	blueHasManeuvered = 0;
+	If (abs(blue.Radius - lastBlueRadius) > 5
+			or abs(blue.Longitude - lastBlueLongitude) > 0.15);
+		blueHasManeuvered = 1;
+		lastBlueLongitude = blue.Longitude;
+		lastBlueRadius = blue.Radius;
+	End;
+EndProcedure;
+
+
+Define Procedure ComputeDisableScriptRed2And3TransitManeuvers(
+		Spacecraft red,
+		Spacecraft blue,
+		TimeSpan incursionEpoch,
+		Array dv1,
+		Array dv2,
+		Array dv3,
+		TimeSpan interBurnTime1,
+		TimeSpan interBurnTime2);
+	TimeSpan arrivalTimeDelta = incursionEpoch - blue.Epoch;
 	
-	TimeSpan incursionEpoch = simStartEpoch + TimeSpan.FromHours(24*4 + 1);
+	Optimizer opt;
+	opt.Reset(1);
+	opt.AddStateVariableBlock(3, "dv1", 0.0001, -0.001, 0.001);
+	opt.AddStateVariableBlock(3, "dv2", 0.0001, -0.001, 0.001);
+	opt.AddStateVariableBlock(3, "dv3", 0.0001, -0.001, 0.001);
+	opt.AddStateVariable("interBurnTime1", arrivalTimeDelta.Scaled(0.3).ToDays(), 0.1, arrivalTimeDelta.ToDays());
+	opt.AddStateVariable("interBurnTime2", arrivalTimeDelta.Scaled(0.3).ToDays(), 0.1, arrivalTimeDelta.ToDays());
+	
+	opt.AddConstraint("E",    0, 0.0001);
+	opt.AddConstraint("arrivalRadius", 42164 - 70, 42164 + 70);
+	opt.AddConstraint("arrivalLonDelta", -0.1, 0.1);
+	opt.AddConstraint("coastTime", 0, arrivalTimeDelta.ToDays());
+
+	opt.SaveObjectToProcess(red);
+	opt.SaveObjectToProcess(blue);
+	opt.MaximumNominalEvaluationCount = 80;
+
+	IpoptOptions ipopt;
+	ipopt.Tolerance = 1e-4;
+	
+	TimeSpan epochToStepTo;
+	Variable totalDV;
+	
+	opt.LoadEngine(ipopt);
+	While (opt.IsRunning());
+		opt.UpdateStateVariables();
+		opt.RestoreObjectsInProcess();
+		
+		burn.BurnDirection = opt.GetStateVariableValues[0:2];
+		totalDV = burn.BurnDirection.Norm;
+		red.Maneuver(burn);
+		
+		interBurnTime1 = TimeSpan.FromDays(opt.GetStateVariableValue("interBurnTime1"));
+		epochToStepTo = red.Epoch + interBurnTime1;
+		WhileStepping red to (red.Epoch == epochToStepTo);
+			blue.StepToEpoch(red.Epoch);
+		End;
+
+		burn.BurnDirection = opt.GetStateVariableValues[3:5];
+		totalDV += burn.BurnDirection.Norm;
+		red.Maneuver(burn);
+		
+		interBurnTime2 = TimeSpan.FromDays(opt.GetStateVariableValue("interBurnTime2"));
+		epochToStepTo = red.Epoch + interBurnTime2;
+		WhileStepping red to (red.Epoch == epochToStepTo);
+			blue.StepToEpoch(red.Epoch);
+		End;
+
+		burn.BurnDirection = opt.GetStateVariableValues[6:8];
+		totalDV += burn.BurnDirection.Norm;
+		red.Maneuver(burn);
+		
+		opt.SetConstraintValue("E", red.E);
+		
+		WhileStepping red to (red.Epoch == incursionEpoch);
+			blue.StepToEpoch(red.Epoch);
+		End;
+		
+		opt.SetConstraintValue("coastTime", (interBurnTime1 + interBurnTime2).ToDays());
+		opt.SetConstraintValue("arrivalRadius", red.Radius);
+		opt.SetConstraintValue("arrivalLonDelta", blue.Longitude - red.Longitude);
+							 
+		opt.Minimize(totalDV);
+		
+		If (opt.OptimizationPhase == 1);
+			Report opt.NominalEvaluationCount, "   ",
+			opt.ObjectiveFunctionValue, "   ",
+			opt.MaximumInfeasibility, "   ",
+			opt.MaximumInfeasibilitySource to ConsoleSolver;
+		End;
+	End;
+	
+	Report opt.ReturnString to ConsoleSolver;
+	opt.RestoreObjectsInProcess();
+		
+	
+	dv1[0] = opt.GetBestStateVariableValue("dv11");
+	dv1[1] = opt.GetBestStateVariableValue("dv12");
+	dv1[2] = opt.GetBestStateVariableValue("dv13");
+	dv2[0] = opt.GetBestStateVariableValue("dv21");
+	dv2[1] = opt.GetBestStateVariableValue("dv22");
+	dv2[2] = opt.GetBestStateVariableValue("dv23");
+	dv3[0] = opt.GetBestStateVariableValue("dv31");
+	dv3[1] = opt.GetBestStateVariableValue("dv32");
+	dv3[2] = opt.GetBestStateVariableValue("dv33");
+	interBurnTime1 = TimeSpan.FromDays(opt.GetBestStateVariableValue("interBurnTime1"));
+	interBurnTime2 = TimeSpan.FromDays(opt.GetBestStateVariableValue("interBurnTime2"));
+EndProcedure;
+
+
+Define Procedure IsBlueInStableGeoOrbit(Spacecraft blue, Variable blueIsInStableGeoOrbit);
+	blueIsInStableGeoOrbit = 0;
+	If (abs(blue.Radius - 42164) < 5);
+		If (blue.E < 0.001);
+			blueIsInStableGeoOrbit = 1;
+		End;
+	End;
 	
 EndProcedure;
 
-Socket connection;
-connection.SocketType = "server";
-connection.PortNumber = redStrategyServerPort;
-connection.SocketTimeout = -1;
+Define Procedure WillUpdateOccur(Spacecraft blue, Variable updateWillOccur);
+	updateWillOccur = 1;
+	Variable blueHasManeuvered;
+	Call HasBlueManeuvered(blue, blueHasManeuvered);
+	If (!blueHasManeuvered);
+		updateWillOccur = 0;
+		Report "Blue has not maneuvered since last update" to Console;
+		ExitProcedure;
+	End;
+	
+	Variable blueIsInStableGeoOrbit;
+	Call IsBlueInStableGeoOrbit(blue, blueIsInStableGeoOrbit);
+	If (!blueIsInStableGeoOrbit);
+		updateWillOccur = 0;
+		Report "Blue is not in a stable GEO orbit" to Console;
+		ExitProcedure;
+	End;
+	
+	
+EndProcedure;
 
+
+Define Procedure ComputeDisableScriptStrategy(Formation red, Formation blue);
+	actions.Clear();
+	
+	
+	TimeSpan incursionEpoch = simStartEpoch + TimeSpan.FromHours(24*4 + 1);
+	If (blue[0].Epoch > incursionEpoch);
+		// TODO return to nominal
+		Report "exit past epoch" to Console;
+		ExitProcedure;
+	End;
+	
+	Variable updateWillOccur = 0;
+	Call WillUpdateOccur(blue[0], updateWillOccur);
+	If (!updateWillOccur);
+		Send 0 to connection;
+		Report "No update will occur" to Console;
+		ExitProcedure;
+	End;
+
+	Send 1 to connection;
+	
+	Array dv1(3);
+	Array dv2(3);
+	Array dv3(3);
+	TimeSpan interBurnTime1;
+	TimeSpan interBurnTime2;
+	
+	Alias lastAction = actions[actions.Count - 1];
+	
+	Call ComputeDisableScriptRed2And3TransitManeuvers(
+	red[1],
+	blue[0],
+	incursionEpoch,
+	dv1, dv2, dv3,
+	interBurnTime1, interBurnTime2);
+	
+	actions.Count += 1;
+	lastAction.epoch = red[1].Epoch;
+	lastAction.burnRIC = dv1;
+	lastAction.additionalAction = additionalAction_none;
+	lastAction.isBlue = 0;
+	lastAction.formationIndex = 1;
+	
+	actions.Count += 1;
+	lastAction.epoch = red[1].Epoch + interBurnTime1;
+	lastAction.burnRIC = dv2;
+	lastAction.additionalAction = additionalAction_none;
+	lastAction.isBlue = 0;
+	lastAction.formationIndex = 1;
+	
+	actions.Count += 1;
+	lastAction.epoch = red[1].Epoch + interBurnTime1 + interBurnTime2;
+	lastAction.burnRIC = dv3;
+	lastAction.additionalAction = additionalAction_none;
+	lastAction.isBlue = 0;
+	lastAction.formationIndex = 1;
+	
+EndProcedure;
 
 Variable stepSizeSeconds;
 Variable gameMode;
+Variable uplinkTimeDays;
+TimeSpan epochToStepTo;
 
 Variable i;
 
@@ -586,9 +1031,17 @@ While (1);
 	Report "Connected" to Console;
 	
 	Receive stepSizeSeconds from connection;
-	blue[0].Propagator.StepSize = TimeSpan.FromSeconds(800);
+	stepSizeSeconds = 800;
+	blue[0].Propagator.StepSize = TimeSpan.FromSeconds(stepSizeSeconds);
+	red[0].Propagator.StepSize = TimeSpan.FromSeconds(stepSizeSeconds);
+	red[1].Propagator.StepSize = TimeSpan.FromSeconds(stepSizeSeconds);
+	red[2].Propagator.StepSize = TimeSpan.FromSeconds(stepSizeSeconds);
 	
 	Receive gameMode from connection;
+	
+	// Reset these globals so we get an initial strategy update
+	lastBlueRadius = 0;
+	lastBlueLongitude = -999;
 	
 	Try;
 		While (1);
@@ -603,10 +1056,31 @@ While (1);
 						red1CartState,
 						red2CartState,
 						red3CartState,
-						epochDays from connection;
+						epochDays,
+						uplinkTimeDays from connection;
 				
+				blue[0].Epoch = TimeSpan.FromDays(epochDays);
+				red[0].Epoch = TimeSpan.FromDays(epochDays);
+				red[1].Epoch = TimeSpan.FromDays(epochDays);
+				red[2].Epoch = TimeSpan.FromDays(epochDays);
 				
+				blue[0].SetCartesianState(blueCartState);
+				red[0].SetCartesianState(red1CartState);
+				red[1].SetCartesianState(red2CartState);
+				red[2].SetCartesianState(red3CartState);
 				
+				epochToStepTo = blue[0].Epoch + TimeSpan.FromDays(uplinkTimeDays);
+				WhileStepping blue[0] to (blue[0].Epoch == epochToStepTo);
+					red.StepToEpoch(blue[0].Epoch);
+				End;
+				
+				If (gameMode == gameMode_benignScript);
+					// TODO
+				ElseIf (gameMode == gameMode_observationScript);
+					// TODO
+				ElseIf (gameMode == gameMode_disableScript);
+					Call ComputeDisableScriptStrategy(red, blue);
+				End;
 				
 				Report "Sending data..." to Console;
 				Send actions.Count to connection;

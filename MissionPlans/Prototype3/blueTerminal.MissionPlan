@@ -1600,6 +1600,7 @@ Define Procedure RetrieveRedStrategyFromServerAndAddToQueue();
 	Variable epochDays;
 	Receive redActionQueue.Count from redStrategyServer;
 	For i = 0 to redActionQueue.Count - 1;
+		redActionQueue[i].burnRIC.Dimension = 3;
 		Receive epochDays,
 			 	redActionQueue[i].burnRIC,
 				redActionQueue[i].formationIndex,
@@ -1621,6 +1622,10 @@ Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, F
 			Call RetrieveBlueOrbitChangeFromServerAndAddToQueue();
 		ElseIf (queuedAction.additionalAction == additionalAction_retrieveSlew);
 			Call RetrieveBlueSlewFromServer();
+		ElseIf (queuedAction.additionalAction == additionalAction_none);
+			// do nothing
+		Else;
+			Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
 		End;
 	Else;
 		burn.BurnDirection = queuedAction.burnRIC;
@@ -1633,9 +1638,15 @@ Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, F
 				redJammerState = activatableAsset_on;
 			ElseIf (redJammerState == activatableAsset_on);
 				redJammerState = activatableAsset_off;
+			Else;
+				Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
 			End;
 		ElseIf (queuedAction.additionalAction == additionalAction_redToggleJamming);
 			// TODO
+		ElseIf (queuedAction.additionalAction == additionalAction_none);
+			// do nothing
+		Else;
+			Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
 		End;
 	End;
 EndProcedure;
@@ -1696,16 +1707,25 @@ Define Procedure RequestBlueStationKeepFromServer(Formation blue, Array dv);
 EndProcedure;
 
 Define Procedure RequestRedStrategyUpdateFromServer(Formation red, Formation blue);
-	redActionQueue.Clear();
 	
 	Send redStrategyRequest_updateStrategy to redStrategyServer;
 	Send blue[0].GetCartesianState(),
 		 red[0].GetCartesianState(),
 		 red[1].GetCartesianState(),
 		 red[2].GetCartesianState(),
-		 blue[0].Epoch.ToDays() to redStrategyServer;
+		 blue[0].Epoch.ToDays(),
+	 	 uplinkTime.ToHours() to redStrategyServer;
 	
-	Call AddFutureActionMarkerToQueue(simEpoch + simChoiceSpacing, 0, 0, additionalAction_retrieveRedStrategy);
+	Variable redStrategyUpdateWillOccur;
+	Receive redStrategyUpdateWillOccur from redStrategyServer;
+	If (redStrategyUpdateWillOccur);
+		redActionQueue.Clear();
+		Call AddFutureActionMarkerToQueue(
+			simEpoch + simChoiceSpacing,
+			0,
+			0,
+			additionalAction_retrieveRedStrategy);
+	End;
 EndProcedure;]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
@@ -2806,11 +2826,13 @@ End;
 QueuedAction nextQueuedAction;
 TimeSpan nextQueuedActionEpoch;
 Variable nextQueuedActionIsBeforeNextChoiceEpoch;
+Variable redStrategyUpdateIsCurrentlyBeingComputed;
+
 While (blueIsOffNominal or redIsEngaged);
 	nextChoiceEpoch = blue[0].Epoch + simChoiceSpacing;
 	
 	Call GetNextQueuedActionEpoch(nextQueuedActionEpoch);
-	While (nextQueuedActionEpoch <= nextChoiceEpoch);
+	While (nextQueuedActionEpoch < nextChoiceEpoch);
 		Call PopNextQueuedAction(nextQueuedAction);
 		Call AdvanceSimToFutureEpoch(red, blue, nextQueuedAction.epoch);
 
@@ -2824,7 +2846,17 @@ While (blueIsOffNominal or redIsEngaged);
 	If (numberOfUserChoicesToSkip == 0);
 		Call ShowOperatorActionsMenu(red, blue);
 		If (blueJammerState != activatableAsset_on);
-			Call RequestRedStrategyUpdateFromServer(red, blue);
+			redStrategyUpdateIsCurrentlyBeingComputed = 0;
+			For i = 0 to redActionQueue.Count - 1;
+				If (redActionQueue[i].additionalAction == additionalAction_retrieveRedStrategy);
+					redStrategyUpdateIsCurrentlyBeingComputed = 1;
+					Break;
+				End;
+			End;
+			
+			If (!redStrategyUpdateIsCurrentlyBeingComputed);
+				Call RequestRedStrategyUpdateFromServer(red, blue);
+			End;
 		End;
 	Else;
 		numberOfUserChoicesToSkip -= 1;
@@ -4163,6 +4195,7 @@ Define Procedure RetrieveRedStrategyFromServerAndAddToQueue();
 	Variable epochDays;
 	Receive redActionQueue.Count from redStrategyServer;
 	For i = 0 to redActionQueue.Count - 1;
+		redActionQueue[i].burnRIC.Dimension = 3;
 		Receive epochDays,
 			 	redActionQueue[i].burnRIC,
 				redActionQueue[i].formationIndex,
@@ -4184,6 +4217,10 @@ Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, F
 			Call RetrieveBlueOrbitChangeFromServerAndAddToQueue();
 		ElseIf (queuedAction.additionalAction == additionalAction_retrieveSlew);
 			Call RetrieveBlueSlewFromServer();
+		ElseIf (queuedAction.additionalAction == additionalAction_none);
+			// do nothing
+		Else;
+			Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
 		End;
 	Else;
 		burn.BurnDirection = queuedAction.burnRIC;
@@ -4196,9 +4233,15 @@ Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, F
 				redJammerState = activatableAsset_on;
 			ElseIf (redJammerState == activatableAsset_on);
 				redJammerState = activatableAsset_off;
+			Else;
+				Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
 			End;
 		ElseIf (queuedAction.additionalAction == additionalAction_redToggleJamming);
 			// TODO
+		ElseIf (queuedAction.additionalAction == additionalAction_none);
+			// do nothing
+		Else;
+			Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
 		End;
 	End;
 EndProcedure;
@@ -4259,16 +4302,25 @@ Define Procedure RequestBlueStationKeepFromServer(Formation blue, Array dv);
 EndProcedure;
 
 Define Procedure RequestRedStrategyUpdateFromServer(Formation red, Formation blue);
-	redActionQueue.Clear();
 	
 	Send redStrategyRequest_updateStrategy to redStrategyServer;
 	Send blue[0].GetCartesianState(),
 		 red[0].GetCartesianState(),
 		 red[1].GetCartesianState(),
 		 red[2].GetCartesianState(),
-		 blue[0].Epoch.ToDays() to redStrategyServer;
+		 blue[0].Epoch.ToDays(),
+	 	 uplinkTime.ToHours() to redStrategyServer;
 	
-	Call AddFutureActionMarkerToQueue(simEpoch + simChoiceSpacing, 0, 0, additionalAction_retrieveRedStrategy);
+	Variable redStrategyUpdateWillOccur;
+	Receive redStrategyUpdateWillOccur from redStrategyServer;
+	If (redStrategyUpdateWillOccur);
+		redActionQueue.Clear();
+		Call AddFutureActionMarkerToQueue(
+			simEpoch + simChoiceSpacing,
+			0,
+			0,
+			additionalAction_retrieveRedStrategy);
+	End;
 EndProcedure;
 Global UserInterface OperatorActions;
 
@@ -5344,11 +5396,13 @@ End;
 QueuedAction nextQueuedAction;
 TimeSpan nextQueuedActionEpoch;
 Variable nextQueuedActionIsBeforeNextChoiceEpoch;
+Variable redStrategyUpdateIsCurrentlyBeingComputed;
+
 While (blueIsOffNominal or redIsEngaged);
 	nextChoiceEpoch = blue[0].Epoch + simChoiceSpacing;
 	
 	Call GetNextQueuedActionEpoch(nextQueuedActionEpoch);
-	While (nextQueuedActionEpoch <= nextChoiceEpoch);
+	While (nextQueuedActionEpoch < nextChoiceEpoch);
 		Call PopNextQueuedAction(nextQueuedAction);
 		Call AdvanceSimToFutureEpoch(red, blue, nextQueuedAction.epoch);
 
@@ -5362,7 +5416,17 @@ While (blueIsOffNominal or redIsEngaged);
 	If (numberOfUserChoicesToSkip == 0);
 		Call ShowOperatorActionsMenu(red, blue);
 		If (blueJammerState != activatableAsset_on);
-			Call RequestRedStrategyUpdateFromServer(red, blue);
+			redStrategyUpdateIsCurrentlyBeingComputed = 0;
+			For i = 0 to redActionQueue.Count - 1;
+				If (redActionQueue[i].additionalAction == additionalAction_retrieveRedStrategy);
+					redStrategyUpdateIsCurrentlyBeingComputed = 1;
+					Break;
+				End;
+			End;
+			
+			If (!redStrategyUpdateIsCurrentlyBeingComputed);
+				Call RequestRedStrategyUpdateFromServer(red, blue);
+			End;
 		End;
 	Else;
 		numberOfUserChoicesToSkip -= 1;
