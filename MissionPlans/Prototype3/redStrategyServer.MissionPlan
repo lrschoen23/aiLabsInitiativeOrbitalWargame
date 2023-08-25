@@ -131,7 +131,9 @@ Variable epochDays;
 
 Spacecraft blue1;
 Spacecraft red;
-Call InitializeBlue1(blue1);]]></FreeFormScript>
+Call InitializeBlue1(blue1);
+
+Global List<QueuedAction> actions;]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
         <Label>FreeForm</Label>
@@ -292,35 +294,6 @@ Define Procedure ComputeDesiredSlewAngle(Spacecraft red, Spacecraft blue, Variab
 		End;
 	End;
 	blue.EulerAngles[0] = initialEulerAngle;
-	
-	
-	
-//	Optimizer opt;
-//	opt.Reset(1);
-//	
-//	opt.AddStateVariable("angle", initialEulerAngle+90, 0, 360, 100);
-//	
-//	opt.MaximumNominalEvaluationCount = 50;
-//	opt.LoadEngine();
-//	
-//	While (opt.IsRunning());
-//		opt.UpdateStateVariables();
-//		
-//		blue.EulerAngles[0] = opt.GetStateVariableValue(0);
-//		Call ComputeRangeAndAngleFromPayload(blue, red, range, angle);
-//		opt.Maximize(angle);
-//			
-//		If (opt.OptimizationPhase == 1);
-//			Report opt.NominalEvaluationCount, "   ",
-//			opt.ObjectiveFunctionValue, "   ",
-//			opt.MaximumInfeasibility, "   ",
-//			opt.MaximumInfeasibilitySource, "   ",
-//			blue.EulerAngles[0] to ConsoleSolver;
-//		End;
-//	End;
-//	
-//	blue.EulerAngles[0] = initialEulerAngle;
-//	slewAngle = opt.GetBestStateVariableValue("angle");
 EndProcedure;]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
@@ -336,6 +309,8 @@ connection.SocketTimeout = -1;
 
 Variable stepSizeSeconds;
 Variable gameMode;
+
+Variable i;
 
 
 While (1);	
@@ -356,10 +331,27 @@ While (1);
 			Report "" to Console;
 			Report "Recieved request: " to Console;
 			
-			If (strategyRequest == blueStrategyRequest_orbitChange);
+			If (strategyRequest == redStrategyRequest_updateStrategy);
+				Report "Update Strategy" to Console;
 				
-			ElseIf (strategyRequest == blueStrategyRequest_slew);
+				Receive blueCartState,
+						red1CartState,
+						red2CartState,
+						red3CartState,
+						epochDays from connection;
 				
+				
+				
+				
+				Report "Sending data..." to Console;
+				Send actions.Count to connection;
+				For i = 0 to actions.Count - 1;
+					Send actions[i].epoch.ToDays(),
+						 actions[i].burnRIC,
+						 actions[i].formationIndex,
+						 actions[i].additionalAction to connection;
+				End;
+				Report "Data transfer complete" to Console;
 			End;
 		End;
 	End;
@@ -398,6 +390,8 @@ Spacecraft blue1;
 Spacecraft red;
 Call InitializeBlue1(blue1);
 
+Global List<QueuedAction> actions;
+
 Define Procedure ComputeStationKeepingManeuver(Optimizer opt, Spacecraft sc, Variable longitude);
 	TimeSpan initialEpoch;
 	opt.Reset(1);
@@ -552,35 +546,6 @@ Define Procedure ComputeDesiredSlewAngle(Spacecraft red, Spacecraft blue, Variab
 		End;
 	End;
 	blue.EulerAngles[0] = initialEulerAngle;
-	
-	
-	
-//	Optimizer opt;
-//	opt.Reset(1);
-//	
-//	opt.AddStateVariable("angle", initialEulerAngle+90, 0, 360, 100);
-//	
-//	opt.MaximumNominalEvaluationCount = 50;
-//	opt.LoadEngine();
-//	
-//	While (opt.IsRunning());
-//		opt.UpdateStateVariables();
-//		
-//		blue.EulerAngles[0] = opt.GetStateVariableValue(0);
-//		Call ComputeRangeAndAngleFromPayload(blue, red, range, angle);
-//		opt.Maximize(angle);
-//			
-//		If (opt.OptimizationPhase == 1);
-//			Report opt.NominalEvaluationCount, "   ",
-//			opt.ObjectiveFunctionValue, "   ",
-//			opt.MaximumInfeasibility, "   ",
-//			opt.MaximumInfeasibilitySource, "   ",
-//			blue.EulerAngles[0] to ConsoleSolver;
-//		End;
-//	End;
-//	
-//	blue.EulerAngles[0] = initialEulerAngle;
-//	slewAngle = opt.GetBestStateVariableValue("angle");
 EndProcedure;
 
 Socket connection;
@@ -591,6 +556,8 @@ connection.SocketTimeout = -1;
 
 Variable stepSizeSeconds;
 Variable gameMode;
+
+Variable i;
 
 
 While (1);	
@@ -611,10 +578,27 @@ While (1);
 			Report "" to Console;
 			Report "Recieved request: " to Console;
 			
-			If (strategyRequest == blueStrategyRequest_orbitChange);
+			If (strategyRequest == redStrategyRequest_updateStrategy);
+				Report "Update Strategy" to Console;
 				
-			ElseIf (strategyRequest == blueStrategyRequest_slew);
+				Receive blueCartState,
+						red1CartState,
+						red2CartState,
+						red3CartState,
+						epochDays from connection;
 				
+				
+				
+				
+				Report "Sending data..." to Console;
+				Send actions.Count to connection;
+				For i = 0 to actions.Count - 1;
+					Send actions[i].epoch.ToDays(),
+						 actions[i].burnRIC,
+						 actions[i].formationIndex,
+						 actions[i].additionalAction to connection;
+				End;
+				Report "Data transfer complete" to Console;
 			End;
 		End;
 	End;

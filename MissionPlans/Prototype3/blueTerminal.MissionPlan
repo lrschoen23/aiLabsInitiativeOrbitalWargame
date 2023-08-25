@@ -259,7 +259,14 @@ simStepSizeSeconds = 1000;
 Global Constant Variable autoChooseNominalOperation = 0;
 Global TimeSpan simChoiceSpacing = TimeSpan.FromHours(8);
 //Console.Show();
-]]></FreeFormScript>
+
+Global TimeSpan uplinkTime = TimeSpan.FromHours(1);
+Global TimeSpan slewTime = TimeSpan.FromHours(1);
+
+If (uplinkTime > simChoiceSpacing);
+	Diagnostics.ReportErrorMessage(
+		0, "Uplink time must be less than choice spacing time in order to avoid race conditions with the strategy server.");
+End;]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
         <Label>Initialize</Label>
@@ -452,26 +459,26 @@ viewPayload.CurrentViewpoint.ViewpointType = "sensorview";
 viewPayload.CurrentViewpoint.SensorView.FilterAllSiblings = 0;
 viewPayload.CurrentViewpoint.SensorView.Source = blue[0].Sensors[sensorIndexPayload].ObjectId;
 
-Global Variable blueBackupCommsState = 0; // 0 is inactive, 1 is ready, 2 is active
-Global Variable blueJammerState = 0; // 0 is inactive, 1 is ready, 2 is active
-Global Variable redJammerState = 0;
+Global Variable blueBackupCommsState = activatableAsset_off;
+Global Variable blueJammerState = activatableAsset_off;
+Global Variable redJammerState = activatableAsset_off;
 
 Global Variable blueIsOffNominal = 0;
 
-// jammerState = 0 is inactive, 1 is ready, 2 is active
+
 Define Procedure SetBlueJammerState(Variable jammerState);
 	blueJammerState = jammerState;
-	If (blueJammerState == 0);
+	If (blueJammerState == activatableAsset_off);
 		blueJammer.DisplayName = "Jamming Unit (Inactive)";
 		viewMain3D.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerInactiveIcon.png");
 		viewUplink.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerInactiveIcon.png");
 		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerInactiveIcon.png");
-	ElseIf (blueJammerState == 1);
+	ElseIf (blueJammerState == activatableAsset_ready);
 		blueJammer.DisplayName = "Jamming Unit (Standing By)";
 		viewMain3D.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerReadyIcon.png");
 		viewUplink.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerReadyIcon.png");
 		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerReadyIcon.png");
-	ElseIf (blueJammerState == 2);
+	ElseIf (blueJammerState == activatableAsset_on);
 		blueJammer.DisplayName = "Jamming Unit (Active)";
 		viewMain3D.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerActiveIcon.png");
 		viewUplink.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerActiveIcon.png");
@@ -479,10 +486,9 @@ Define Procedure SetBlueJammerState(Variable jammerState);
 	End;
 EndProcedure;
 
-// jammerState = 0 is inactive, 1 is active
 Define Procedure SetRedJammerState(Variable jammerState, Formation red);
 	redJammerState = jammerState;
-	If (redJammerState == 0);
+	If (redJammerState == activatableAsset_off);
 		viewMain3D.SetShowIcon(red[1].ObjectId,  0);
 		viewUplink.SetShowIcon(red[1].ObjectId,  0);
 		viewPayload.SetShowIcon(red[1].ObjectId, 0);
@@ -490,7 +496,8 @@ Define Procedure SetRedJammerState(Variable jammerState, Formation red);
 		viewMain3D.SetShowIcon(red[2].ObjectId,  0);
 		viewUplink.SetShowIcon(red[2].ObjectId,  0);
 		viewPayload.SetShowIcon(red[2].ObjectId, 0);
-	ElseIf (redJammerState == 1);
+		
+	ElseIf (redJammerState == activatableAsset_on);
 		viewMain3D.SetShowIcon(red[1].ObjectId,  1);
 		viewUplink.SetShowIcon(red[1].ObjectId,  1);
 		viewPayload.SetShowIcon(red[1].ObjectId, 1);
@@ -501,7 +508,7 @@ Define Procedure SetRedJammerState(Variable jammerState, Formation red);
 	End;
 EndProcedure;
 
-Call SetBlueJammerState(0);
+Call SetBlueJammerState(activatableAsset_off);
 
 viewMain3D.SetObjectIcon(red[1].ObjectId,  "Icons/jammingWarning.png");
 viewUplink.SetObjectIcon(red[1].ObjectId,  "Icons/jammingWarning.png");
@@ -597,16 +604,12 @@ Global TimeSpan blueSlewCompletionEpoch = simStartEpoch - TimeSpan.FromDays(1);
 Global TimeSpan blueSlewStartEpoch;
 Global Variable desiredBluePayloadOrientationAngle;
 Global Variable initialBluePayloadOrientationAngle;
-Global TimeSpan slewTime = TimeSpan.FromHours(1);
 
 Global Constant Variable nominalBluePayloadOrientationAngle = blue[0].EulerAngles[0];
 
-Global TimeSpan uplinkTime = TimeSpan.FromHours(1);
+// Start with this value as true so we get an initial strategy for red
+Global Variable blueHasManeuveredSinceLastRedStrategyUpdate = 1;
 
-If (uplinkTime > simChoiceSpacing);
-	Diagnostics.ReportErrorMessage(
-		0, "Uplink time must be less than choice spacing time in order to avoid race conditions with the strategy server.");
-End;
 
 Global Socket blueStrategyServer;
 blueStrategyServer.SocketType = "client";
@@ -633,36 +636,8 @@ Send gameMode to redStrategyServer;
         <FreeFormScript><![CDATA[
 Variable redHasNotDisengaged = 1;
 
-Global Constant Variable queueType_none  = 0;
-Global Constant Variable queueType_blueBurn  = 1;
-Global Constant Variable queueType_redBurn  = 2;
-
-Struct QueuedAction;
-	TimeSpan epoch;
-End;
-
-
-
-Global Constant Variable redActionType_none          = 0;
-Global Constant Variable redActionType_toggleJamming  = 1;
-
-Global Constant Variable additionalAction_none                 = 0;
-Global Constant Variable additionalAction_retrieveOrbitChange  = 1;
-Global Constant Variable additionalAction_retrieveSlew         = 2;
-
-Struct QueuedRedAction extends QueuedAction;
-	Variable actionType;
-End;
-
-Struct QueuedBurn extends QueuedAction;
-	Array burnRIC;
-	Variable formationIndex;
-	Variable additionalAction;
-	Variable isBlue;
-End;
-
-Global List<QueuedBurn> blueBurnQueue;
-Global List<QueuedBurn> redBurnQueue;
+Global List<QueuedAction> blueActionQueue;
+Global List<QueuedAction> redActionQueue;
 
 TimeSpan nextChoiceEpoch;
 	
@@ -670,31 +645,31 @@ Global Variable redIsEngaged = 1;
 
 Define Procedure GetNextQueuedActionSource(Variable source);
 	source = queueType_none;
-	If (blueBurnQueue.Count != 0);
+	If (blueActionQueue.Count != 0);
 		source = queueType_blueBurn;
-	ElseIf (redBurnQueue.Count != 0);
+	ElseIf (redActionQueue.Count != 0);
 		source = queueType_redBurn;
 	End;
 	
-	If (blueBurnQueue.Count != 0 and redBurnQueue.Count != 0);
-		If (redBurnQueue[0].epoch < blueBurnQueue[0].epoch);
+	If (blueActionQueue.Count != 0 and redActionQueue.Count != 0);
+		If (redActionQueue[0].epoch < blueActionQueue[0].epoch);
 			source = queueType_redBurn;
 		End;
 	End;
 EndProcedure;
 
 
-Define Procedure PopNextQueuedAction(QueuedBurn nextAction);
+Define Procedure PopNextQueuedAction(QueuedAction nextAction);
 	Variable nextQueuedActionSource;
 	Call GetNextQueuedActionSource(nextQueuedActionSource);
 	If (nextQueuedActionSource == queueType_none);
 		nextAction.epoch = simEpoch + TimeSpan.FromDays(1e3);
 	ElseIf (nextQueuedActionSource == queueType_blueBurn);
-		nextAction = blueBurnQueue[0];
-		blueBurnQueue.RemoveAt(0);
+		nextAction = blueActionQueue[0];
+		blueActionQueue.RemoveAt(0);
 	ElseIf (nextQueuedActionSource == queueType_redBurn);
-		nextAction = redBurnQueue[0];
-		redBurnQueue.RemoveAt(0);
+		nextAction = redActionQueue[0];
+		redActionQueue.RemoveAt(0);
 	End;
 EndProcedure;
 
@@ -704,9 +679,9 @@ Define Procedure GetNextQueuedActionEpoch(TimeSpan epoch);
 	If (nextQueuedActionSource == queueType_none);
 		epoch = simEpoch + TimeSpan.FromDays(1e3);
 	ElseIf (nextQueuedActionSource == queueType_blueBurn);
-		epoch = blueBurnQueue[0].epoch;
+		epoch = blueActionQueue[0].epoch;
 	ElseIf (nextQueuedActionSource == queueType_redBurn);
-		epoch = redBurnQueue[0].epoch;
+		epoch = redActionQueue[0].epoch;
 	End;
 EndProcedure;
 ]]></FreeFormScript>
@@ -1540,21 +1515,21 @@ Define Procedure AddBurnToQueue(
 	
 	Variable last;
 	If (isBlue);
-		last = blueBurnQueue.Count;
-		blueBurnQueue.Count += 1;
-		blueBurnQueue[last].epoch = epoch;
-		blueBurnQueue[last].burnRIC = dv;
-		blueBurnQueue[last].formationIndex = formationIndex;
-		blueBurnQueue[last].isBlue = 1;
-		blueBurnQueue[last].additionalAction = additionalAction_none;
+		last = blueActionQueue.Count;
+		blueActionQueue.Count += 1;
+		blueActionQueue[last].epoch = epoch;
+		blueActionQueue[last].burnRIC = dv;
+		blueActionQueue[last].formationIndex = formationIndex;
+		blueActionQueue[last].isBlue = 1;
+		blueActionQueue[last].additionalAction = additionalAction_none;
 	Else;
-		last = redBurnQueue.Count;
-		redBurnQueue.Count += 1;
-		redBurnQueue[last].epoch = epoch;
-		redBurnQueue[last].burnRIC = dv;
-		redBurnQueue[last].formationIndex = formationIndex;
-		redBurnQueue[last].isBlue = 0;
-		redBurnQueue[last].additionalAction = additionalAction_none;
+		last = redActionQueue.Count;
+		redActionQueue.Count += 1;
+		redActionQueue[last].epoch = epoch;
+		redActionQueue[last].burnRIC = dv;
+		redActionQueue[last].formationIndex = formationIndex;
+		redActionQueue[last].isBlue = 0;
+		redActionQueue[last].additionalAction = additionalAction_none;
 	End;
 EndProcedure;
 
@@ -1586,40 +1561,30 @@ Define Procedure GetCartStateOfClosestRedAtTimeOffset(Formation red, Formation b
 EndProcedure;
 
 
-Define Procedure AddFutureBurnMarkerToQueue(
+Define Procedure AddFutureActionMarkerToQueue(
 	TimeSpan epoch,
 	Variable formationIndex,
-	Variable isBlue);
+	Variable isBlue,
+	Variable additionalAction);
 	
 	Variable last;
 	If (isBlue);
-		last = blueBurnQueue.Count;
-		blueBurnQueue.Count += 1;
-		blueBurnQueue[last].epoch = epoch;
-		blueBurnQueue[last].burnRIC = {0, 0, 0};
-		blueBurnQueue[last].formationIndex = formationIndex;
-		blueBurnQueue[last].isBlue = 1;
-		blueBurnQueue[last].additionalAction = additionalAction_retrieveOrbitChange;
+		last = blueActionQueue.Count;
+		blueActionQueue.Count += 1;
+		blueActionQueue[last].epoch = epoch;
+		blueActionQueue[last].burnRIC = {0, 0, 0};
+		blueActionQueue[last].formationIndex = formationIndex;
+		blueActionQueue[last].isBlue = 1;
+		blueActionQueue[last].additionalAction = additionalAction;
 	Else;
-		last = redBurnQueue.Count;
-		redBurnQueue.Count += 1;
-		redBurnQueue[last].epoch = epoch;
-		redBurnQueue[last].burnRIC = {0, 0, 0};
-		redBurnQueue[last].formationIndex = formationIndex;
-		redBurnQueue[last].isBlue = 0;
-		redBurnQueue[last].additionalAction = additionalAction_retrieveOrbitChange;
+		last = redActionQueue.Count;
+		redActionQueue.Count += 1;
+		redActionQueue[last].epoch = epoch;
+		redActionQueue[last].burnRIC = {0, 0, 0};
+		redActionQueue[last].formationIndex = formationIndex;
+		redActionQueue[last].isBlue = 0;
+		redActionQueue[last].additionalAction = additionalAction;
 	End;
-EndProcedure;
-
-Define Procedure AddFutureBlueSlewToQueue(TimeSpan epoch);
-	Variable last;
-	last = blueBurnQueue.Count;
-	blueBurnQueue.Count += 1;
-	blueBurnQueue[last].epoch = epoch;
-	blueBurnQueue[last].burnRIC = {0, 0, 0};
-	blueBurnQueue[last].formationIndex = 0;
-	blueBurnQueue[last].isBlue = 1;
-	blueBurnQueue[last].additionalAction = additionalAction_retrieveSlew;
 EndProcedure;
 
 Define Procedure RetrieveBlueOrbitChangeFromServerAndAddToQueue();
@@ -1640,7 +1605,24 @@ Define Procedure RetrieveBlueSlewFromServer();
 EndProcedure;
 
 
-Define Procedure ExecuteQueuedAction(QueuedBurn queuedAction, Formation red, Formation blue);
+Define Procedure RetrieveRedStrategyFromServerAndAddToQueue();
+	Variable i;
+	TimeSpan epochDays;
+	Receive redActionQueue.Count from blueStrategyServer;
+	For i = 0 to redActionQueue.Count - 1;
+		Receive epochDays,
+			 	redActionQueue[i].burnRIC,
+				redActionQueue[i].formationIndex,
+				redActionQueue[i].additionalAction from redStrategyServer;
+		redActionQueue[i].epoch = TimeSpan.FromDays(epochDays);
+		redActionQueue[i].isBlue = 0;
+	End;
+	
+	blueHasManeuveredSinceLastRedStrategyUpdate = 0;
+EndProcedure;
+
+
+Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, Formation blue);
 	If (queuedAction.isBlue);
 		burn.BurnDirection = queuedAction.burnRIC;
 		blue[queuedAction.formationIndex].Maneuver(burn);
@@ -1653,12 +1635,24 @@ Define Procedure ExecuteQueuedAction(QueuedBurn queuedAction, Formation red, For
 	Else;
 		burn.BurnDirection = queuedAction.burnRIC;
 		red[queuedAction.formationIndex].Maneuver(burn);
+		
+		If (queuedAction.additionalAction == additionalAction_retrieveRedStrategy);
+			Call RetrieveRedStrategyFromServerAndAddToQueue();
+		ElseIf (queuedAction.additionalAction == additionalAction_redToggleJamming);
+			If (redJammerState == activatableAsset_off);
+				redJammerState = activatableAsset_on;
+			ElseIf (redJammerState == activatableAsset_on);
+				redJammerState = activatableAsset_off;
+			End;
+		ElseIf (queuedAction.additionalAction == additionalAction_redToggleJamming);
+			// TODO
+		End;
 	End;
 EndProcedure;
 
 
 Define Procedure RequestBlueEvasiveManeuverFromServer(Formation blue);
-	blueBurnQueue.Clear();
+	blueActionQueue.Clear();
 	Send blueStrategyRequest_orbitChange to blueStrategyServer;
 	Send blue[0].GetCartesianState(),
 		 blue[0].Epoch.ToDays(),
@@ -1667,14 +1661,14 @@ Define Procedure RequestBlueEvasiveManeuverFromServer(Formation blue);
 		 {0.1, 0.5},
 		 uplinkTime.ToHours() to blueStrategyServer;
 	
-	Call AddFutureBurnMarkerToQueue(uplinkTime + simEpoch, 0, 1);
+	Call AddFutureActionMarkerToQueue(uplinkTime + simEpoch, 0, 1, additionalAction_retrieveOrbitChange);
 EndProcedure;
 
 
 Define Procedure RequestBlueReturnToNominalFromServer(Formation blue);
 	blueOperationsScore -= 8;
 	
-	blueBurnQueue.Clear();
+	blueActionQueue.Clear();
 	Send blueStrategyRequest_orbitChange to blueStrategyServer;
 	Send blue[0].GetCartesianState(),
 		 blue[0].Epoch.ToDays(),
@@ -1683,7 +1677,7 @@ Define Procedure RequestBlueReturnToNominalFromServer(Formation blue);
 		 {0.1, 1},
 		 uplinkTime.ToHours() to blueStrategyServer;
 	
-	Call AddFutureBurnMarkerToQueue(uplinkTime + simEpoch, 0, 1);
+	Call AddFutureActionMarkerToQueue(uplinkTime + simEpoch, 0, 1, additionalAction_retrieveOrbitChange);
 EndProcedure;
 
 Define Procedure RequestBlueSlewFromServer(Formation red, Formation blue);
@@ -1698,7 +1692,7 @@ Define Procedure RequestBlueSlewFromServer(Formation red, Formation blue);
 		 blueCartState,
 		 (simEpoch + uplinkTime).ToDays() to blueStrategyServer;
 	
-	Call AddFutureBlueSlewToQueue(simEpoch + uplinkTime);
+	Call AddFutureActionMarkerToQueue(simEpoch + uplinkTime, 0, 1, additionalAction_retrieveSlew);
 EndProcedure;
 
 Define Procedure RequestBlueStationKeepFromServer(Formation blue, Array dv);
@@ -1709,6 +1703,19 @@ Define Procedure RequestBlueStationKeepFromServer(Formation blue, Array dv);
 		 blue[0].Longitude to blueStrategyServer;
 	
 	Receive dv from blueStrategyServer;
+EndProcedure;
+
+Define Procedure RequestRedStrategyUpdateFromServer(Formation red, Formation blue);
+	redActionQueue.Clear();
+	
+	Send redStrategyRequest_updateStrategy to redStrategyServer;
+	Send blue[0].GetCartesianState(),
+		 red[0].GetCartesianState(),
+		 red[1].GetCartesianState(),
+		 red[2].GetCartesianState(),
+		 blue[0].Epoch.ToDays() to blueStrategyServer;
+	
+	Call AddFutureActionMarkerToQueue(simEpoch + uplinkTime, 0, 0, additionalAction_retrieveRedStrategy);
 EndProcedure;]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
@@ -1745,27 +1752,27 @@ Define Procedure BuildOperatorActionsMenu();
 	Variable multiChoiceID = OperatorActions.AddMultiChoice("userChoice", "Select an action:", "choice_nominal", 1);
 	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_nominal",   "Continue nominal operations");
 	
-	If (blueBackupCommsState == 0); // inactive
+	If (blueBackupCommsState == activatableAsset_off);
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Ready secondary blue comms path");
-	ElseIf (blueBackupCommsState == 1); // ready
+	ElseIf (blueBackupCommsState == activatableAsset_ready);
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to secondary blue comms path");
-	ElseIf (blueBackupCommsState == 2); // active
+	ElseIf (blueBackupCommsState == activatableAsset_on);
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to primary blue comm path");
 	End;
 	
-	If (redJammerState == 0);
+	If (redJammerState == activatableAsset_off);
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_slew", "Slew payload away from closest red spacecraft");
 	End;
 	
-	If (blueJammerState == 0); // inactive
+	If (blueJammerState == activatableAsset_off);
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Ready ground-based jamming unit");
-	ElseIf (blueJammerState == 1); // ready
+	ElseIf (blueJammerState == activatableAsset_ready);
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Activate ground-based jamming unit");
-	ElseIf (blueJammerState == 2); // active
+	ElseIf (blueJammerState == activatableAsset_on);
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "De-activate ground-based jamming unit");
 	End;
 	
-	If (redJammerState == 0);
+	If (redJammerState == activatableAsset_off);
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_evasive",   "Perform evasive maneuver");
 	End;
 	
@@ -1803,23 +1810,23 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 	End;
 	
 	If (userChoice == choice_secondaryComms);
-		If (blueBackupCommsState == 0); // inactive
-			blueBackupCommsState = 2;
-		ElseIf (blueBackupCommsState == 1); // ready
+		If (blueBackupCommsState == activatableAsset_off); // inactive
+			blueBackupCommsState = activatableAsset_on;
+		ElseIf (blueBackupCommsState == activatableAsset_ready); // ready
 			Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
-		ElseIf (blueBackupCommsState == 2); // active
-			blueBackupCommsState = 0;
+		ElseIf (blueBackupCommsState == activatableAsset_on); // active
+			blueBackupCommsState = activatableAsset_off;
 		End;
 	End;
 	
 	If (userChoice == choice_jam);
-		If (blueJammerState == 0); // inactive
-			Call SetBlueJammerState(1);
+		If (blueJammerState == activatableAsset_off); // inactive
+			Call SetBlueJammerState(activatableAsset_ready);
 			blueOperationsScore -= 3;
-		ElseIf (blueJammerState == 1); // ready
-			Call SetBlueJammerState(2);
-		ElseIf (blueJammerState == 2); // active
-			Call SetBlueJammerState(1);
+		ElseIf (blueJammerState == activatableAsset_ready); // ready
+			Call SetBlueJammerState(activatableAsset_on);
+		ElseIf (blueJammerState == activatableAsset_on); // active
+			Call SetBlueJammerState(activatableAsset_ready);
 		End;
 	End;
 	
@@ -2806,7 +2813,7 @@ If (gameMode == gameMode_displayMode);
 	Call DisplayModeScript(red, blue);
 End;
 
-QueuedBurn nextQueuedAction;
+QueuedAction nextQueuedAction;
 TimeSpan nextQueuedActionEpoch;
 Variable nextQueuedActionIsBeforeNextChoiceEpoch;
 While (blueIsOffNominal or redIsEngaged);
@@ -2826,10 +2833,12 @@ While (blueIsOffNominal or redIsEngaged);
 	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + simChoiceSpacing);
 	If (numberOfUserChoicesToSkip == 0);
 		Call ShowOperatorActionsMenu(red, blue);
+		If (blueJammerState != activatableAsset_on and blueHasManeuveredSinceLastRedStrategyUpdate);
+			Call RequestRedStrategyUpdateFromServer(red, blue);
+		End;
 	Else;
 		numberOfUserChoicesToSkip -= 1;
 	End;
-	// TODO compute new red strategy(redState, blueState, scriptType)
 End;]]></FreeFormScript>
       </FreeForm>
     </ProjectCommands>
@@ -2844,6 +2853,13 @@ Global Constant Variable autoChooseNominalOperation = 0;
 Global TimeSpan simChoiceSpacing = TimeSpan.FromHours(8);
 //Console.Show();
 
+Global TimeSpan uplinkTime = TimeSpan.FromHours(1);
+Global TimeSpan slewTime = TimeSpan.FromHours(1);
+
+If (uplinkTime > simChoiceSpacing);
+	Diagnostics.ReportErrorMessage(
+		0, "Uplink time must be less than choice spacing time in order to avoid race conditions with the strategy server.");
+End;
 
 Global TimeSpan simStepSize = TimeSpan.FromSeconds(simStepSizeSeconds);
 
@@ -3031,26 +3047,26 @@ viewPayload.CurrentViewpoint.ViewpointType = "sensorview";
 viewPayload.CurrentViewpoint.SensorView.FilterAllSiblings = 0;
 viewPayload.CurrentViewpoint.SensorView.Source = blue[0].Sensors[sensorIndexPayload].ObjectId;
 
-Global Variable blueBackupCommsState = 0; // 0 is inactive, 1 is ready, 2 is active
-Global Variable blueJammerState = 0; // 0 is inactive, 1 is ready, 2 is active
-Global Variable redJammerState = 0;
+Global Variable blueBackupCommsState = activatableAsset_off;
+Global Variable blueJammerState = activatableAsset_off;
+Global Variable redJammerState = activatableAsset_off;
 
 Global Variable blueIsOffNominal = 0;
 
-// jammerState = 0 is inactive, 1 is ready, 2 is active
+
 Define Procedure SetBlueJammerState(Variable jammerState);
 	blueJammerState = jammerState;
-	If (blueJammerState == 0);
+	If (blueJammerState == activatableAsset_off);
 		blueJammer.DisplayName = "Jamming Unit (Inactive)";
 		viewMain3D.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerInactiveIcon.png");
 		viewUplink.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerInactiveIcon.png");
 		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerInactiveIcon.png");
-	ElseIf (blueJammerState == 1);
+	ElseIf (blueJammerState == activatableAsset_ready);
 		blueJammer.DisplayName = "Jamming Unit (Standing By)";
 		viewMain3D.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerReadyIcon.png");
 		viewUplink.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerReadyIcon.png");
 		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerReadyIcon.png");
-	ElseIf (blueJammerState == 2);
+	ElseIf (blueJammerState == activatableAsset_on);
 		blueJammer.DisplayName = "Jamming Unit (Active)";
 		viewMain3D.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerActiveIcon.png");
 		viewUplink.SetObjectIcon(blueJammer.ObjectId,  "Icons/jammerActiveIcon.png");
@@ -3058,10 +3074,9 @@ Define Procedure SetBlueJammerState(Variable jammerState);
 	End;
 EndProcedure;
 
-// jammerState = 0 is inactive, 1 is active
 Define Procedure SetRedJammerState(Variable jammerState, Formation red);
 	redJammerState = jammerState;
-	If (redJammerState == 0);
+	If (redJammerState == activatableAsset_off);
 		viewMain3D.SetShowIcon(red[1].ObjectId,  0);
 		viewUplink.SetShowIcon(red[1].ObjectId,  0);
 		viewPayload.SetShowIcon(red[1].ObjectId, 0);
@@ -3069,7 +3084,8 @@ Define Procedure SetRedJammerState(Variable jammerState, Formation red);
 		viewMain3D.SetShowIcon(red[2].ObjectId,  0);
 		viewUplink.SetShowIcon(red[2].ObjectId,  0);
 		viewPayload.SetShowIcon(red[2].ObjectId, 0);
-	ElseIf (redJammerState == 1);
+		
+	ElseIf (redJammerState == activatableAsset_on);
 		viewMain3D.SetShowIcon(red[1].ObjectId,  1);
 		viewUplink.SetShowIcon(red[1].ObjectId,  1);
 		viewPayload.SetShowIcon(red[1].ObjectId, 1);
@@ -3080,7 +3096,7 @@ Define Procedure SetRedJammerState(Variable jammerState, Formation red);
 	End;
 EndProcedure;
 
-Call SetBlueJammerState(0);
+Call SetBlueJammerState(activatableAsset_off);
 
 viewMain3D.SetObjectIcon(red[1].ObjectId,  "Icons/jammingWarning.png");
 viewUplink.SetObjectIcon(red[1].ObjectId,  "Icons/jammingWarning.png");
@@ -3176,16 +3192,12 @@ Global TimeSpan blueSlewCompletionEpoch = simStartEpoch - TimeSpan.FromDays(1);
 Global TimeSpan blueSlewStartEpoch;
 Global Variable desiredBluePayloadOrientationAngle;
 Global Variable initialBluePayloadOrientationAngle;
-Global TimeSpan slewTime = TimeSpan.FromHours(1);
 
 Global Constant Variable nominalBluePayloadOrientationAngle = blue[0].EulerAngles[0];
 
-Global TimeSpan uplinkTime = TimeSpan.FromHours(1);
+// Start with this value as true so we get an initial strategy for red
+Global Variable blueHasManeuveredSinceLastRedStrategyUpdate = 1;
 
-If (uplinkTime > simChoiceSpacing);
-	Diagnostics.ReportErrorMessage(
-		0, "Uplink time must be less than choice spacing time in order to avoid race conditions with the strategy server.");
-End;
 
 Global Socket blueStrategyServer;
 blueStrategyServer.SocketType = "client";
@@ -3207,36 +3219,8 @@ Send gameMode to redStrategyServer;
 
 Variable redHasNotDisengaged = 1;
 
-Global Constant Variable queueType_none  = 0;
-Global Constant Variable queueType_blueBurn  = 1;
-Global Constant Variable queueType_redBurn  = 2;
-
-Struct QueuedAction;
-	TimeSpan epoch;
-End;
-
-
-
-Global Constant Variable redActionType_none          = 0;
-Global Constant Variable redActionType_toggleJamming  = 1;
-
-Global Constant Variable additionalAction_none                 = 0;
-Global Constant Variable additionalAction_retrieveOrbitChange  = 1;
-Global Constant Variable additionalAction_retrieveSlew         = 2;
-
-Struct QueuedRedAction extends QueuedAction;
-	Variable actionType;
-End;
-
-Struct QueuedBurn extends QueuedAction;
-	Array burnRIC;
-	Variable formationIndex;
-	Variable additionalAction;
-	Variable isBlue;
-End;
-
-Global List<QueuedBurn> blueBurnQueue;
-Global List<QueuedBurn> redBurnQueue;
+Global List<QueuedAction> blueActionQueue;
+Global List<QueuedAction> redActionQueue;
 
 TimeSpan nextChoiceEpoch;
 	
@@ -3244,31 +3228,31 @@ Global Variable redIsEngaged = 1;
 
 Define Procedure GetNextQueuedActionSource(Variable source);
 	source = queueType_none;
-	If (blueBurnQueue.Count != 0);
+	If (blueActionQueue.Count != 0);
 		source = queueType_blueBurn;
-	ElseIf (redBurnQueue.Count != 0);
+	ElseIf (redActionQueue.Count != 0);
 		source = queueType_redBurn;
 	End;
 	
-	If (blueBurnQueue.Count != 0 and redBurnQueue.Count != 0);
-		If (redBurnQueue[0].epoch < blueBurnQueue[0].epoch);
+	If (blueActionQueue.Count != 0 and redActionQueue.Count != 0);
+		If (redActionQueue[0].epoch < blueActionQueue[0].epoch);
 			source = queueType_redBurn;
 		End;
 	End;
 EndProcedure;
 
 
-Define Procedure PopNextQueuedAction(QueuedBurn nextAction);
+Define Procedure PopNextQueuedAction(QueuedAction nextAction);
 	Variable nextQueuedActionSource;
 	Call GetNextQueuedActionSource(nextQueuedActionSource);
 	If (nextQueuedActionSource == queueType_none);
 		nextAction.epoch = simEpoch + TimeSpan.FromDays(1e3);
 	ElseIf (nextQueuedActionSource == queueType_blueBurn);
-		nextAction = blueBurnQueue[0];
-		blueBurnQueue.RemoveAt(0);
+		nextAction = blueActionQueue[0];
+		blueActionQueue.RemoveAt(0);
 	ElseIf (nextQueuedActionSource == queueType_redBurn);
-		nextAction = redBurnQueue[0];
-		redBurnQueue.RemoveAt(0);
+		nextAction = redActionQueue[0];
+		redActionQueue.RemoveAt(0);
 	End;
 EndProcedure;
 
@@ -3278,9 +3262,9 @@ Define Procedure GetNextQueuedActionEpoch(TimeSpan epoch);
 	If (nextQueuedActionSource == queueType_none);
 		epoch = simEpoch + TimeSpan.FromDays(1e3);
 	ElseIf (nextQueuedActionSource == queueType_blueBurn);
-		epoch = blueBurnQueue[0].epoch;
+		epoch = blueActionQueue[0].epoch;
 	ElseIf (nextQueuedActionSource == queueType_redBurn);
-		epoch = redBurnQueue[0].epoch;
+		epoch = redActionQueue[0].epoch;
 	End;
 EndProcedure;
 
@@ -4099,21 +4083,21 @@ Define Procedure AddBurnToQueue(
 	
 	Variable last;
 	If (isBlue);
-		last = blueBurnQueue.Count;
-		blueBurnQueue.Count += 1;
-		blueBurnQueue[last].epoch = epoch;
-		blueBurnQueue[last].burnRIC = dv;
-		blueBurnQueue[last].formationIndex = formationIndex;
-		blueBurnQueue[last].isBlue = 1;
-		blueBurnQueue[last].additionalAction = additionalAction_none;
+		last = blueActionQueue.Count;
+		blueActionQueue.Count += 1;
+		blueActionQueue[last].epoch = epoch;
+		blueActionQueue[last].burnRIC = dv;
+		blueActionQueue[last].formationIndex = formationIndex;
+		blueActionQueue[last].isBlue = 1;
+		blueActionQueue[last].additionalAction = additionalAction_none;
 	Else;
-		last = redBurnQueue.Count;
-		redBurnQueue.Count += 1;
-		redBurnQueue[last].epoch = epoch;
-		redBurnQueue[last].burnRIC = dv;
-		redBurnQueue[last].formationIndex = formationIndex;
-		redBurnQueue[last].isBlue = 0;
-		redBurnQueue[last].additionalAction = additionalAction_none;
+		last = redActionQueue.Count;
+		redActionQueue.Count += 1;
+		redActionQueue[last].epoch = epoch;
+		redActionQueue[last].burnRIC = dv;
+		redActionQueue[last].formationIndex = formationIndex;
+		redActionQueue[last].isBlue = 0;
+		redActionQueue[last].additionalAction = additionalAction_none;
 	End;
 EndProcedure;
 
@@ -4145,40 +4129,30 @@ Define Procedure GetCartStateOfClosestRedAtTimeOffset(Formation red, Formation b
 EndProcedure;
 
 
-Define Procedure AddFutureBurnMarkerToQueue(
+Define Procedure AddFutureActionMarkerToQueue(
 	TimeSpan epoch,
 	Variable formationIndex,
-	Variable isBlue);
+	Variable isBlue,
+	Variable additionalAction);
 	
 	Variable last;
 	If (isBlue);
-		last = blueBurnQueue.Count;
-		blueBurnQueue.Count += 1;
-		blueBurnQueue[last].epoch = epoch;
-		blueBurnQueue[last].burnRIC = {0, 0, 0};
-		blueBurnQueue[last].formationIndex = formationIndex;
-		blueBurnQueue[last].isBlue = 1;
-		blueBurnQueue[last].additionalAction = additionalAction_retrieveOrbitChange;
+		last = blueActionQueue.Count;
+		blueActionQueue.Count += 1;
+		blueActionQueue[last].epoch = epoch;
+		blueActionQueue[last].burnRIC = {0, 0, 0};
+		blueActionQueue[last].formationIndex = formationIndex;
+		blueActionQueue[last].isBlue = 1;
+		blueActionQueue[last].additionalAction = additionalAction;
 	Else;
-		last = redBurnQueue.Count;
-		redBurnQueue.Count += 1;
-		redBurnQueue[last].epoch = epoch;
-		redBurnQueue[last].burnRIC = {0, 0, 0};
-		redBurnQueue[last].formationIndex = formationIndex;
-		redBurnQueue[last].isBlue = 0;
-		redBurnQueue[last].additionalAction = additionalAction_retrieveOrbitChange;
+		last = redActionQueue.Count;
+		redActionQueue.Count += 1;
+		redActionQueue[last].epoch = epoch;
+		redActionQueue[last].burnRIC = {0, 0, 0};
+		redActionQueue[last].formationIndex = formationIndex;
+		redActionQueue[last].isBlue = 0;
+		redActionQueue[last].additionalAction = additionalAction;
 	End;
-EndProcedure;
-
-Define Procedure AddFutureBlueSlewToQueue(TimeSpan epoch);
-	Variable last;
-	last = blueBurnQueue.Count;
-	blueBurnQueue.Count += 1;
-	blueBurnQueue[last].epoch = epoch;
-	blueBurnQueue[last].burnRIC = {0, 0, 0};
-	blueBurnQueue[last].formationIndex = 0;
-	blueBurnQueue[last].isBlue = 1;
-	blueBurnQueue[last].additionalAction = additionalAction_retrieveSlew;
 EndProcedure;
 
 Define Procedure RetrieveBlueOrbitChangeFromServerAndAddToQueue();
@@ -4199,7 +4173,24 @@ Define Procedure RetrieveBlueSlewFromServer();
 EndProcedure;
 
 
-Define Procedure ExecuteQueuedAction(QueuedBurn queuedAction, Formation red, Formation blue);
+Define Procedure RetrieveRedStrategyFromServerAndAddToQueue();
+	Variable i;
+	TimeSpan epochDays;
+	Receive redActionQueue.Count from blueStrategyServer;
+	For i = 0 to redActionQueue.Count - 1;
+		Receive epochDays,
+			 	redActionQueue[i].burnRIC,
+				redActionQueue[i].formationIndex,
+				redActionQueue[i].additionalAction from redStrategyServer;
+		redActionQueue[i].epoch = TimeSpan.FromDays(epochDays);
+		redActionQueue[i].isBlue = 0;
+	End;
+	
+	blueHasManeuveredSinceLastRedStrategyUpdate = 0;
+EndProcedure;
+
+
+Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, Formation blue);
 	If (queuedAction.isBlue);
 		burn.BurnDirection = queuedAction.burnRIC;
 		blue[queuedAction.formationIndex].Maneuver(burn);
@@ -4212,12 +4203,24 @@ Define Procedure ExecuteQueuedAction(QueuedBurn queuedAction, Formation red, For
 	Else;
 		burn.BurnDirection = queuedAction.burnRIC;
 		red[queuedAction.formationIndex].Maneuver(burn);
+		
+		If (queuedAction.additionalAction == additionalAction_retrieveRedStrategy);
+			Call RetrieveRedStrategyFromServerAndAddToQueue();
+		ElseIf (queuedAction.additionalAction == additionalAction_redToggleJamming);
+			If (redJammerState == activatableAsset_off);
+				redJammerState = activatableAsset_on;
+			ElseIf (redJammerState == activatableAsset_on);
+				redJammerState = activatableAsset_off;
+			End;
+		ElseIf (queuedAction.additionalAction == additionalAction_redToggleJamming);
+			// TODO
+		End;
 	End;
 EndProcedure;
 
 
 Define Procedure RequestBlueEvasiveManeuverFromServer(Formation blue);
-	blueBurnQueue.Clear();
+	blueActionQueue.Clear();
 	Send blueStrategyRequest_orbitChange to blueStrategyServer;
 	Send blue[0].GetCartesianState(),
 		 blue[0].Epoch.ToDays(),
@@ -4226,14 +4229,14 @@ Define Procedure RequestBlueEvasiveManeuverFromServer(Formation blue);
 		 {0.1, 0.5},
 		 uplinkTime.ToHours() to blueStrategyServer;
 	
-	Call AddFutureBurnMarkerToQueue(uplinkTime + simEpoch, 0, 1);
+	Call AddFutureActionMarkerToQueue(uplinkTime + simEpoch, 0, 1, additionalAction_retrieveOrbitChange);
 EndProcedure;
 
 
 Define Procedure RequestBlueReturnToNominalFromServer(Formation blue);
 	blueOperationsScore -= 8;
 	
-	blueBurnQueue.Clear();
+	blueActionQueue.Clear();
 	Send blueStrategyRequest_orbitChange to blueStrategyServer;
 	Send blue[0].GetCartesianState(),
 		 blue[0].Epoch.ToDays(),
@@ -4242,7 +4245,7 @@ Define Procedure RequestBlueReturnToNominalFromServer(Formation blue);
 		 {0.1, 1},
 		 uplinkTime.ToHours() to blueStrategyServer;
 	
-	Call AddFutureBurnMarkerToQueue(uplinkTime + simEpoch, 0, 1);
+	Call AddFutureActionMarkerToQueue(uplinkTime + simEpoch, 0, 1, additionalAction_retrieveOrbitChange);
 EndProcedure;
 
 Define Procedure RequestBlueSlewFromServer(Formation red, Formation blue);
@@ -4257,7 +4260,7 @@ Define Procedure RequestBlueSlewFromServer(Formation red, Formation blue);
 		 blueCartState,
 		 (simEpoch + uplinkTime).ToDays() to blueStrategyServer;
 	
-	Call AddFutureBlueSlewToQueue(simEpoch + uplinkTime);
+	Call AddFutureActionMarkerToQueue(simEpoch + uplinkTime, 0, 1, additionalAction_retrieveSlew);
 EndProcedure;
 
 Define Procedure RequestBlueStationKeepFromServer(Formation blue, Array dv);
@@ -4268,6 +4271,19 @@ Define Procedure RequestBlueStationKeepFromServer(Formation blue, Array dv);
 		 blue[0].Longitude to blueStrategyServer;
 	
 	Receive dv from blueStrategyServer;
+EndProcedure;
+
+Define Procedure RequestRedStrategyUpdateFromServer(Formation red, Formation blue);
+	redActionQueue.Clear();
+	
+	Send redStrategyRequest_updateStrategy to redStrategyServer;
+	Send blue[0].GetCartesianState(),
+		 red[0].GetCartesianState(),
+		 red[1].GetCartesianState(),
+		 red[2].GetCartesianState(),
+		 blue[0].Epoch.ToDays() to blueStrategyServer;
+	
+	Call AddFutureActionMarkerToQueue(simEpoch + uplinkTime, 0, 0, additionalAction_retrieveRedStrategy);
 EndProcedure;
 Global UserInterface OperatorActions;
 
@@ -4299,27 +4315,27 @@ Define Procedure BuildOperatorActionsMenu();
 	Variable multiChoiceID = OperatorActions.AddMultiChoice("userChoice", "Select an action:", "choice_nominal", 1);
 	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_nominal",   "Continue nominal operations");
 	
-	If (blueBackupCommsState == 0); // inactive
+	If (blueBackupCommsState == activatableAsset_off);
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Ready secondary blue comms path");
-	ElseIf (blueBackupCommsState == 1); // ready
+	ElseIf (blueBackupCommsState == activatableAsset_ready);
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to secondary blue comms path");
-	ElseIf (blueBackupCommsState == 2); // active
+	ElseIf (blueBackupCommsState == activatableAsset_on);
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to primary blue comm path");
 	End;
 	
-	If (redJammerState == 0);
+	If (redJammerState == activatableAsset_off);
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_slew", "Slew payload away from closest red spacecraft");
 	End;
 	
-	If (blueJammerState == 0); // inactive
+	If (blueJammerState == activatableAsset_off);
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Ready ground-based jamming unit");
-	ElseIf (blueJammerState == 1); // ready
+	ElseIf (blueJammerState == activatableAsset_ready);
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Activate ground-based jamming unit");
-	ElseIf (blueJammerState == 2); // active
+	ElseIf (blueJammerState == activatableAsset_on);
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "De-activate ground-based jamming unit");
 	End;
 	
-	If (redJammerState == 0);
+	If (redJammerState == activatableAsset_off);
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_evasive",   "Perform evasive maneuver");
 	End;
 	
@@ -4357,23 +4373,23 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 	End;
 	
 	If (userChoice == choice_secondaryComms);
-		If (blueBackupCommsState == 0); // inactive
-			blueBackupCommsState = 2;
-		ElseIf (blueBackupCommsState == 1); // ready
+		If (blueBackupCommsState == activatableAsset_off); // inactive
+			blueBackupCommsState = activatableAsset_on;
+		ElseIf (blueBackupCommsState == activatableAsset_ready); // ready
 			Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
-		ElseIf (blueBackupCommsState == 2); // active
-			blueBackupCommsState = 0;
+		ElseIf (blueBackupCommsState == activatableAsset_on); // active
+			blueBackupCommsState = activatableAsset_off;
 		End;
 	End;
 	
 	If (userChoice == choice_jam);
-		If (blueJammerState == 0); // inactive
-			Call SetBlueJammerState(1);
+		If (blueJammerState == activatableAsset_off); // inactive
+			Call SetBlueJammerState(activatableAsset_ready);
 			blueOperationsScore -= 3;
-		ElseIf (blueJammerState == 1); // ready
-			Call SetBlueJammerState(2);
-		ElseIf (blueJammerState == 2); // active
-			Call SetBlueJammerState(1);
+		ElseIf (blueJammerState == activatableAsset_ready); // ready
+			Call SetBlueJammerState(activatableAsset_on);
+		ElseIf (blueJammerState == activatableAsset_on); // active
+			Call SetBlueJammerState(activatableAsset_ready);
 		End;
 	End;
 	
@@ -5340,7 +5356,7 @@ If (gameMode == gameMode_displayMode);
 	Call DisplayModeScript(red, blue);
 End;
 
-QueuedBurn nextQueuedAction;
+QueuedAction nextQueuedAction;
 TimeSpan nextQueuedActionEpoch;
 Variable nextQueuedActionIsBeforeNextChoiceEpoch;
 While (blueIsOffNominal or redIsEngaged);
@@ -5360,10 +5376,12 @@ While (blueIsOffNominal or redIsEngaged);
 	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + simChoiceSpacing);
 	If (numberOfUserChoicesToSkip == 0);
 		Call ShowOperatorActionsMenu(red, blue);
+		If (blueJammerState != activatableAsset_on and blueHasManeuveredSinceLastRedStrategyUpdate);
+			Call RequestRedStrategyUpdateFromServer(red, blue);
+		End;
 	Else;
 		numberOfUserChoicesToSkip -= 1;
 	End;
-	// TODO compute new red strategy(redState, blueState, scriptType)
 End;]]></ProjectScript>
   <ProjectNotes></ProjectNotes>
 </FreeFlyerProjectFile>

@@ -10,10 +10,36 @@ Global Constant Variable blueStrategyRequest_orbitChange      = 1;
 Global Constant Variable blueStrategyRequest_slew             = 2;
 Global Constant Variable blueStrategyRequest_stationKeep      = 3;
 
+Global Constant Variable redStrategyRequest_disconnectServer = 0;
+Global Constant Variable redStrategyRequest_updateStrategy   = 1;
+
 Global Constant Variable gameMode_displayMode       = 0;
 Global Constant Variable gameMode_benignScript      = 1;
 Global Constant Variable gameMode_observationScript = 2;
 Global Constant Variable gameMode_disableScript     = 3;
+
+Global Constant Variable additionalAction_none                = 0;
+Global Constant Variable additionalAction_retrieveOrbitChange = 1;
+Global Constant Variable additionalAction_retrieveSlew        = 2;
+Global Constant Variable additionalAction_redToggleJamming    = 3;
+Global Constant Variable additionalAction_retrieveRedStrategy = 4;
+Global Constant Variable additionalAction_redDeployInspector  = 5;
+
+Global Constant Variable queueType_none     = 0;
+Global Constant Variable queueType_blueBurn = 1;
+Global Constant Variable queueType_redBurn  = 2;
+
+Global Constant Variable activatableAsset_off   = 0;
+Global Constant Variable activatableAsset_ready = 1;
+Global Constant Variable activatableAsset_on    = 2;
+
+Struct QueuedAction;
+	TimeSpan epoch;
+	Array burnRIC;
+	Variable formationIndex;
+	Variable additionalAction;
+	Variable isBlue;
+End;
 
 
 Global Constant Variable blueStrategyServerPort = 5115;
