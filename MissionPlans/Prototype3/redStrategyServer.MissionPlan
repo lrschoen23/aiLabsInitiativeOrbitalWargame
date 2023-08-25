@@ -129,9 +129,10 @@ Variable interBurnTimeDays;
 TimeSpan interBurnTime;
 Variable epochDays;
 
-Spacecraft blue1;
-Spacecraft red;
-Call InitializeBlue1(blue1);
+Formation red;
+Formation blue;
+Call InitializeFormations(red, blue);
+blue[0].Propagator.StepSize = TimeSpan.FromSeconds(800);
 
 Global List<QueuedAction> actions;]]></FreeFormScript>
       </FreeForm>
@@ -294,6 +295,14 @@ Define Procedure ComputeDesiredSlewAngle(Spacecraft red, Spacecraft blue, Variab
 		End;
 	End;
 	blue.EulerAngles[0] = initialEulerAngle;
+EndProcedure;
+
+
+Define Procedure ComputeDisableScriptStrategy();
+	actions.Clear();
+	
+	TimeSpan incursionEpoch = simStartEpoch + TimeSpan.FromHours(24*4 + 1);
+	
 EndProcedure;]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
@@ -321,7 +330,7 @@ While (1);
 	Report "Connected" to Console;
 	
 	Receive stepSizeSeconds from connection;
-	blue1.Propagator.StepSize = TimeSpan.FromSeconds(800);
+	blue[0].Propagator.StepSize = TimeSpan.FromSeconds(800);
 	
 	Receive gameMode from connection;
 	
@@ -386,9 +395,10 @@ Variable interBurnTimeDays;
 TimeSpan interBurnTime;
 Variable epochDays;
 
-Spacecraft blue1;
-Spacecraft red;
-Call InitializeBlue1(blue1);
+Formation red;
+Formation blue;
+Call InitializeFormations(red, blue);
+blue[0].Propagator.StepSize = TimeSpan.FromSeconds(800);
 
 Global List<QueuedAction> actions;
 
@@ -548,6 +558,14 @@ Define Procedure ComputeDesiredSlewAngle(Spacecraft red, Spacecraft blue, Variab
 	blue.EulerAngles[0] = initialEulerAngle;
 EndProcedure;
 
+
+Define Procedure ComputeDisableScriptStrategy();
+	actions.Clear();
+	
+	TimeSpan incursionEpoch = simStartEpoch + TimeSpan.FromHours(24*4 + 1);
+	
+EndProcedure;
+
 Socket connection;
 connection.SocketType = "server";
 connection.PortNumber = redStrategyServerPort;
@@ -568,7 +586,7 @@ While (1);
 	Report "Connected" to Console;
 	
 	Receive stepSizeSeconds from connection;
-	blue1.Propagator.StepSize = TimeSpan.FromSeconds(800);
+	blue[0].Propagator.StepSize = TimeSpan.FromSeconds(800);
 	
 	Receive gameMode from connection;
 	

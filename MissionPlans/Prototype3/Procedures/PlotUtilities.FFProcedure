@@ -1096,7 +1096,7 @@ Define Procedure MakeBarChart(PlotWindow         pw,  /* Input/Output - plot win
 		pw.AddSeries(pss1[i]);
 	End;
 	
-	Call ConfigurePlotWindow(pw, 20, 0, 26, "Candara", "lightGray", "SeabornDeep");
+	Call ConfigurePlotWindow(pw, 40, 0, 26, "Candara", "lightGray", "SeabornDeep");
 
 	// override marker visibility, line style, and line color
 	For i = 0 to pw.Series.Count-1 step 1;

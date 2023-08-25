@@ -128,9 +128,9 @@ TimeSpan interBurnTime;
 Variable epochDays;
 
 
-Spacecraft blue1;
-Spacecraft red;
-Call InitializeBlue1(blue1);]]></FreeFormScript>
+Formation red;
+Formation blue;
+Call InitializeFormations(red, blue);]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
         <Label>FreeForm</Label>
@@ -322,7 +322,7 @@ While (1);
 	Report "Connected" to Console;
 	
 	Receive stepSizeSeconds from connection;
-	blue1.Propagator.StepSize = TimeSpan.FromSeconds(800);
+	blue[0].Propagator.StepSize = TimeSpan.FromSeconds(800);
 	
 	Try;
 		While (1);
@@ -339,11 +339,11 @@ While (1);
 						interBurnTimeBoundsDays,
 						computationDelayHours from connection;
 			
-				blue1.Epoch = TimeSpan.FromDays(initialEpochDays);
-				blue1.SetCartesianState(initialCartState);
-				blue1.StepToEpoch(blue1.Epoch + TimeSpan.FromHours(computationDelayHours));
+				blue[0].Epoch = TimeSpan.FromDays(initialEpochDays);
+				blue[0].SetCartesianState(initialCartState);
+				blue[0].StepToEpoch(blue[0].Epoch + TimeSpan.FromHours(computationDelayHours));
 				Call TargetNewOrbit(
-					blue1,
+					blue[0],
 					desiredKepState,
 					desiredLongitude,
 					interBurnTimeBoundsDays,
@@ -361,13 +361,13 @@ While (1);
 						blueCartState,
 						epochDays from connection;
 				
-				blue1.Epoch = TimeSpan.FromDays(epochDays);
-				blue1.SetCartesianState(blueCartState);
+				blue[0].Epoch = TimeSpan.FromDays(epochDays);
+				blue[0].SetCartesianState(blueCartState);
 				
-				red.Epoch = TimeSpan.FromDays(epochDays);
-				red.SetCartesianState(redCartState);
+				red[0].Epoch = TimeSpan.FromDays(epochDays);
+				red[0].SetCartesianState(redCartState);
 				
-				Call ComputeDesiredSlewAngle(red, blue1, slewAngle);
+				Call ComputeDesiredSlewAngle(red[0], blue[0], slewAngle);
 				Report "Sending data..." to Console;
 				Send slewAngle to connection;
 				Report "Data transfer complete" to Console;
@@ -378,10 +378,10 @@ While (1);
 						epochDays,
 						desiredLongitude from connection;
 				
-				blue1.Epoch = TimeSpan.FromDays(epochDays);
-				blue1.SetCartesianState(blueCartState);
+				blue[0].Epoch = TimeSpan.FromDays(epochDays);
+				blue[0].SetCartesianState(blueCartState);
 				
-				Call ComputeStationKeepingManeuver(blue1, desiredLongitude, dv1);
+				Call ComputeStationKeepingManeuver(blue[0], desiredLongitude, dv1);
 				Report "Sending data..." to Console;
 				Send dv1 to connection;
 				Report "Data transfer complete" to Console;
@@ -418,9 +418,9 @@ TimeSpan interBurnTime;
 Variable epochDays;
 
 
-Spacecraft blue1;
-Spacecraft red;
-Call InitializeBlue1(blue1);
+Formation red;
+Formation blue;
+Call InitializeFormations(red, blue);
 
 Define Procedure ComputeStationKeepingManeuver(Spacecraft sc, Variable longitude, Array dv);
 	TimeSpan initialEpoch;
@@ -602,7 +602,7 @@ While (1);
 	Report "Connected" to Console;
 	
 	Receive stepSizeSeconds from connection;
-	blue1.Propagator.StepSize = TimeSpan.FromSeconds(800);
+	blue[0].Propagator.StepSize = TimeSpan.FromSeconds(800);
 	
 	Try;
 		While (1);
@@ -619,11 +619,11 @@ While (1);
 						interBurnTimeBoundsDays,
 						computationDelayHours from connection;
 			
-				blue1.Epoch = TimeSpan.FromDays(initialEpochDays);
-				blue1.SetCartesianState(initialCartState);
-				blue1.StepToEpoch(blue1.Epoch + TimeSpan.FromHours(computationDelayHours));
+				blue[0].Epoch = TimeSpan.FromDays(initialEpochDays);
+				blue[0].SetCartesianState(initialCartState);
+				blue[0].StepToEpoch(blue[0].Epoch + TimeSpan.FromHours(computationDelayHours));
 				Call TargetNewOrbit(
-					blue1,
+					blue[0],
 					desiredKepState,
 					desiredLongitude,
 					interBurnTimeBoundsDays,
@@ -641,13 +641,13 @@ While (1);
 						blueCartState,
 						epochDays from connection;
 				
-				blue1.Epoch = TimeSpan.FromDays(epochDays);
-				blue1.SetCartesianState(blueCartState);
+				blue[0].Epoch = TimeSpan.FromDays(epochDays);
+				blue[0].SetCartesianState(blueCartState);
 				
-				red.Epoch = TimeSpan.FromDays(epochDays);
-				red.SetCartesianState(redCartState);
+				red[0].Epoch = TimeSpan.FromDays(epochDays);
+				red[0].SetCartesianState(redCartState);
 				
-				Call ComputeDesiredSlewAngle(red, blue1, slewAngle);
+				Call ComputeDesiredSlewAngle(red[0], blue[0], slewAngle);
 				Report "Sending data..." to Console;
 				Send slewAngle to connection;
 				Report "Data transfer complete" to Console;
@@ -658,10 +658,10 @@ While (1);
 						epochDays,
 						desiredLongitude from connection;
 				
-				blue1.Epoch = TimeSpan.FromDays(epochDays);
-				blue1.SetCartesianState(blueCartState);
+				blue[0].Epoch = TimeSpan.FromDays(epochDays);
+				blue[0].SetCartesianState(blueCartState);
 				
-				Call ComputeStationKeepingManeuver(blue1, desiredLongitude, dv1);
+				Call ComputeStationKeepingManeuver(blue[0], desiredLongitude, dv1);
 				Report "Sending data..." to Console;
 				Send dv1 to connection;
 				Report "Data transfer complete" to Console;

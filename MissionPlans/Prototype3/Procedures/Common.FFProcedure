@@ -1,4 +1,8 @@
 
+
+Global TimeSpan simStartEpoch = TimeTools.ParseCalendarDate("Jun 09 2025 15:00:00.000", "UTC", "UTC", "MJD GSFC");
+simStartEpoch -= TimeSpan.FromSeconds(4*60 + 23);
+
 Global Constant Variable baseRAAN = 40;
 Global Constant Variable baseI = 0.5;
 
@@ -48,6 +52,8 @@ Global Constant Variable redStrategyServerPort = 5116;
 Global ImpulsiveBurn burn;
 burn.AttitudeSystem = 6;
 
+Global Variable red2and3RadialSeparation = 60;
+
 Define Procedure InitializeForceModel(ForceModel fm);
 	fm.PlanetFieldDegree[2] = 2;
 	fm.PlanetFieldOrder[2] = 2;
@@ -55,34 +61,65 @@ Define Procedure InitializeForceModel(ForceModel fm);
 EndProcedure;
 
 
-Define Procedure InitializeBlue1(Spacecraft blue1);
-	blue1.SetKeplerianState({42164,
+Define Procedure InitializeFormations(Formation red, Formation blue);	
+	red.Count = 3;
+	blue.Count = 1;
+	
+	blue[0].Epoch = simStartEpoch;
+	blue[0].SetKeplerianState({42164,
                            1e-6,
                            baseI,
                            baseRAAN,
                            1,
                            1});
                            
-	blue1.EulerAngles[1] = 90;
-	Call InitializeForceModel((blue1.Propagator AsType Integrator).ForceModel);
+	blue[0].EulerAngles[1] = 90;
+	Call InitializeForceModel((blue[0].Propagator AsType Integrator).ForceModel);
 	
-	blue1.AddSensor("uplink");
-	blue1.Sensors[sensorIndexUplink].ConeHalfAngle = 15;
-	blue1.Sensors[sensorIndexUplink].ProjectionHeight = 30000;
-	blue1.Sensors[sensorIndexUplink].Color = ColorTools.Purple;
-	blue1.Sensors[sensorIndexUplink].Opacity = 0.1;
-	blue1.Sensors[sensorIndexUplink].AttitudeMatrix = [
+	blue[0].AddSensor("uplink");
+	blue[0].Sensors[sensorIndexUplink].ConeHalfAngle = 15;
+	blue[0].Sensors[sensorIndexUplink].ProjectionHeight = 30000;
+	blue[0].Sensors[sensorIndexUplink].Color = ColorTools.Purple;
+	blue[0].Sensors[sensorIndexUplink].Opacity = 0.1;
+	blue[0].Sensors[sensorIndexUplink].AttitudeMatrix = [
 		0, 0, 1;
 		1, 0, 0;
 		0, 1, 0
 	];
 
-	blue1.AddSensor("payload");
-	blue1.Sensors[sensorIndexPayload].BoresightUnitVector = {0, 0, 1};
-	blue1.Sensors[sensorIndexPayload].ConeHalfAngle = 10;
-	blue1.Sensors[sensorIndexPayload].ProjectionHeight = 50;
-	blue1.Sensors[sensorIndexPayload].Color = ColorTools.Lime;
-	blue1.Sensors[sensorIndexPayload].Opacity = 0.1;
+	blue[0].AddSensor("payload");
+	blue[0].Sensors[sensorIndexPayload].BoresightUnitVector = {0, 0, 1};
+	blue[0].Sensors[sensorIndexPayload].ConeHalfAngle = 10;
+	blue[0].Sensors[sensorIndexPayload].ProjectionHeight = 50;
+	blue[0].Sensors[sensorIndexPayload].Color = ColorTools.Lime;
+	blue[0].Sensors[sensorIndexPayload].Opacity = 0.1;
+	
+	
+	Variable red1AngularSeparation = 2;
+	Variable red2AngularSeparation = 2.3;
+	red[0].SetKeplerianState({42164,
+	                          1e-6,
+	                          baseI * 1.2,
+	                          baseRAAN - red1AngularSeparation,
+	                          1,
+	                          1});
+	red[1].SetKeplerianState({42164 - red2and3RadialSeparation,
+	                          1e-6,
+	                          baseI * 1.01,
+	                          baseRAAN,
+	                          0,
+	                          1 - red2AngularSeparation});
+	red[2].SetKeplerianState({42164 + red2and3RadialSeparation,
+	                          1e-6,
+	                          baseI * 1.01,
+	                          baseRAAN,
+	                          1,
+	                          1 + red2AngularSeparation + 0.77});
+	
+	Variable i;
+	For i = 0 to red.Count - 1;
+		red[i].Epoch = simStartEpoch;
+	End;
 EndProcedure;
 
 

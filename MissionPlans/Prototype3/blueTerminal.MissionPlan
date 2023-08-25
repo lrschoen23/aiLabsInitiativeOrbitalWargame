@@ -253,7 +253,7 @@
         <FreeFormScript><![CDATA[//Show MainMenu;
 
 //Global Constant Variable gameMode = userChoice;
-Global Constant Variable gameMode = gameMode_displayMode;
+Global Constant Variable gameMode = gameMode_disableScript;
 simStepSizeSeconds = 1000;
 
 Global Constant Variable autoChooseNominalOperation = 0;
@@ -265,7 +265,7 @@ Global TimeSpan slewTime = TimeSpan.FromHours(1);
 
 If (uplinkTime > simChoiceSpacing);
 	Diagnostics.ReportErrorMessage(
-		0, "Uplink time must be less than choice spacing time in order to avoid race conditions with the strategy server.");
+		0, "Uplink time must be less than or equal to choice spacing time in order to avoid race conditions with the strategy server.");
 End;]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
@@ -278,8 +278,6 @@ Global TimeSpan simStepSize = TimeSpan.FromSeconds(simStepSizeSeconds);
 Global TimeSpan aheadPredictTime = TimeSpan.FromHours(18);
 Global Constant Variable aheadPredictRangeUpdateLimit = 500;
 
-Global TimeSpan simStartEpoch = TimeTools.ParseCalendarDate("Jun 09 2025 15:00:00.000", "UTC", "UTC", "MJD GSFC");
-simStartEpoch -= TimeSpan.FromSeconds(4*60 + 23);
 
 Global Variable colorRed1 = ColorTools.InterpolateColorHSV({ColorTools.White, ColorTools.Red, ColorTools.Black}, 0.5);
 Global Variable colorRed2 = ColorTools.InterpolateColorHSV({ColorTools.White, ColorTools.Red, ColorTools.Black}, 0.75);
@@ -289,15 +287,10 @@ Global Variable colorBlue1 = ColorTools.DodgerBlue;
 
 FF_Preferences.PropagationStoppingConditionTolerance = TimeSpan.FromSeconds(1e-5);
 
-Global Variable doOptimizationAndSaveValues = 0;
-
 Global Spacecraft cameraSc;
 
 Formation red;
 Formation blue;
-
-red.Count = 3;
-blue.Count = 1;
 
 red.ViewAsGroup = 0;
 blue.ViewAsGroup = 0;
@@ -312,7 +305,7 @@ blueJammer.Speed = 0;
 blueJammer.Height = 1000;
 
 
-Call InitializeBlue1(blue[0]);
+Call InitializeFormations(red, blue);
 
 
 // Set up overlays
@@ -520,7 +513,6 @@ viewPayload.SetObjectIcon(red[2].ObjectId, "Icons/jammingWarning.png");
 
 
 // Set initial states
-blue[0].Epoch = simStartEpoch;
 blue[0].Color = colorBlue1;
 blue[0].BodyScale = 1000;
 blue[0].DisplayName = "BlueSat";
@@ -544,7 +536,6 @@ cameraSc.EulerAngles[1] = 90;
 
 Variable red1AngularSeparation = 2;
 Variable red2AngularSeparation = 2.3;
-Variable red2and3RadialSeparation = 60;
 red[0].SetKeplerianState({42164,
                           1e-6,
                           baseI * 1.2,
@@ -570,7 +561,6 @@ red[2].Color = colorRed3;
 
 Variable i;
 For i = 0 to red.Count - 1;
-	red[i].Epoch = simStartEpoch;
 	red[i].BodyScale = 1000;
 	red[i].DisplayName = "Red" + (i+1).ToString();
 	red[i].TailLength = tailPoints;
@@ -1037,7 +1027,7 @@ pwResultsBarChart.WindowTitle = "Game Score";
 Global Variable redObjectiveScore = 100;
 Global Variable blueOperationsScore = 100;
 Global Variable tensionScore = 100;
-Call MakeBarChart(pwResultsBarChart, 1, {1, 2, 3}, {redObjectiveScore, blueOperationsScore, tensionScore}, "", "Score (%)", {0.9, 3.1}, {0, 100}, "Results", "");
+Call MakeBarChart(pwResultsBarChart, 1, {1, 2, 3}, {redObjectiveScore, blueOperationsScore, tensionScore}, "", "Score (%)", {0.7, 3.3}, {0, 100}, "Results", "");
 pwResultsBarChart.SetBackgroundColorPalette("DarkGray");
 pwResultsBarChart.Legend.Visible = 1;
 pwResultsBarChart.Legend.Location = 1;
@@ -1607,8 +1597,8 @@ EndProcedure;
 
 Define Procedure RetrieveRedStrategyFromServerAndAddToQueue();
 	Variable i;
-	TimeSpan epochDays;
-	Receive redActionQueue.Count from blueStrategyServer;
+	Variable epochDays;
+	Receive redActionQueue.Count from redStrategyServer;
 	For i = 0 to redActionQueue.Count - 1;
 		Receive epochDays,
 			 	redActionQueue[i].burnRIC,
@@ -1713,9 +1703,9 @@ Define Procedure RequestRedStrategyUpdateFromServer(Formation red, Formation blu
 		 red[0].GetCartesianState(),
 		 red[1].GetCartesianState(),
 		 red[2].GetCartesianState(),
-		 blue[0].Epoch.ToDays() to blueStrategyServer;
+		 blue[0].Epoch.ToDays() to redStrategyServer;
 	
-	Call AddFutureActionMarkerToQueue(simEpoch + uplinkTime, 0, 0, additionalAction_retrieveRedStrategy);
+	Call AddFutureActionMarkerToQueue(simEpoch + simChoiceSpacing, 0, 0, additionalAction_retrieveRedStrategy);
 EndProcedure;]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
@@ -2839,14 +2829,19 @@ While (blueIsOffNominal or redIsEngaged);
 	Else;
 		numberOfUserChoicesToSkip -= 1;
 	End;
-End;]]></FreeFormScript>
+End;
+
+OutputLayout.BringWindowToFront(pwResultsBarChart.ID);
+OutputLayout.ApplyUpdates();
+
+Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(24*1));]]></FreeFormScript>
       </FreeForm>
     </ProjectCommands>
   </ProjectMissionSequence>
   <ProjectScript><![CDATA[//Show MainMenu;
 
 //Global Constant Variable gameMode = userChoice;
-Global Constant Variable gameMode = gameMode_displayMode;
+Global Constant Variable gameMode = gameMode_disableScript;
 simStepSizeSeconds = 1000;
 
 Global Constant Variable autoChooseNominalOperation = 0;
@@ -2858,7 +2853,7 @@ Global TimeSpan slewTime = TimeSpan.FromHours(1);
 
 If (uplinkTime > simChoiceSpacing);
 	Diagnostics.ReportErrorMessage(
-		0, "Uplink time must be less than choice spacing time in order to avoid race conditions with the strategy server.");
+		0, "Uplink time must be less than or equal to choice spacing time in order to avoid race conditions with the strategy server.");
 End;
 
 Global TimeSpan simStepSize = TimeSpan.FromSeconds(simStepSizeSeconds);
@@ -2866,8 +2861,6 @@ Global TimeSpan simStepSize = TimeSpan.FromSeconds(simStepSizeSeconds);
 Global TimeSpan aheadPredictTime = TimeSpan.FromHours(18);
 Global Constant Variable aheadPredictRangeUpdateLimit = 500;
 
-Global TimeSpan simStartEpoch = TimeTools.ParseCalendarDate("Jun 09 2025 15:00:00.000", "UTC", "UTC", "MJD GSFC");
-simStartEpoch -= TimeSpan.FromSeconds(4*60 + 23);
 
 Global Variable colorRed1 = ColorTools.InterpolateColorHSV({ColorTools.White, ColorTools.Red, ColorTools.Black}, 0.5);
 Global Variable colorRed2 = ColorTools.InterpolateColorHSV({ColorTools.White, ColorTools.Red, ColorTools.Black}, 0.75);
@@ -2877,15 +2870,10 @@ Global Variable colorBlue1 = ColorTools.DodgerBlue;
 
 FF_Preferences.PropagationStoppingConditionTolerance = TimeSpan.FromSeconds(1e-5);
 
-Global Variable doOptimizationAndSaveValues = 0;
-
 Global Spacecraft cameraSc;
 
 Formation red;
 Formation blue;
-
-red.Count = 3;
-blue.Count = 1;
 
 red.ViewAsGroup = 0;
 blue.ViewAsGroup = 0;
@@ -2900,7 +2888,7 @@ blueJammer.Speed = 0;
 blueJammer.Height = 1000;
 
 
-Call InitializeBlue1(blue[0]);
+Call InitializeFormations(red, blue);
 
 
 // Set up overlays
@@ -3108,7 +3096,6 @@ viewPayload.SetObjectIcon(red[2].ObjectId, "Icons/jammingWarning.png");
 
 
 // Set initial states
-blue[0].Epoch = simStartEpoch;
 blue[0].Color = colorBlue1;
 blue[0].BodyScale = 1000;
 blue[0].DisplayName = "BlueSat";
@@ -3132,7 +3119,6 @@ cameraSc.EulerAngles[1] = 90;
 
 Variable red1AngularSeparation = 2;
 Variable red2AngularSeparation = 2.3;
-Variable red2and3RadialSeparation = 60;
 red[0].SetKeplerianState({42164,
                           1e-6,
                           baseI * 1.2,
@@ -3158,7 +3144,6 @@ red[2].Color = colorRed3;
 
 Variable i;
 For i = 0 to red.Count - 1;
-	red[i].Epoch = simStartEpoch;
 	red[i].BodyScale = 1000;
 	red[i].DisplayName = "Red" + (i+1).ToString();
 	red[i].TailLength = tailPoints;
@@ -3615,7 +3600,7 @@ pwResultsBarChart.WindowTitle = "Game Score";
 Global Variable redObjectiveScore = 100;
 Global Variable blueOperationsScore = 100;
 Global Variable tensionScore = 100;
-Call MakeBarChart(pwResultsBarChart, 1, {1, 2, 3}, {redObjectiveScore, blueOperationsScore, tensionScore}, "", "Score (%)", {0.9, 3.1}, {0, 100}, "Results", "");
+Call MakeBarChart(pwResultsBarChart, 1, {1, 2, 3}, {redObjectiveScore, blueOperationsScore, tensionScore}, "", "Score (%)", {0.7, 3.3}, {0, 100}, "Results", "");
 pwResultsBarChart.SetBackgroundColorPalette("DarkGray");
 pwResultsBarChart.Legend.Visible = 1;
 pwResultsBarChart.Legend.Location = 1;
@@ -4175,8 +4160,8 @@ EndProcedure;
 
 Define Procedure RetrieveRedStrategyFromServerAndAddToQueue();
 	Variable i;
-	TimeSpan epochDays;
-	Receive redActionQueue.Count from blueStrategyServer;
+	Variable epochDays;
+	Receive redActionQueue.Count from redStrategyServer;
 	For i = 0 to redActionQueue.Count - 1;
 		Receive epochDays,
 			 	redActionQueue[i].burnRIC,
@@ -4281,9 +4266,9 @@ Define Procedure RequestRedStrategyUpdateFromServer(Formation red, Formation blu
 		 red[0].GetCartesianState(),
 		 red[1].GetCartesianState(),
 		 red[2].GetCartesianState(),
-		 blue[0].Epoch.ToDays() to blueStrategyServer;
+		 blue[0].Epoch.ToDays() to redStrategyServer;
 	
-	Call AddFutureActionMarkerToQueue(simEpoch + uplinkTime, 0, 0, additionalAction_retrieveRedStrategy);
+	Call AddFutureActionMarkerToQueue(simEpoch + simChoiceSpacing, 0, 0, additionalAction_retrieveRedStrategy);
 EndProcedure;
 Global UserInterface OperatorActions;
 
@@ -5382,6 +5367,11 @@ While (blueIsOffNominal or redIsEngaged);
 	Else;
 		numberOfUserChoicesToSkip -= 1;
 	End;
-End;]]></ProjectScript>
+End;
+
+OutputLayout.BringWindowToFront(pwResultsBarChart.ID);
+OutputLayout.ApplyUpdates();
+
+Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(24*1));]]></ProjectScript>
   <ProjectNotes></ProjectNotes>
 </FreeFlyerProjectFile>

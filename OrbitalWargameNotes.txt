@@ -2,6 +2,7 @@ Mission Plan Notes;
 
 
 - change axis formats on plots
+- slim down plot procedures library
 
 
 EM/RF people: Billy Gonzolez, scott donel
