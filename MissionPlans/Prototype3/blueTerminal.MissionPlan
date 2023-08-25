@@ -2820,10 +2820,10 @@ While (blueIsOffNominal or redIsEngaged);
 	End;
 	
 	
-	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + simChoiceSpacing);
+	Call AdvanceSimToFutureEpoch(red, blue, nextChoiceEpoch);
 	If (numberOfUserChoicesToSkip == 0);
 		Call ShowOperatorActionsMenu(red, blue);
-		If (blueJammerState != activatableAsset_on and blueHasManeuveredSinceLastRedStrategyUpdate);
+		If (blueJammerState != activatableAsset_on);
 			Call RequestRedStrategyUpdateFromServer(red, blue);
 		End;
 	Else;
@@ -5358,10 +5358,10 @@ While (blueIsOffNominal or redIsEngaged);
 	End;
 	
 	
-	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + simChoiceSpacing);
+	Call AdvanceSimToFutureEpoch(red, blue, nextChoiceEpoch);
 	If (numberOfUserChoicesToSkip == 0);
 		Call ShowOperatorActionsMenu(red, blue);
-		If (blueJammerState != activatableAsset_on and blueHasManeuveredSinceLastRedStrategyUpdate);
+		If (blueJammerState != activatableAsset_on);
 			Call RequestRedStrategyUpdateFromServer(red, blue);
 		End;
 	Else;
