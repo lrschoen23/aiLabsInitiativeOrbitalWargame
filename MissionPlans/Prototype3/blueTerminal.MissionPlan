@@ -2833,6 +2833,9 @@ While (blueIsOffNominal or redIsEngaged);
 	
 	Call GetNextQueuedActionEpoch(nextQueuedActionEpoch);
 	While (nextQueuedActionEpoch < nextChoiceEpoch);
+		If (nextQueuedActionEpoch < simEpoch);
+			Diagnostics.ReportErrorMessage(0, "Encountered action epoch prior to simulation epoch.");
+		End;
 		Call PopNextQueuedAction(nextQueuedAction);
 		Call AdvanceSimToFutureEpoch(red, blue, nextQueuedAction.epoch);
 
@@ -5403,6 +5406,9 @@ While (blueIsOffNominal or redIsEngaged);
 	
 	Call GetNextQueuedActionEpoch(nextQueuedActionEpoch);
 	While (nextQueuedActionEpoch < nextChoiceEpoch);
+		If (nextQueuedActionEpoch < simEpoch);
+			Diagnostics.ReportErrorMessage(0, "Encountered action epoch prior to simulation epoch.");
+		End;
 		Call PopNextQueuedAction(nextQueuedAction);
 		Call AdvanceSimToFutureEpoch(red, blue, nextQueuedAction.epoch);
 
