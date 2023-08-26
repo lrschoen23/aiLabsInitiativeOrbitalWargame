@@ -239,6 +239,21 @@
         <metadata dim="0" />
       </UserInterface>
     </Object>
+    <Object>
+      <ConsoleWindow name="ConsoleSolver" isConstant="false" isGlobal="true">
+        <Name>ConsoleSolver</Name>
+        <WindowTitle>Console</WindowTitle>
+        <WordWrap>false</WordWrap>
+        <CurrentTextColor>0</CurrentTextColor>
+        <BackColor>16777215</BackColor>
+        <Dimension units="" displayed_units="">10</Dimension>
+        <DockMode>1</DockMode>
+        <CurrentFontType>0</CurrentFontType>
+        <UseStdOut>false</UseStdOut>
+        <ShowOnRun>false</ShowOnRun>
+        <metadata dim="0" />
+      </ConsoleWindow>
+    </Object>
   </ProjectObjects>
   <ProjectMissionSequence>
     <ProjectExternals>
@@ -1598,13 +1613,16 @@ EndProcedure;
 Define Procedure RetrieveRedStrategyFromServerAndAddToQueue();
 	Variable i;
 	Variable epochDays;
-	Receive redActionQueue.Count from redStrategyServer;
+	Receive socketVerificationLabel, redActionQueue.Count from redStrategyServer;
+	Call ValidateSocketVerificationLabel("numRedActions");
 	For i = 0 to redActionQueue.Count - 1;
 		redActionQueue[i].burnRIC.Dimension = 3;
-		Receive epochDays,
+		Receive socketVerificationLabel,
+				epochDays,
 			 	redActionQueue[i].burnRIC,
 				redActionQueue[i].formationIndex,
 				redActionQueue[i].additionalAction from redStrategyServer;
+		Call ValidateSocketVerificationLabel("redAction");
 		redActionQueue[i].epoch = TimeSpan.FromDays(epochDays);
 		redActionQueue[i].isBlue = 0;
 	End;
@@ -1658,7 +1676,7 @@ Define Procedure RequestBlueEvasiveManeuverFromServer(Formation blue);
 	Send blue[0].GetCartesianState(),
 		 blue[0].Epoch.ToDays(),
 		 initialKepStateBlue1,
-		 blue[0].Longitude + 0.3,
+		 blue[0].Longitude + 0.05,
 		 {0.1, 0.5},
 		 uplinkTime.ToHours() to blueStrategyServer;
 	
@@ -1708,8 +1726,9 @@ EndProcedure;
 
 Define Procedure RequestRedStrategyUpdateFromServer(Formation red, Formation blue);
 	
-	Send redStrategyRequest_updateStrategy to redStrategyServer;
-	Send blue[0].GetCartesianState(),
+	Send "stratUpdateRequest", redStrategyRequest_updateStrategy to redStrategyServer;
+	Send "strategyUpdateData",
+		 blue[0].GetCartesianState(),
 		 red[0].GetCartesianState(),
 		 red[1].GetCartesianState(),
 		 red[2].GetCartesianState(),
@@ -1717,7 +1736,8 @@ Define Procedure RequestRedStrategyUpdateFromServer(Formation red, Formation blu
 	 	 uplinkTime.ToHours() to redStrategyServer;
 	
 	Variable redStrategyUpdateWillOccur;
-	Receive redStrategyUpdateWillOccur from redStrategyServer;
+	Receive socketVerificationLabel, redStrategyUpdateWillOccur from redStrategyServer;
+	Call ValidateSocketVerificationLabel("updateWillOccur");
 	If (redStrategyUpdateWillOccur);
 		redActionQueue.Clear();
 		Call AddFutureActionMarkerToQueue(
@@ -2848,21 +2868,22 @@ While (blueIsOffNominal or redIsEngaged);
 	Call AdvanceSimToFutureEpoch(red, blue, nextChoiceEpoch);
 	If (numberOfUserChoicesToSkip == 0);
 		Call ShowOperatorActionsMenu(red, blue);
-		If (blueJammerState != activatableAsset_on);
-			redStrategyUpdateIsCurrentlyBeingComputed = 0;
-			For i = 0 to redActionQueue.Count - 1;
-				If (redActionQueue[i].additionalAction == additionalAction_retrieveRedStrategy);
-					redStrategyUpdateIsCurrentlyBeingComputed = 1;
-					Break;
-				End;
-			End;
-			
-			If (!redStrategyUpdateIsCurrentlyBeingComputed);
-				Call RequestRedStrategyUpdateFromServer(red, blue);
-			End;
-		End;
 	Else;
 		numberOfUserChoicesToSkip -= 1;
+	End;
+	
+	If (blueJammerState != activatableAsset_on);
+		redStrategyUpdateIsCurrentlyBeingComputed = 0;
+		For i = 0 to redActionQueue.Count - 1;
+			If (redActionQueue[i].additionalAction == additionalAction_retrieveRedStrategy);
+				redStrategyUpdateIsCurrentlyBeingComputed = 1;
+				Break;
+			End;
+		End;
+		
+		If (!redStrategyUpdateIsCurrentlyBeingComputed);
+			Call RequestRedStrategyUpdateFromServer(red, blue);
+		End;
 	End;
 End;
 
@@ -4196,13 +4217,16 @@ EndProcedure;
 Define Procedure RetrieveRedStrategyFromServerAndAddToQueue();
 	Variable i;
 	Variable epochDays;
-	Receive redActionQueue.Count from redStrategyServer;
+	Receive socketVerificationLabel, redActionQueue.Count from redStrategyServer;
+	Call ValidateSocketVerificationLabel("numRedActions");
 	For i = 0 to redActionQueue.Count - 1;
 		redActionQueue[i].burnRIC.Dimension = 3;
-		Receive epochDays,
+		Receive socketVerificationLabel,
+				epochDays,
 			 	redActionQueue[i].burnRIC,
 				redActionQueue[i].formationIndex,
 				redActionQueue[i].additionalAction from redStrategyServer;
+		Call ValidateSocketVerificationLabel("redAction");
 		redActionQueue[i].epoch = TimeSpan.FromDays(epochDays);
 		redActionQueue[i].isBlue = 0;
 	End;
@@ -4256,7 +4280,7 @@ Define Procedure RequestBlueEvasiveManeuverFromServer(Formation blue);
 	Send blue[0].GetCartesianState(),
 		 blue[0].Epoch.ToDays(),
 		 initialKepStateBlue1,
-		 blue[0].Longitude + 0.3,
+		 blue[0].Longitude + 0.05,
 		 {0.1, 0.5},
 		 uplinkTime.ToHours() to blueStrategyServer;
 	
@@ -4306,8 +4330,9 @@ EndProcedure;
 
 Define Procedure RequestRedStrategyUpdateFromServer(Formation red, Formation blue);
 	
-	Send redStrategyRequest_updateStrategy to redStrategyServer;
-	Send blue[0].GetCartesianState(),
+	Send "stratUpdateRequest", redStrategyRequest_updateStrategy to redStrategyServer;
+	Send "strategyUpdateData",
+		 blue[0].GetCartesianState(),
 		 red[0].GetCartesianState(),
 		 red[1].GetCartesianState(),
 		 red[2].GetCartesianState(),
@@ -4315,7 +4340,8 @@ Define Procedure RequestRedStrategyUpdateFromServer(Formation red, Formation blu
 	 	 uplinkTime.ToHours() to redStrategyServer;
 	
 	Variable redStrategyUpdateWillOccur;
-	Receive redStrategyUpdateWillOccur from redStrategyServer;
+	Receive socketVerificationLabel, redStrategyUpdateWillOccur from redStrategyServer;
+	Call ValidateSocketVerificationLabel("updateWillOccur");
 	If (redStrategyUpdateWillOccur);
 		redActionQueue.Clear();
 		Call AddFutureActionMarkerToQueue(
@@ -5421,21 +5447,22 @@ While (blueIsOffNominal or redIsEngaged);
 	Call AdvanceSimToFutureEpoch(red, blue, nextChoiceEpoch);
 	If (numberOfUserChoicesToSkip == 0);
 		Call ShowOperatorActionsMenu(red, blue);
-		If (blueJammerState != activatableAsset_on);
-			redStrategyUpdateIsCurrentlyBeingComputed = 0;
-			For i = 0 to redActionQueue.Count - 1;
-				If (redActionQueue[i].additionalAction == additionalAction_retrieveRedStrategy);
-					redStrategyUpdateIsCurrentlyBeingComputed = 1;
-					Break;
-				End;
-			End;
-			
-			If (!redStrategyUpdateIsCurrentlyBeingComputed);
-				Call RequestRedStrategyUpdateFromServer(red, blue);
-			End;
-		End;
 	Else;
 		numberOfUserChoicesToSkip -= 1;
+	End;
+	
+	If (blueJammerState != activatableAsset_on);
+		redStrategyUpdateIsCurrentlyBeingComputed = 0;
+		For i = 0 to redActionQueue.Count - 1;
+			If (redActionQueue[i].additionalAction == additionalAction_retrieveRedStrategy);
+				redStrategyUpdateIsCurrentlyBeingComputed = 1;
+				Break;
+			End;
+		End;
+		
+		If (!redStrategyUpdateIsCurrentlyBeingComputed);
+			Call RequestRedStrategyUpdateFromServer(red, blue);
+		End;
 	End;
 End;
 
