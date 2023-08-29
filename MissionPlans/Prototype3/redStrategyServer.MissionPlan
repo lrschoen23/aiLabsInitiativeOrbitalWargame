@@ -459,7 +459,7 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 		TimeSpan driftTime);
 	Array desiredKepState;
 	desiredKepState = red.GetKeplerianState();
-	desiredKepState[0] = 42120;
+	desiredKepState[0] = 42110;
 	desiredKepState[1] = 0;
 	
 	Array dv1(3);
@@ -490,52 +490,17 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 	desiredKepState[1] += 0.001;
 	desiredKepState[2] = red.I;
 	
-	Call TargetNewOrbitWithTA(
+	Call TargetNewRelativeOrbit(
 		red,
+		blue,
 		desiredKepState,
-		{0.01, 4.9},
+		{0.01, 0.3},
 		dv1,
 		dv2,
 		interBurnTime);
 	
 	Call AddBurnToActions(dv1, red.Epoch, 0);
 	Call AddBurnToActions(dv2, red.Epoch + interBurnTime, 0);
-	
-//	List<Array> burns(4);
-//	List<TimeSpan> burnEpochs(4);
-//	Variable driftOrbitRadius;
-//	Variable incursionRadialSeparation = 30;
-//	
-//	Variable arrivalRadius = blue.Radius - incursionRadialSeparation;
-//	
-//	Call ComputeRed1DriftOrbitRadius(red, blue, incursionEpoch, 60, arrivalRadius, driftTime, driftOrbitRadius);
-//	Array dv;
-//	Call TargetNewOrbitSingleBurn(red, red.Radius, driftOrbitRadius, burns[0]);
-//	burnEpochs[0] = red.Epoch;
-//	burn.BurnDirection = burns[0];
-//	red.Maneuver(burn);
-//	red.StepToEpoch(red.Epoch + red2and3TransitOrbitTime);
-//	
-//	Call TargetNewOrbitSingleBurn(red, driftOrbitRadius, driftOrbitRadius, burns[1]);
-//	burnEpochs[1] = red.Epoch;
-//	burn.BurnDirection = burns[1];
-//	red.Maneuver(burn);
-//	red.StepToEpoch(red.Epoch + driftTime);
-//	
-//	Call TargetNewOrbitSingleBurn(red, driftOrbitRadius, arrivalRadius, burns[2]);
-//	burnEpochs[2] = red.Epoch;
-//	burn.BurnDirection = burns[2];
-//	red.Maneuver(burn);
-//	red.StepToEpoch(red.Epoch + red2and3TransitOrbitTime);
-//	
-//	Call TargetNewOrbitSingleBurn(red, arrivalRadius, arrivalRadius, burns[3]);
-//	burnEpochs[3] = red.Epoch;
-//
-//	
-//	Variable i;
-//	For i = 0 to burns.Count - 1;
-//		Call AddBurnToActions(burns[i], burnEpochs[i], redIndex);
-//	End;
 	
 EndProcedure;
 
@@ -1090,7 +1055,7 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 		TimeSpan driftTime);
 	Array desiredKepState;
 	desiredKepState = red.GetKeplerianState();
-	desiredKepState[0] = 42120;
+	desiredKepState[0] = 42110;
 	desiredKepState[1] = 0;
 	
 	Array dv1(3);
@@ -1121,52 +1086,17 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 	desiredKepState[1] += 0.001;
 	desiredKepState[2] = red.I;
 	
-	Call TargetNewOrbitWithTA(
+	Call TargetNewRelativeOrbit(
 		red,
+		blue,
 		desiredKepState,
-		{0.01, 4.9},
+		{0.01, 0.3},
 		dv1,
 		dv2,
 		interBurnTime);
 	
 	Call AddBurnToActions(dv1, red.Epoch, 0);
 	Call AddBurnToActions(dv2, red.Epoch + interBurnTime, 0);
-	
-//	List<Array> burns(4);
-//	List<TimeSpan> burnEpochs(4);
-//	Variable driftOrbitRadius;
-//	Variable incursionRadialSeparation = 30;
-//	
-//	Variable arrivalRadius = blue.Radius - incursionRadialSeparation;
-//	
-//	Call ComputeRed1DriftOrbitRadius(red, blue, incursionEpoch, 60, arrivalRadius, driftTime, driftOrbitRadius);
-//	Array dv;
-//	Call TargetNewOrbitSingleBurn(red, red.Radius, driftOrbitRadius, burns[0]);
-//	burnEpochs[0] = red.Epoch;
-//	burn.BurnDirection = burns[0];
-//	red.Maneuver(burn);
-//	red.StepToEpoch(red.Epoch + red2and3TransitOrbitTime);
-//	
-//	Call TargetNewOrbitSingleBurn(red, driftOrbitRadius, driftOrbitRadius, burns[1]);
-//	burnEpochs[1] = red.Epoch;
-//	burn.BurnDirection = burns[1];
-//	red.Maneuver(burn);
-//	red.StepToEpoch(red.Epoch + driftTime);
-//	
-//	Call TargetNewOrbitSingleBurn(red, driftOrbitRadius, arrivalRadius, burns[2]);
-//	burnEpochs[2] = red.Epoch;
-//	burn.BurnDirection = burns[2];
-//	red.Maneuver(burn);
-//	red.StepToEpoch(red.Epoch + red2and3TransitOrbitTime);
-//	
-//	Call TargetNewOrbitSingleBurn(red, arrivalRadius, arrivalRadius, burns[3]);
-//	burnEpochs[3] = red.Epoch;
-//
-//	
-//	Variable i;
-//	For i = 0 to burns.Count - 1;
-//		Call AddBurnToActions(burns[i], burnEpochs[i], redIndex);
-//	End;
 	
 EndProcedure;
 

@@ -281,8 +281,9 @@ Define Procedure TargetNewOrbit(
 EndProcedure;
 
 
-Define Procedure TargetNewOrbitWithTA(
+Define Procedure TargetNewRelativeOrbit(
 		Spacecraft sc,
+		Spacecraft target,
 		Array kepState,
 		Array timeBoundsDays,
 		Array dv1,
@@ -302,13 +303,15 @@ Define Procedure TargetNewOrbitWithTA(
 	
 	opt.AddConstraint("RAAN", kepState[3], kepState[3], 100, 360);
 	opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
-	opt.AddConstraint("TA",    kepState[5], kepState[5], 100, 360);
+	opt.AddConstraint("TA",   0, 0);
 	
 	opt.SaveObjectToProcess(sc);
 	opt.MaximumNominalEvaluationCount = 1000;
 	
 	IpoptOptions ipopt;
 	ipopt.Tolerance = 1e-4;
+	
+	target.Save("IC");
 	
 	opt.LoadEngine(ipopt);
 	While (opt.IsRunning());
@@ -323,6 +326,8 @@ Define Procedure TargetNewOrbitWithTA(
 		WhileStepping sc to (sc.Epoch == futureEpoch);
 		End;
 		
+		target.StepToEpoch(sc.Epoch);
+		
 		burn.BurnDirection = opt.GetStateVariableValues[3:5];
 		totalDV += burn.BurnDirection.Norm;
 		sc.Maneuver(burn);
@@ -333,21 +338,22 @@ Define Procedure TargetNewOrbitWithTA(
 
 		opt.SetConstraintValue("RAAN", sc.RAAN);
 		opt.SetConstraintValue("W", sc.W);
-		opt.SetConstraintValue("TA", sc.W);
+		opt.SetConstraintValue("TA", sc.TA - target.TA - 0.09);
 								 
 		opt.Minimize(totalDV);
 		
-		If (opt.OptimizationPhase == 1);
-			Report opt.NominalEvaluationCount, "   ",
-			opt.ObjectiveFunctionValue, "   ",
-			opt.MaximumInfeasibility, "   ",
-			opt.MaximumInfeasibilitySource to ConsoleSolver;
-		End;
+//		If (opt.OptimizationPhase == 1);
+//			Report opt.NominalEvaluationCount, "   ",
+//			opt.ObjectiveFunctionValue, "   ",
+//			opt.MaximumInfeasibility, "   ",
+//			opt.MaximumInfeasibilitySource to ConsoleSolver;
+//		End;
 		
 	End;
 	
 	Report opt.ReturnString to ConsoleSolver;
 	opt.RestoreObjectsInProcess();
+	target.Restore("IC");
 		
 	
 	dv1[0] = opt.GetBestStateVariableValue("dv11");
