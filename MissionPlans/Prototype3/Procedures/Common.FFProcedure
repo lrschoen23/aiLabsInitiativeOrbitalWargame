@@ -203,11 +203,11 @@ Define Procedure TargetNewOrbit(
 		opt.AddConstraint("lon",   longitude, longitude, 100, 360);
 	Else;
 		opt.AddConstraint("RAAN", kepState[3], kepState[3], 100, 360);
-		opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
+//		opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
 	End;
 	
 	opt.SaveObjectToProcess(sc);
-	opt.MaximumNominalEvaluationCount = 1000;
+	opt.MaximumNominalEvaluationCount = 500;
 	
 	IpoptOptions ipopt;
 	ipopt.Tolerance = 1e-4;
@@ -237,7 +237,7 @@ Define Procedure TargetNewOrbit(
 			opt.SetConstraintValue("lon", sc.Longitude);
 		Else;
 			opt.SetConstraintValue("RAAN", sc.RAAN);
-			opt.SetConstraintValue("W", sc.W);
+//			opt.SetConstraintValue("W", sc.W);
 		End;
 								 
 		opt.Minimize(totalDV);
@@ -306,7 +306,7 @@ Define Procedure TargetNewRelativeOrbit(
 	opt.AddConstraint("TA",   0, 0);
 	
 	opt.SaveObjectToProcess(sc);
-	opt.MaximumNominalEvaluationCount = 1000;
+	opt.MaximumNominalEvaluationCount = 500;
 	
 	IpoptOptions ipopt;
 	ipopt.Tolerance = 1e-4;

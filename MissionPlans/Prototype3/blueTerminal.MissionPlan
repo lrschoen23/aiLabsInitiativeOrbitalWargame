@@ -1725,6 +1725,7 @@ Define Procedure RequestBlueStationKeepFromServer(Formation blue, Array dv);
 EndProcedure;
 
 Define Procedure RequestRedStrategyUpdateFromServer(Formation red, Formation blue);
+	TimeSpan redUplinkTime = TimeSpan.FromHours(4);
 	
 	Send "stratUpdateRequest", redStrategyRequest_updateStrategy to redStrategyServer;
 	Send "strategyUpdateData",
@@ -1733,7 +1734,7 @@ Define Procedure RequestRedStrategyUpdateFromServer(Formation red, Formation blu
 		 red[1].GetCartesianState(),
 		 red[2].GetCartesianState(),
 		 blue[0].Epoch.ToDays(),
-	 	 uplinkTime.ToHours() to redStrategyServer;
+	 	 redUplinkTime.ToDays() to redStrategyServer;
 	
 	Variable redStrategyUpdateWillOccur;
 	Receive socketVerificationLabel, redStrategyUpdateWillOccur from redStrategyServer;
@@ -1741,7 +1742,7 @@ Define Procedure RequestRedStrategyUpdateFromServer(Formation red, Formation blu
 	If (redStrategyUpdateWillOccur);
 		redActionQueue.Clear();
 		Call AddFutureActionMarkerToQueue(
-			simEpoch + simChoiceSpacing,
+			simEpoch + redUplinkTime,
 			0,
 			0,
 			additionalAction_retrieveRedStrategy);
@@ -4329,6 +4330,7 @@ Define Procedure RequestBlueStationKeepFromServer(Formation blue, Array dv);
 EndProcedure;
 
 Define Procedure RequestRedStrategyUpdateFromServer(Formation red, Formation blue);
+	TimeSpan redUplinkTime = TimeSpan.FromHours(4);
 	
 	Send "stratUpdateRequest", redStrategyRequest_updateStrategy to redStrategyServer;
 	Send "strategyUpdateData",
@@ -4337,7 +4339,7 @@ Define Procedure RequestRedStrategyUpdateFromServer(Formation red, Formation blu
 		 red[1].GetCartesianState(),
 		 red[2].GetCartesianState(),
 		 blue[0].Epoch.ToDays(),
-	 	 uplinkTime.ToHours() to redStrategyServer;
+	 	 redUplinkTime.ToDays() to redStrategyServer;
 	
 	Variable redStrategyUpdateWillOccur;
 	Receive socketVerificationLabel, redStrategyUpdateWillOccur from redStrategyServer;
@@ -4345,7 +4347,7 @@ Define Procedure RequestRedStrategyUpdateFromServer(Formation red, Formation blu
 	If (redStrategyUpdateWillOccur);
 		redActionQueue.Clear();
 		Call AddFutureActionMarkerToQueue(
-			simEpoch + simChoiceSpacing,
+			simEpoch + redUplinkTime,
 			0,
 			0,
 			additionalAction_retrieveRedStrategy);

@@ -180,7 +180,6 @@ Define Procedure ComputeRed2Or3DriftOrbitRadius(
 		Spacecraft red,
 		Spacecraft blue,
 		TimeSpan incursionEpoch,
-		Variable incursionRadialSeparation,
 		Variable arrivalRadius,
 		TimeSpan driftTime,
 		Variable driftOrbitRadius);
@@ -240,30 +239,22 @@ Define Procedure ComputeRed1DriftOrbitRadius(
 		Spacecraft red,
 		Spacecraft blue,
 		TimeSpan incursionEpoch,
-		Variable incursionRadialSeparation,
-		Variable arrivalRadius,
 		TimeSpan driftTime,
 		Variable driftOrbitRadius);
 	
-	Variable deltaMeanMotion_a;
-	Variable deltaMeanMotion_b;
-	Variable deltaMeanMotion_c;
-	Variable deltaMeanMotion_d;
+	Variable deltaMeanMotion;
 	
 	Variable meanMotionBlue = blue.MeanMotion;
 	
+	Variable r;
 	Variable r_0 = red.Radius;
-	Variable r_d = arrivalRadius;
-	Variable r_b;
 	
 	Variable L_B = blue.Longitude;
 	Variable L_0 = red.Longitude;
 	
-	Call ComputeDeltaMeanMotion(r_d, r_d, meanMotionBlue, deltaMeanMotion_d);
-	
 	Optimizer opt;
 	opt.Reset(1);
-	opt.AddStateVariable("r_b", r_0, r_0 - 500, r_0 + 500, 1e3);
+	opt.AddStateVariable("r", r_0, r_0 - 500, r_0 + 500, 1e3);
 	
 	opt.AddConstraint("c", 0, 0);
 	
@@ -271,16 +262,11 @@ Define Procedure ComputeRed1DriftOrbitRadius(
 	opt.LoadEngine();
 	While (opt.IsRunning());
 		opt.UpdateStateVariables();
-		r_b = opt.GetStateVariableValue(0);
+		r = opt.GetStateVariableValue(0);
 		
-		Call ComputeDeltaMeanMotion(r_0, r_b, meanMotionBlue, deltaMeanMotion_a);
-		Call ComputeDeltaMeanMotion(r_b, r_b, meanMotionBlue, deltaMeanMotion_b);
-		Call ComputeDeltaMeanMotion(r_b, r_d, meanMotionBlue, deltaMeanMotion_c);
-		
+		Call ComputeDeltaMeanMotion(r, r, meanMotionBlue, deltaMeanMotion);
 		opt.SetConstraintValue(0, 
-			rad(L_B - 0.5 - L_0)
-			- (deltaMeanMotion_a + deltaMeanMotion_c + deltaMeanMotion_d) * red2and3TransitOrbitTime.ToSeconds()
-			- deltaMeanMotion_b * driftTime.ToSeconds());
+			rad(L_B - 0.2 - L_0) - deltaMeanMotion * driftTime.ToSeconds());
 		
 		opt.Minimize(0);
 		
@@ -412,7 +398,7 @@ Define Procedure ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(
 	
 	Variable arrivalRadius = blue.Radius - factor*incursionRadialSeparation;
 	
-	Call ComputeRed2Or3DriftOrbitRadius(red, blue, incursionEpoch, 60,  arrivalRadius, driftTime, driftOrbitRadius);
+	Call ComputeRed2Or3DriftOrbitRadius(red, blue, incursionEpoch, arrivalRadius, driftTime, driftOrbitRadius);
 	Array dv;
 	Call TargetNewOrbitSingleBurn(red, red.Radius, driftOrbitRadius, burns[0]);
 	burnEpochs[0] = red.Epoch;
@@ -457,10 +443,13 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 		Spacecraft blue,
 		TimeSpan incursionEpoch,
 		TimeSpan driftTime);
+	Variable driftOrbitRadius;
+	Call ComputeRed1DriftOrbitRadius(red, blue, incursionEpoch, driftTime, driftOrbitRadius);
+	
 	Array desiredKepState;
 	desiredKepState = red.GetKeplerianState();
-	desiredKepState[0] = 42110;
-	desiredKepState[1] = 0;
+	desiredKepState[0] = driftOrbitRadius;
+	desiredKepState[1] = 1e-6;
 	
 	Array dv1(3);
 	Array dv2(3);
@@ -469,7 +458,7 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 		red,
 		desiredKepState,
 		-999,
-		{0.01, 0.9},
+		{0.4, 0.6},
 		dv1,
 		dv2,
 		interBurnTime);
@@ -558,16 +547,16 @@ Define Procedure ComputeDisableScriptStrategy(Formation red, Formation blue, Var
 	TimeSpan incursionEpoch = simStartEpoch + TimeSpan.FromHours(24*4 + 0);
 	TimeSpan driftTime = incursionEpoch - blue[0].Epoch - red2and3TransitOrbitTime.Scaled(3);
 	
-	If (driftTime < TimeSpan.FromDays(0.5));
+	If (driftTime < red2and3TransitOrbitTime);
 		// return to nominal
-		Send "updateWillOccur", 1 to connection; // signal no update
+		Send "updateWillOccur", 1 to connection;
 		Report "Drift time too small, returning to nominal" to Console;
 		
 		updateHasBeenComputed = 1;
 		ExitProcedure;
 	End;
 
-	Send "updateWillOccur", 1 to connection; // signal update will occur
+	Send "updateWillOccur", 1 to connection;
 	
 	Call ComputeDisableScriptRed1TransitManeuversAndAddToActions(red[0], blue[0], incursionEpoch, driftTime);
 	Call ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(red[1], blue[0], incursionEpoch, driftTime, 1);
@@ -776,7 +765,6 @@ Define Procedure ComputeRed2Or3DriftOrbitRadius(
 		Spacecraft red,
 		Spacecraft blue,
 		TimeSpan incursionEpoch,
-		Variable incursionRadialSeparation,
 		Variable arrivalRadius,
 		TimeSpan driftTime,
 		Variable driftOrbitRadius);
@@ -836,30 +824,22 @@ Define Procedure ComputeRed1DriftOrbitRadius(
 		Spacecraft red,
 		Spacecraft blue,
 		TimeSpan incursionEpoch,
-		Variable incursionRadialSeparation,
-		Variable arrivalRadius,
 		TimeSpan driftTime,
 		Variable driftOrbitRadius);
 	
-	Variable deltaMeanMotion_a;
-	Variable deltaMeanMotion_b;
-	Variable deltaMeanMotion_c;
-	Variable deltaMeanMotion_d;
+	Variable deltaMeanMotion;
 	
 	Variable meanMotionBlue = blue.MeanMotion;
 	
+	Variable r;
 	Variable r_0 = red.Radius;
-	Variable r_d = arrivalRadius;
-	Variable r_b;
 	
 	Variable L_B = blue.Longitude;
 	Variable L_0 = red.Longitude;
 	
-	Call ComputeDeltaMeanMotion(r_d, r_d, meanMotionBlue, deltaMeanMotion_d);
-	
 	Optimizer opt;
 	opt.Reset(1);
-	opt.AddStateVariable("r_b", r_0, r_0 - 500, r_0 + 500, 1e3);
+	opt.AddStateVariable("r", r_0, r_0 - 500, r_0 + 500, 1e3);
 	
 	opt.AddConstraint("c", 0, 0);
 	
@@ -867,16 +847,11 @@ Define Procedure ComputeRed1DriftOrbitRadius(
 	opt.LoadEngine();
 	While (opt.IsRunning());
 		opt.UpdateStateVariables();
-		r_b = opt.GetStateVariableValue(0);
+		r = opt.GetStateVariableValue(0);
 		
-		Call ComputeDeltaMeanMotion(r_0, r_b, meanMotionBlue, deltaMeanMotion_a);
-		Call ComputeDeltaMeanMotion(r_b, r_b, meanMotionBlue, deltaMeanMotion_b);
-		Call ComputeDeltaMeanMotion(r_b, r_d, meanMotionBlue, deltaMeanMotion_c);
-		
+		Call ComputeDeltaMeanMotion(r, r, meanMotionBlue, deltaMeanMotion);
 		opt.SetConstraintValue(0, 
-			rad(L_B - 0.5 - L_0)
-			- (deltaMeanMotion_a + deltaMeanMotion_c + deltaMeanMotion_d) * red2and3TransitOrbitTime.ToSeconds()
-			- deltaMeanMotion_b * driftTime.ToSeconds());
+			rad(L_B - 0.2 - L_0) - deltaMeanMotion * driftTime.ToSeconds());
 		
 		opt.Minimize(0);
 		
@@ -1008,7 +983,7 @@ Define Procedure ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(
 	
 	Variable arrivalRadius = blue.Radius - factor*incursionRadialSeparation;
 	
-	Call ComputeRed2Or3DriftOrbitRadius(red, blue, incursionEpoch, 60,  arrivalRadius, driftTime, driftOrbitRadius);
+	Call ComputeRed2Or3DriftOrbitRadius(red, blue, incursionEpoch, arrivalRadius, driftTime, driftOrbitRadius);
 	Array dv;
 	Call TargetNewOrbitSingleBurn(red, red.Radius, driftOrbitRadius, burns[0]);
 	burnEpochs[0] = red.Epoch;
@@ -1053,10 +1028,13 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 		Spacecraft blue,
 		TimeSpan incursionEpoch,
 		TimeSpan driftTime);
+	Variable driftOrbitRadius;
+	Call ComputeRed1DriftOrbitRadius(red, blue, incursionEpoch, driftTime, driftOrbitRadius);
+	
 	Array desiredKepState;
 	desiredKepState = red.GetKeplerianState();
-	desiredKepState[0] = 42110;
-	desiredKepState[1] = 0;
+	desiredKepState[0] = driftOrbitRadius;
+	desiredKepState[1] = 1e-6;
 	
 	Array dv1(3);
 	Array dv2(3);
@@ -1065,7 +1043,7 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 		red,
 		desiredKepState,
 		-999,
-		{0.01, 0.9},
+		{0.4, 0.6},
 		dv1,
 		dv2,
 		interBurnTime);
@@ -1154,16 +1132,16 @@ Define Procedure ComputeDisableScriptStrategy(Formation red, Formation blue, Var
 	TimeSpan incursionEpoch = simStartEpoch + TimeSpan.FromHours(24*4 + 0);
 	TimeSpan driftTime = incursionEpoch - blue[0].Epoch - red2and3TransitOrbitTime.Scaled(3);
 	
-	If (driftTime < TimeSpan.FromDays(0.5));
+	If (driftTime < red2and3TransitOrbitTime);
 		// return to nominal
-		Send "updateWillOccur", 1 to connection; // signal no update
+		Send "updateWillOccur", 1 to connection;
 		Report "Drift time too small, returning to nominal" to Console;
 		
 		updateHasBeenComputed = 1;
 		ExitProcedure;
 	End;
 
-	Send "updateWillOccur", 1 to connection; // signal update will occur
+	Send "updateWillOccur", 1 to connection;
 	
 	Call ComputeDisableScriptRed1TransitManeuversAndAddToActions(red[0], blue[0], incursionEpoch, driftTime);
 	Call ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(red[1], blue[0], incursionEpoch, driftTime, 1);
