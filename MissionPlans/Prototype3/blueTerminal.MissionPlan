@@ -518,13 +518,13 @@ EndProcedure;
 
 Call SetBlueJammerState(activatableAsset_off);
 
-viewMain3D.SetObjectIcon(red[1].ObjectId,  "Icons/jammingWarning.png");
-viewUplink.SetObjectIcon(red[1].ObjectId,  "Icons/jammingWarning.png");
-viewPayload.SetObjectIcon(red[1].ObjectId, "Icons/jammingWarning.png");
+viewMain3D.SetObjectIcon(red[1].ObjectId,  "Icons\jammingWarning.png");
+viewUplink.SetObjectIcon(red[1].ObjectId,  "Icons\jammingWarning.png");
+viewPayload.SetObjectIcon(red[1].ObjectId, "Icons\jammingWarning.png");
 
-viewMain3D.SetObjectIcon(red[2].ObjectId,  "Icons/jammingWarning.png");
-viewUplink.SetObjectIcon(red[2].ObjectId,  "Icons/jammingWarning.png");
-viewPayload.SetObjectIcon(red[2].ObjectId, "Icons/jammingWarning.png");
+viewMain3D.SetObjectIcon(red[2].ObjectId,  "Icons\jammingWarning.png");
+viewUplink.SetObjectIcon(red[2].ObjectId,  "Icons\jammingWarning.png");
+viewPayload.SetObjectIcon(red[2].ObjectId, "Icons\jammingWarning.png");
 
 
 // Set initial states
@@ -1207,7 +1207,7 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 	Variable dataReadoutIsJammed = redJammerState;
 	
 	// If backup comms are active, no effect from jamming
-	If (blueBackupCommsState == 2);
+	If (blueBackupCommsState == activatableAsset_on);
 		dataReadoutIsJammed = 0;
 	End;
 	
@@ -1653,14 +1653,18 @@ Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, F
 			Call RetrieveRedStrategyFromServerAndAddToQueue();
 		ElseIf (queuedAction.additionalAction == additionalAction_redToggleJamming);
 			If (redJammerState == activatableAsset_off);
-				redJammerState = activatableAsset_on;
+				Call SetRedJammerState(activatableAsset_on, red);
 			ElseIf (redJammerState == activatableAsset_on);
-				redJammerState = activatableAsset_off;
+				Call SetRedJammerState(activatableAsset_off, red);
 			Else;
 				Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
 			End;
 		ElseIf (queuedAction.additionalAction == additionalAction_redToggleJamming);
-			// TODO
+			If (redJammerState == activatableAsset_off);
+				Call SetRedJammerState(activatableAsset_on, red);
+			ElseIf(redJammerState == activatableAsset_on);
+				Call SetRedJammerState(activatableAsset_off, red);
+			End;
 		ElseIf (queuedAction.additionalAction == additionalAction_none);
 			// do nothing
 		Else;
@@ -1774,8 +1778,8 @@ Define Procedure BuildOperatorActionsMenu();
 	OperatorActions.AddLabel(msg);
 	OperatorActions.AddSeparator("", 1);
 	
-	If (redJammerState == 1);
-		msg = "Warning: Primary comms path is currently disrupted.";
+	If (redJammerState == activatableAsset_on);
+		msg = "WARNING: Primary comms path is currently disrupted.";
 		OperatorActions.AddLabel(msg);
 		OperatorActions.AddSeparator("", 1);
 	End;
@@ -1842,11 +1846,11 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 	
 	If (userChoice == choice_secondaryComms);
 		If (blueBackupCommsState == activatableAsset_off); // inactive
-			blueBackupCommsState = activatableAsset_on;
+			blueBackupCommsState = activatableAsset_ready;
 		ElseIf (blueBackupCommsState == activatableAsset_ready); // ready
-			Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
+			blueBackupCommsState = activatableAsset_on;
 		ElseIf (blueBackupCommsState == activatableAsset_on); // active
-			blueBackupCommsState = activatableAsset_off;
+			blueBackupCommsState = activatableAsset_ready;
 		End;
 	End;
 	
@@ -3143,13 +3147,13 @@ EndProcedure;
 
 Call SetBlueJammerState(activatableAsset_off);
 
-viewMain3D.SetObjectIcon(red[1].ObjectId,  "Icons/jammingWarning.png");
-viewUplink.SetObjectIcon(red[1].ObjectId,  "Icons/jammingWarning.png");
-viewPayload.SetObjectIcon(red[1].ObjectId, "Icons/jammingWarning.png");
+viewMain3D.SetObjectIcon(red[1].ObjectId,  "Icons\jammingWarning.png");
+viewUplink.SetObjectIcon(red[1].ObjectId,  "Icons\jammingWarning.png");
+viewPayload.SetObjectIcon(red[1].ObjectId, "Icons\jammingWarning.png");
 
-viewMain3D.SetObjectIcon(red[2].ObjectId,  "Icons/jammingWarning.png");
-viewUplink.SetObjectIcon(red[2].ObjectId,  "Icons/jammingWarning.png");
-viewPayload.SetObjectIcon(red[2].ObjectId, "Icons/jammingWarning.png");
+viewMain3D.SetObjectIcon(red[2].ObjectId,  "Icons\jammingWarning.png");
+viewUplink.SetObjectIcon(red[2].ObjectId,  "Icons\jammingWarning.png");
+viewPayload.SetObjectIcon(red[2].ObjectId, "Icons\jammingWarning.png");
 
 
 // Set initial states
@@ -3812,7 +3816,7 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 	Variable dataReadoutIsJammed = redJammerState;
 	
 	// If backup comms are active, no effect from jamming
-	If (blueBackupCommsState == 2);
+	If (blueBackupCommsState == activatableAsset_on);
 		dataReadoutIsJammed = 0;
 	End;
 	
@@ -4258,14 +4262,18 @@ Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, F
 			Call RetrieveRedStrategyFromServerAndAddToQueue();
 		ElseIf (queuedAction.additionalAction == additionalAction_redToggleJamming);
 			If (redJammerState == activatableAsset_off);
-				redJammerState = activatableAsset_on;
+				Call SetRedJammerState(activatableAsset_on, red);
 			ElseIf (redJammerState == activatableAsset_on);
-				redJammerState = activatableAsset_off;
+				Call SetRedJammerState(activatableAsset_off, red);
 			Else;
 				Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
 			End;
 		ElseIf (queuedAction.additionalAction == additionalAction_redToggleJamming);
-			// TODO
+			If (redJammerState == activatableAsset_off);
+				Call SetRedJammerState(activatableAsset_on, red);
+			ElseIf(redJammerState == activatableAsset_on);
+				Call SetRedJammerState(activatableAsset_off, red);
+			End;
 		ElseIf (queuedAction.additionalAction == additionalAction_none);
 			// do nothing
 		Else;
@@ -4374,8 +4382,8 @@ Define Procedure BuildOperatorActionsMenu();
 	OperatorActions.AddLabel(msg);
 	OperatorActions.AddSeparator("", 1);
 	
-	If (redJammerState == 1);
-		msg = "Warning: Primary comms path is currently disrupted.";
+	If (redJammerState == activatableAsset_on);
+		msg = "WARNING: Primary comms path is currently disrupted.";
 		OperatorActions.AddLabel(msg);
 		OperatorActions.AddSeparator("", 1);
 	End;
@@ -4442,11 +4450,11 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 	
 	If (userChoice == choice_secondaryComms);
 		If (blueBackupCommsState == activatableAsset_off); // inactive
-			blueBackupCommsState = activatableAsset_on;
+			blueBackupCommsState = activatableAsset_ready;
 		ElseIf (blueBackupCommsState == activatableAsset_ready); // ready
-			Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
+			blueBackupCommsState = activatableAsset_on;
 		ElseIf (blueBackupCommsState == activatableAsset_on); // active
-			blueBackupCommsState = activatableAsset_off;
+			blueBackupCommsState = activatableAsset_ready;
 		End;
 	End;
 	

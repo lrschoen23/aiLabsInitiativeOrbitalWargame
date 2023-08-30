@@ -380,7 +380,15 @@ Define Procedure AddBurnToActions(Array dv, TimeSpan epoch, Variable formationIn
 	lastAction.formationIndex = formationIndex;
 EndProcedure;
 
-
+Define Procedure AddJammerToggleToActions(TimeSpan epoch);
+	Alias lastAction = actions[actions.Count - 1];
+	actions.Count += 1;
+	lastAction.epoch = epoch;
+	lastAction.burnRIC = {0,0,0};
+	lastAction.additionalAction = additionalAction_redToggleJamming;
+	lastAction.isBlue = 0;
+	lastAction.formationIndex = 0;
+EndProcedure;
 
 
 Define Procedure visualize(Optimizer opt, ViewWindow vw, Variable clearTails);
@@ -470,7 +478,7 @@ Define Procedure ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(
 		opt.AddStateVariable("burnEpoch" + (i+1).ToString(),  burnEpochs[i].ToDays(), burnEpochs[i].ToDays() - 0.1, burnEpochs[i].ToDays() + 0.1);
 	End;
 	
-	Variable lonAdjustment = 0.02;
+	Variable lonAdjustment = 0.0;
 	
 	opt.AddConstraint("startTime", red.Epoch.ToDays(), red.Epoch.ToDays());
 	opt.AddConstraint("driftE", 0, 0, 1000);
@@ -534,12 +542,12 @@ Define Procedure ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(
 		opt.Minimize(totalDV*1);
 	
 		
-		If (opt.OptimizationPhase == 1);
-			Report opt.NominalEvaluationCount, "   ",
-			opt.ObjectiveFunctionValue, "   ",
-			opt.MaximumInfeasibility, "   ",
-			opt.MaximumInfeasibilitySource to ConsoleSolver;
-		End;
+//		If (opt.OptimizationPhase == 1);
+//			Report opt.NominalEvaluationCount, "   ",
+//			opt.ObjectiveFunctionValue, "   ",
+//			opt.MaximumInfeasibility, "   ",
+//			opt.MaximumInfeasibilitySource to ConsoleSolver;
+//		End;
 		
 	End;
 	Report opt.ReturnString, "Best DV: " + (opt.GetBestObjectiveFunctionValue() / 1).ToString() to ConsoleSolver;
@@ -796,9 +804,13 @@ Define Procedure ComputeDisableScriptStrategy(Formation red, Formation blue, Var
 
 	Send "updateWillOccur", 1 to connection;
 	
-//	Call ComputeDisableScriptRed1TransitManeuversAndAddToActions(red[0], blue[0], incursionEpoch, driftTime);
-	Call ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(red[2], blue[0], incursionEpoch, driftTime, 2);
+	Call ComputeDisableScriptRed1TransitManeuversAndAddToActions(red[0], blue[0], incursionEpoch, driftTime);
 	Call ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(red[1], blue[0], incursionEpoch, driftTime, 1);
+	Call ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(red[2], blue[0], incursionEpoch, driftTime, 2);
+	
+	Call AddJammerToggleToActions(incursionEpoch);
+	Call AddJammerToggleToActions(incursionEpoch + TimeSpan.FromDays(1));
+	
 	updateHasBeenComputed = 1;
 EndProcedure;
 
@@ -806,10 +818,20 @@ EndProcedure;
 
 
 
-Define Procedure SortActionsByEpoch();
+Define Procedure SortActionsByEpoch(TimeSpan simEpoch);
 	List<QueuedAction> sortedActions(actions.Count);
 	Variable i;
 	Variable j;
+	
+	For i = 0 to actions.Count - 1;
+		If (actions[i].epoch < simEpoch);
+			If ((actions[i].epoch - simEpoch).ToSeconds() > -20);
+				actions[i].epoch = simEpoch;
+			Else;
+				Diagnostics.ReportErrorMessage(1, "Encountered action epoch that is significantly behind simulation epoch.");
+			End;
+		End;
+	End;
 	
 	Variable numberOfLesserEpochs;
 	For i = 0 to actions.Count - 1;
@@ -911,7 +933,7 @@ While (1);
 				End;
 				
 				If (updateHasBeenComputed);
-				Call SortActionsByEpoch();
+					Call SortActionsByEpoch(TimeSpan.FromDays(epochDays));
 					Report "Sending data..." to Console;
 					Send "numRedActions", actions.Count to connection;
 					For i = 0 to actions.Count - 1;
@@ -1203,7 +1225,15 @@ Define Procedure AddBurnToActions(Array dv, TimeSpan epoch, Variable formationIn
 	lastAction.formationIndex = formationIndex;
 EndProcedure;
 
-
+Define Procedure AddJammerToggleToActions(TimeSpan epoch);
+	Alias lastAction = actions[actions.Count - 1];
+	actions.Count += 1;
+	lastAction.epoch = epoch;
+	lastAction.burnRIC = {0,0,0};
+	lastAction.additionalAction = additionalAction_redToggleJamming;
+	lastAction.isBlue = 0;
+	lastAction.formationIndex = 0;
+EndProcedure;
 
 
 Define Procedure visualize(Optimizer opt, ViewWindow vw, Variable clearTails);
@@ -1293,7 +1323,7 @@ Define Procedure ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(
 		opt.AddStateVariable("burnEpoch" + (i+1).ToString(),  burnEpochs[i].ToDays(), burnEpochs[i].ToDays() - 0.1, burnEpochs[i].ToDays() + 0.1);
 	End;
 	
-	Variable lonAdjustment = 0.02;
+	Variable lonAdjustment = 0.0;
 	
 	opt.AddConstraint("startTime", red.Epoch.ToDays(), red.Epoch.ToDays());
 	opt.AddConstraint("driftE", 0, 0, 1000);
@@ -1357,12 +1387,12 @@ Define Procedure ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(
 		opt.Minimize(totalDV*1);
 	
 		
-		If (opt.OptimizationPhase == 1);
-			Report opt.NominalEvaluationCount, "   ",
-			opt.ObjectiveFunctionValue, "   ",
-			opt.MaximumInfeasibility, "   ",
-			opt.MaximumInfeasibilitySource to ConsoleSolver;
-		End;
+//		If (opt.OptimizationPhase == 1);
+//			Report opt.NominalEvaluationCount, "   ",
+//			opt.ObjectiveFunctionValue, "   ",
+//			opt.MaximumInfeasibility, "   ",
+//			opt.MaximumInfeasibilitySource to ConsoleSolver;
+//		End;
 		
 	End;
 	Report opt.ReturnString, "Best DV: " + (opt.GetBestObjectiveFunctionValue() / 1).ToString() to ConsoleSolver;
@@ -1619,9 +1649,13 @@ Define Procedure ComputeDisableScriptStrategy(Formation red, Formation blue, Var
 
 	Send "updateWillOccur", 1 to connection;
 	
-//	Call ComputeDisableScriptRed1TransitManeuversAndAddToActions(red[0], blue[0], incursionEpoch, driftTime);
-	Call ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(red[2], blue[0], incursionEpoch, driftTime, 2);
+	Call ComputeDisableScriptRed1TransitManeuversAndAddToActions(red[0], blue[0], incursionEpoch, driftTime);
 	Call ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(red[1], blue[0], incursionEpoch, driftTime, 1);
+	Call ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(red[2], blue[0], incursionEpoch, driftTime, 2);
+	
+	Call AddJammerToggleToActions(incursionEpoch);
+	Call AddJammerToggleToActions(incursionEpoch + TimeSpan.FromDays(1));
+	
 	updateHasBeenComputed = 1;
 EndProcedure;
 
@@ -1629,10 +1663,20 @@ EndProcedure;
 
 
 
-Define Procedure SortActionsByEpoch();
+Define Procedure SortActionsByEpoch(TimeSpan simEpoch);
 	List<QueuedAction> sortedActions(actions.Count);
 	Variable i;
 	Variable j;
+	
+	For i = 0 to actions.Count - 1;
+		If (actions[i].epoch < simEpoch);
+			If ((actions[i].epoch - simEpoch).ToSeconds() > -20);
+				actions[i].epoch = simEpoch;
+			Else;
+				Diagnostics.ReportErrorMessage(1, "Encountered action epoch that is significantly behind simulation epoch.");
+			End;
+		End;
+	End;
 	
 	Variable numberOfLesserEpochs;
 	For i = 0 to actions.Count - 1;
@@ -1729,7 +1773,7 @@ While (1);
 				End;
 				
 				If (updateHasBeenComputed);
-				Call SortActionsByEpoch();
+					Call SortActionsByEpoch(TimeSpan.FromDays(epochDays));
 					Report "Sending data..." to Console;
 					Send "numRedActions", actions.Count to connection;
 					For i = 0 to actions.Count - 1;
