@@ -276,7 +276,7 @@ Global TimeSpan simChoiceSpacing = TimeSpan.FromHours(8);
 //Console.Show();
 
 Global TimeSpan uplinkTime = TimeSpan.FromHours(1);
-Global TimeSpan slewTime = TimeSpan.FromHours(1);
+Global TimeSpan slewTime = simChoiceSpacing.Scaled(0.5);
 
 If (uplinkTime > simChoiceSpacing);
 	Diagnostics.ReportErrorMessage(
@@ -290,7 +290,9 @@ End;]]></FreeFormScript>
         <FreeFormScript><![CDATA[
 Global TimeSpan simStepSize = TimeSpan.FromSeconds(simStepSizeSeconds);
 
-Global TimeSpan aheadPredictTime = TimeSpan.FromHours(18);
+Global TimeSpan aheadPredictTimeNominal = TimeSpan.FromHours(18);
+Global TimeSpan aheadPredictTimeSecondaryCommPath = TimeSpan.FromHours(6);
+Global TimeSpan aheadPredictTime = aheadPredictTimeNominal;
 Global Constant Variable aheadPredictRangeUpdateLimit = 500;
 
 
@@ -579,7 +581,7 @@ For i = 0 to red.Count - 1;
 	red[i].BodyScale = 1000;
 	red[i].DisplayName = "Red" + (i+1).ToString();
 	red[i].TailLength = tailPoints;
-	Call InitializeForceModel((red[i].Propagator AsType Integrator).ForceModel);
+	red[i].Propagator.StepSize = simStepSize;
 	
 	viewMain3D.SetShowName(red[i].ObjectId, 1);
 	viewMain3D.SetObjectLabelFont(red[i].ObjectId, vf);
@@ -1665,6 +1667,29 @@ Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, F
 			ElseIf(redJammerState == activatableAsset_on);
 				Call SetRedJammerState(activatableAsset_off, red);
 			End;
+		ElseIf (queuedAction.additionalAction == additionalAction_redDeployInspector);
+			If (red.Count != 3);
+				Diagnostics.ReportErrorMessage(0, "Incorrect number of red spacecraft encountered.");
+			End;
+			red.Count += 1;
+			red[3].BodyScale = 200;
+			red[3].DisplayName = "Red" + red.Count.ToString();
+			red[3].Color = colorRed4;
+			red[3].TailLength = tailPoints;
+			viewMain3D.SetShowName(red[3].ObjectId, 1);
+			viewMain3D.SetObjectLabelFont(red[3].ObjectId, vf);
+			viewPayload.SetShowName(red[3].ObjectId, 1);
+			viewPayload.SetObjectLabelFont(red[3].ObjectId, vf);
+			viewUplink.SetShowName(red[3].ObjectId, 1);
+			viewUplink.SetObjectLabelFont(red[3].ObjectId, vf);
+			
+			red[3].Epoch = red[0].Epoch;
+			red[3].SetCartesianState(red[0].GetCartesianState());
+		ElseIf (queuedAction.additionalAction == additionalAction_redUndeployInspector);
+			If (red.Count != 4);
+				Diagnostics.ReportErrorMessage(0, "Incorrect number of red spacecraft encountered.");
+			End;
+			red.Count -= 1;
 		ElseIf (queuedAction.additionalAction == additionalAction_none);
 			// do nothing
 		Else;
@@ -1788,11 +1813,11 @@ Define Procedure BuildOperatorActionsMenu();
 	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_nominal",   "Continue nominal operations");
 	
 	If (blueBackupCommsState == activatableAsset_off);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Ready secondary blue comms path");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Ready secondary comms path");
 	ElseIf (blueBackupCommsState == activatableAsset_ready);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to secondary blue comms path");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to secondary comms path");
 	ElseIf (blueBackupCommsState == activatableAsset_on);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to primary blue comm path");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to primary comm path");
 	End;
 	
 	If (redJammerState == activatableAsset_off);
@@ -1847,10 +1872,13 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 	If (userChoice == choice_secondaryComms);
 		If (blueBackupCommsState == activatableAsset_off); // inactive
 			blueBackupCommsState = activatableAsset_ready;
+			aheadPredictTime = aheadPredictTimeNominal;
 		ElseIf (blueBackupCommsState == activatableAsset_ready); // ready
 			blueBackupCommsState = activatableAsset_on;
+			aheadPredictTime = aheadPredictTimeSecondaryCommPath;
 		ElseIf (blueBackupCommsState == activatableAsset_on); // active
 			blueBackupCommsState = activatableAsset_ready;
+			aheadPredictTime = aheadPredictTimeNominal;
 		End;
 	End;
 	
@@ -2859,7 +2887,11 @@ While (blueIsOffNominal or redIsEngaged);
 	Call GetNextQueuedActionEpoch(nextQueuedActionEpoch);
 	While (nextQueuedActionEpoch < nextChoiceEpoch);
 		If (nextQueuedActionEpoch < simEpoch);
-			Diagnostics.ReportErrorMessage(0, "Encountered action epoch prior to simulation epoch." + (simEpoch - nextQueuedActionEpoch).ToHours().ToString());
+			If ((nextQueuedActionEpoch - simEpoch).Abs().ToSeconds() < 10);
+				// Allow the discrepancy
+			Else;
+				Diagnostics.ReportErrorMessage(0, "Encountered action epoch prior to simulation epoch." + (simEpoch - nextQueuedActionEpoch).ToHours().ToString());
+			End;
 		End;
 		Call PopNextQueuedAction(nextQueuedAction);
 		Call AdvanceSimToFutureEpoch(red, blue, nextQueuedAction.epoch);
@@ -2910,7 +2942,7 @@ Global TimeSpan simChoiceSpacing = TimeSpan.FromHours(8);
 //Console.Show();
 
 Global TimeSpan uplinkTime = TimeSpan.FromHours(1);
-Global TimeSpan slewTime = TimeSpan.FromHours(1);
+Global TimeSpan slewTime = simChoiceSpacing.Scaled(0.5);
 
 If (uplinkTime > simChoiceSpacing);
 	Diagnostics.ReportErrorMessage(
@@ -2919,7 +2951,9 @@ End;
 
 Global TimeSpan simStepSize = TimeSpan.FromSeconds(simStepSizeSeconds);
 
-Global TimeSpan aheadPredictTime = TimeSpan.FromHours(18);
+Global TimeSpan aheadPredictTimeNominal = TimeSpan.FromHours(18);
+Global TimeSpan aheadPredictTimeSecondaryCommPath = TimeSpan.FromHours(6);
+Global TimeSpan aheadPredictTime = aheadPredictTimeNominal;
 Global Constant Variable aheadPredictRangeUpdateLimit = 500;
 
 
@@ -3208,7 +3242,7 @@ For i = 0 to red.Count - 1;
 	red[i].BodyScale = 1000;
 	red[i].DisplayName = "Red" + (i+1).ToString();
 	red[i].TailLength = tailPoints;
-	Call InitializeForceModel((red[i].Propagator AsType Integrator).ForceModel);
+	red[i].Propagator.StepSize = simStepSize;
 	
 	viewMain3D.SetShowName(red[i].ObjectId, 1);
 	viewMain3D.SetObjectLabelFont(red[i].ObjectId, vf);
@@ -4274,6 +4308,29 @@ Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, F
 			ElseIf(redJammerState == activatableAsset_on);
 				Call SetRedJammerState(activatableAsset_off, red);
 			End;
+		ElseIf (queuedAction.additionalAction == additionalAction_redDeployInspector);
+			If (red.Count != 3);
+				Diagnostics.ReportErrorMessage(0, "Incorrect number of red spacecraft encountered.");
+			End;
+			red.Count += 1;
+			red[3].BodyScale = 200;
+			red[3].DisplayName = "Red" + red.Count.ToString();
+			red[3].Color = colorRed4;
+			red[3].TailLength = tailPoints;
+			viewMain3D.SetShowName(red[3].ObjectId, 1);
+			viewMain3D.SetObjectLabelFont(red[3].ObjectId, vf);
+			viewPayload.SetShowName(red[3].ObjectId, 1);
+			viewPayload.SetObjectLabelFont(red[3].ObjectId, vf);
+			viewUplink.SetShowName(red[3].ObjectId, 1);
+			viewUplink.SetObjectLabelFont(red[3].ObjectId, vf);
+			
+			red[3].Epoch = red[0].Epoch;
+			red[3].SetCartesianState(red[0].GetCartesianState());
+		ElseIf (queuedAction.additionalAction == additionalAction_redUndeployInspector);
+			If (red.Count != 4);
+				Diagnostics.ReportErrorMessage(0, "Incorrect number of red spacecraft encountered.");
+			End;
+			red.Count -= 1;
 		ElseIf (queuedAction.additionalAction == additionalAction_none);
 			// do nothing
 		Else;
@@ -4392,11 +4449,11 @@ Define Procedure BuildOperatorActionsMenu();
 	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_nominal",   "Continue nominal operations");
 	
 	If (blueBackupCommsState == activatableAsset_off);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Ready secondary blue comms path");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Ready secondary comms path");
 	ElseIf (blueBackupCommsState == activatableAsset_ready);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to secondary blue comms path");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to secondary comms path");
 	ElseIf (blueBackupCommsState == activatableAsset_on);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to primary blue comm path");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to primary comm path");
 	End;
 	
 	If (redJammerState == activatableAsset_off);
@@ -4451,10 +4508,13 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 	If (userChoice == choice_secondaryComms);
 		If (blueBackupCommsState == activatableAsset_off); // inactive
 			blueBackupCommsState = activatableAsset_ready;
+			aheadPredictTime = aheadPredictTimeNominal;
 		ElseIf (blueBackupCommsState == activatableAsset_ready); // ready
 			blueBackupCommsState = activatableAsset_on;
+			aheadPredictTime = aheadPredictTimeSecondaryCommPath;
 		ElseIf (blueBackupCommsState == activatableAsset_on); // active
 			blueBackupCommsState = activatableAsset_ready;
+			aheadPredictTime = aheadPredictTimeNominal;
 		End;
 	End;
 	
@@ -5443,7 +5503,11 @@ While (blueIsOffNominal or redIsEngaged);
 	Call GetNextQueuedActionEpoch(nextQueuedActionEpoch);
 	While (nextQueuedActionEpoch < nextChoiceEpoch);
 		If (nextQueuedActionEpoch < simEpoch);
-			Diagnostics.ReportErrorMessage(0, "Encountered action epoch prior to simulation epoch." + (simEpoch - nextQueuedActionEpoch).ToHours().ToString());
+			If ((nextQueuedActionEpoch - simEpoch).Abs().ToSeconds() < 10);
+				// Allow the discrepancy
+			Else;
+				Diagnostics.ReportErrorMessage(0, "Encountered action epoch prior to simulation epoch." + (simEpoch - nextQueuedActionEpoch).ToHours().ToString());
+			End;
 		End;
 		Call PopNextQueuedAction(nextQueuedAction);
 		Call AdvanceSimToFutureEpoch(red, blue, nextQueuedAction.epoch);
