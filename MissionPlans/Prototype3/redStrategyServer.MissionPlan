@@ -161,8 +161,8 @@ Global TimeSpan red2and3TransitOrbitTime = TimeSpan.FromDays(0.2);]]></FreeFormS
         <FreeFormScript><![CDATA[
 Define Procedure HasBlueManeuvered(Spacecraft blue, Variable blueHasManeuvered);
 	blueHasManeuvered = 0;
-	If (abs(blue.Radius - lastBlueRadius) > 5
-			or abs(blue.Longitude - lastBlueLongitude) > 0.15);
+	If (abs(blue.Radius - lastBlueRadius) > 3
+			or abs(blue.Longitude - lastBlueLongitude) > 0.05);
 		blueHasManeuvered = 1;
 		lastBlueLongitude = blue.Longitude;
 		lastBlueRadius = blue.Radius;
@@ -266,7 +266,7 @@ Define Procedure ComputeRed1DriftOrbitRadius(
 		
 		Call ComputeDeltaMeanMotion(r, r, meanMotionBlue, deltaMeanMotion);
 		opt.SetConstraintValue(0, 
-			rad(L_B - 0.2 - L_0) - deltaMeanMotion * driftTime.ToSeconds());
+			rad(L_B - 0.31 - L_0) - deltaMeanMotion * driftTime.ToSeconds());
 		
 		opt.Minimize(0);
 		
@@ -341,7 +341,7 @@ EndProcedure;
 
 Define Procedure IsBlueInStableGeoOrbit(Spacecraft blue, Variable blueIsInStableGeoOrbit);
 	blueIsInStableGeoOrbit = 0;
-	If (abs(blue.Radius - 42164) < 5);
+	If (abs(blue.Radius - 42164) < 3);
 		If (blue.E < 0.001);
 			blueIsInStableGeoOrbit = 1;
 		End;
@@ -381,6 +381,30 @@ Define Procedure AddBurnToActions(Array dv, TimeSpan epoch, Variable formationIn
 EndProcedure;
 
 
+
+
+Define Procedure visualize(Optimizer opt, ViewWindow vw, Variable clearTails);
+	Variable phase;
+	Variable node;
+	Array colors = ColorTools.GetPaletteColors("Light");
+	
+	If (clearTails);
+		vw.ResetTails();
+	End;
+	
+	vw.BeginBatchUpdate();
+	For phase = 0 to opt.TrajectoryPhases.Count - 1;
+		opt.TrajectoryPhases[phase].PathConstantColor = colors[phase];
+		For node = 0 to opt.TrajectoryPhases[phase].NumberOfNodes - 1;
+			opt.TrajectoryPhases[phase].NodeIndexToView = node;
+			Update vw;
+		End;
+		opt.TrajectoryPhases[phase].NodeIndexToView = -999;
+		vw.InsertLineBreak();
+	End;
+	vw.EndBatchUpdate();
+EndProcedure;
+
 Define Procedure ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(
 		Spacecraft red,
 		Spacecraft blue,
@@ -400,6 +424,11 @@ Define Procedure ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(
 	
 	Call ComputeRed2Or3DriftOrbitRadius(red, blue, incursionEpoch, arrivalRadius, driftTime, driftOrbitRadius);
 	Array dv;
+	
+	red.Save("IC");
+	Variable initialA = red.A;
+	Variable initalI = red.I;
+	
 	Call TargetNewOrbitSingleBurn(red, red.Radius, driftOrbitRadius, burns[0]);
 	burnEpochs[0] = red.Epoch;
 	burn.BurnDirection = burns[0];
@@ -430,10 +459,219 @@ Define Procedure ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(
 	burns[5] = -burns[4];
 	burnEpochs[5] = red.Epoch + TimeSpan.FromMinutes(red.Period);
 	
+	red.Restore("IC");
+	
 	Variable i;
+	Optimizer opt;
+	opt.Reset(1);
 	For i = 0 to burns.Count - 1;
-		Call AddBurnToActions(burns[i], burnEpochs[i], redIndex);
+		opt.AddStateVariable("burn" + (i+1).ToString() + "1", burns[i][0], -0.01, 0.01);
+		opt.AddStateVariable("burn" + (i+1).ToString() + "2", burns[i][1], -0.01, 0.01);
+		opt.AddStateVariable("burnEpoch" + (i+1).ToString(),  burnEpochs[i].ToDays(), burnEpochs[i].ToDays() - 0.1, burnEpochs[i].ToDays() + 0.1);
 	End;
+	
+	Variable lonAdjustment = 0.02;
+	
+	opt.AddConstraint("startTime", red.Epoch.ToDays(), red.Epoch.ToDays());
+	opt.AddConstraint("driftE", 0, 0, 1000);
+	opt.AddConstraint("arrivalRadius", arrivalRadius, arrivalRadius, 100);
+	opt.AddConstraint("arrivalRdotV", 0, 0);
+	opt.AddConstraint("arrivalLon", blue.Longitude + lonAdjustment, blue.Longitude + lonAdjustment, 1);
+	opt.AddConstraint("arrivalTime", incursionEpoch.ToDays(), incursionEpoch.ToDays());
+	opt.AddConstraint("rpoRp", blue.A-incursionRadialSeparation, blue.A-incursionRadialSeparation, 100);
+	opt.AddConstraint("rpoRa", blue.A+incursionRadialSeparation, blue.A+incursionRadialSeparation, 100);
+	opt.AddConstraint("rpoDuration", 1, 1);
+	opt.AddConstraintBlock(2, "lastBurn", 0, 0);
+	
+	opt.SaveObjectToProcess(red);
+	
+	opt.MaximumNominalEvaluationCount = 70;
+	opt.FeasibilityTolerance = 1e-6;
+	opt.FiniteDifferenceMethod = 1;
+	
+	Variable totalDV;
+	
+	IpoptOptions ipopt;
+	ipopt.Tolerance = 1e-3;
+	opt.LoadEngine(ipopt);
+	While (opt.IsRunning());
+		opt.UpdateStateVariables();
+		opt.RestoreObjectsInProcess();
+		
+		totalDV = 0;
+		For i = 0 to burns.Count - 1;
+			burns[i][0] = opt.GetStateVariableValue("burn" + (i+1).ToString() + "1");
+			burns[i][1] = opt.GetStateVariableValue("burn" + (i+1).ToString() + "2");
+			burns[i][2] = 0;
+			burnEpochs[i] = TimeSpan.FromDays(opt.GetStateVariableValue("burnEpoch" + (i+1).ToString()));
+			red.StepToEpoch(burnEpochs[i]);
+			burn.BurnDirection = burns[i];
+			totalDV += burns[i].Norm;
+			
+			If (i == 4);
+				opt.SetConstraintValue("arrivalRadius", red.Radius);
+				opt.SetConstraintValue("arrivalRdotV", red.Position.Normalized.DotProduct(red.Velocity.Normalized));
+				opt.SetConstraintValue("arrivalLon", red.Longitude);
+				opt.SetConstraintValue("arrivalTime", red.Epoch.ToDays());
+			End;
+				
+			red.Maneuver(burn);
+			
+			If (i == 1);
+				opt.SetConstraintValue("driftE", red.Periapsis - red.Apoapsis);
+			ElseIf (i == 4);
+				opt.SetConstraintValue("rpoRp", red.Periapsis);
+				opt.SetConstraintValue("rpoRa", red.Apoapsis);
+			End;
+		End;
+		
+		opt.SetConstraintValue("startTime", burnEpochs[0].ToDays());
+		opt.SetConstraintValue("rpoDuration", (burnEpochs[5] - burnEpochs[4]).ToDays());
+		opt.SetConstraintValue("lastBurn1", burns[5][0] + burns[4][0]);
+		opt.SetConstraintValue("lastBurn2", burns[5][1] + burns[4][1]);
+	
+		
+		opt.Minimize(totalDV*1);
+	
+		
+		If (opt.OptimizationPhase == 1);
+			Report opt.NominalEvaluationCount, "   ",
+			opt.ObjectiveFunctionValue, "   ",
+			opt.MaximumInfeasibility, "   ",
+			opt.MaximumInfeasibilitySource to ConsoleSolver;
+		End;
+		
+	End;
+	Report opt.ReturnString, "Best DV: " + (opt.GetBestObjectiveFunctionValue() / 1).ToString() to ConsoleSolver;
+	opt.RestoreObjectsInProcess();
+		
+		
+		
+		
+		
+	
+//	List<TrajectoryPhase> traj;
+//	traj.Count = 0;
+//	traj.Count = burns.Count + 1;
+//	TimeSpan duration;
+//	Variable nodesPerRev = 40;
+//	Variable numNodes;
+//	red.StepToEpoch(red.Epoch - TimeSpan.FromHours(1));
+//	For i = 0 to burns.Count - 1;
+//		duration = burnEpochs[i] - red.Epoch;
+//		numNodes = max(3, nodesPerRev * duration.ToDays());
+//		traj[i].AddNodes(red, duration, numNodes, 0);
+//		traj[i].SetPositionBounds("path", -42164*1.2, 42164*1.2);
+//		burn.BurnDirection = burns[i];
+//		red.Maneuver(burn);
+//	End;
+//	traj[burns.Count].AddNodes(red, TimeSpan.FromHours(1), 3, 0);
+//	
+//	traj[0].Lock("first");
+//	traj[0].LockTimeOfFlight();
+//	
+//	traj[4].LockEpoch("last", incursionEpoch);
+//	traj[4].AddRadiusConstraint("last", arrivalRadius, arrivalRadius);
+//	
+//	traj[6].LockTimeOfFlight();
+//	
+//	Optimizer opt;
+//	opt.Reset(1);
+//	For i = 0 to traj.Count - 1;
+//		opt.AddTrajectoryPhase(traj[i]);
+//	End;
+//	
+//	For i = 0 to traj.Count - 2;
+//		opt.AddPhasePositionLink(traj[i], traj[i+1]);
+//		opt.AddPhaseMassLink(traj[i], traj[i+1]);
+//		opt.AddPhaseEpochLink(traj[i], traj[i+1]);
+//		opt.AddPhaseLinkDeltaVConstraint(traj[i], traj[i+1], 0.01);
+//	End;
+//	
+//	opt.SaveObjectToProcess(blue);
+//	
+//	opt.AddConstraint("rpoLon", blue.Longitude, blue.Longitude);
+//	opt.AddConstraint("rpoRdotV", 0, 0);
+//	opt.AddConstraint("rpoRp", blue.A-incursionRadialSeparation, blue.A-incursionRadialSeparation, 100);
+//	opt.AddConstraint("rpoRa", blue.A+incursionRadialSeparation, blue.A+incursionRadialSeparation, 100);
+//	opt.AddConstraint("rpoDuration", 0, 0);
+//	opt.AddConstraint("finalA", initialA, initialA, 100);
+//	opt.AddConstraint("driftE", 0, 0, 1000);
+//	
+//	opt.AddConstraintBlock(traj.Count, "I", 0, 0, 100);
+////	opt.AddConstraint("finalE", 0, 0);
+//	
+//	opt.MaximumNominalEvaluationCount = 400;
+//	opt.FeasibilityTolerance = 1e-4;
+//	opt.FiniteDifferenceMethod = 1;
+//	
+//	Variable totalDV;
+//	
+//	IpoptOptions ipopt;
+//	ipopt.Tolerance = 1e-3;
+//	opt.LoadEngine(ipopt);
+//	While (opt.IsRunning());
+//		opt.UpdateStateVariables();
+//		opt.RestoreObjectsInProcess();
+//		
+//		traj[2].FirstNode.SetSpacecraftState(red);
+//		opt.SetConstraintValue("driftE", red.Periapsis - red.Apoapsis);
+//		
+//		traj[5].FirstNode.SetSpacecraftState(red);
+//		opt.SetConstraintValue("rpoLon", red.Longitude);
+//		opt.SetConstraintValue("rpoRdotV", red.Position.Normalized.DotProduct(red.Velocity.Normalized));
+//		opt.SetConstraintValue("rpoRp", red.Periapsis);
+//		opt.SetConstraintValue("rpoRa", red.Apoapsis);
+//		opt.SetConstraintValue("rpoDuration", blue.Period - traj[5].TimeOfFlight.ToMinutes());
+//		
+//		traj[6].FirstNode.SetSpacecraftState(red);
+//		opt.SetConstraintValue("finalA", red.A);
+////		opt.SetConstraintValue("finalE", red.E);
+//		
+//		For i = 0 to traj.Count - 1;
+//			traj[i].FirstNode.SetSpacecraftState(red);
+//			opt.SetConstraintValue("I" + (i+1).ToString(), red.I - initalI);
+//		End;
+//		
+//		totalDV = 0;
+//		For i = 0 to traj.Count - 2;
+//			totalDV += traj[i].ComputeInterphaseDeltaV(traj[i+1]).Norm;
+//		End;
+//		opt.Minimize(totalDV*10);
+//		
+//		
+//		If (opt.OptimizationPhase == 1);
+//			Report opt.NominalEvaluationCount, "   ",
+//			opt.ObjectiveFunctionValue, "   ",
+//			opt.MaximumInfeasibility, "   ",
+//			opt.MaximumInfeasibilitySource to ConsoleSolver;
+//		End;
+//		
+//	End;
+//	Report opt.ReturnString, "Best DV: " + (opt.GetBestObjectiveFunctionValue() / 10).ToString() to ConsoleSolver;
+//	opt.RestoreObjectsInProcess();
+//	opt.Reset();
+//	
+//	red.Restore("IC");
+//	
+//	For i = 0 to burns.Count;
+//		traj[i].ApplyBestSolution();		
+//	End;
+	
+	For i = 0 to burns.Count - 1;
+//		red.StepToEpoch(traj[i+1].FirstNode.Epoch);
+//		burnEpochs[i] = red.Epoch;
+//		burns[i] = AttitudeConvert(0, 6, red, traj[i].ComputeInterphaseDeltaV(traj[i+1]));
+		
+		burns[i][0] = opt.GetBestStateVariableValue("burn" + (i+1).ToString() + "1");
+		burns[i][1] = opt.GetBestStateVariableValue("burn" + (i+1).ToString() + "2");
+		burns[i][2] = 0;
+		burnEpochs[i] = TimeSpan.FromDays(opt.GetBestStateVariableValue("burnEpoch" + (i+1).ToString()));
+		
+		Call AddBurnToActions(burns[i], burnEpochs[i], redIndex);
+		
+	End;
+	red.Restore("IC");
 	
 EndProcedure;
 
@@ -558,9 +796,9 @@ Define Procedure ComputeDisableScriptStrategy(Formation red, Formation blue, Var
 
 	Send "updateWillOccur", 1 to connection;
 	
-	Call ComputeDisableScriptRed1TransitManeuversAndAddToActions(red[0], blue[0], incursionEpoch, driftTime);
-	Call ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(red[1], blue[0], incursionEpoch, driftTime, 1);
+//	Call ComputeDisableScriptRed1TransitManeuversAndAddToActions(red[0], blue[0], incursionEpoch, driftTime);
 	Call ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(red[2], blue[0], incursionEpoch, driftTime, 2);
+	Call ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(red[1], blue[0], incursionEpoch, driftTime, 1);
 	updateHasBeenComputed = 1;
 EndProcedure;
 
@@ -746,8 +984,8 @@ Global TimeSpan red2and3TransitOrbitTime = TimeSpan.FromDays(0.2);
 
 Define Procedure HasBlueManeuvered(Spacecraft blue, Variable blueHasManeuvered);
 	blueHasManeuvered = 0;
-	If (abs(blue.Radius - lastBlueRadius) > 5
-			or abs(blue.Longitude - lastBlueLongitude) > 0.15);
+	If (abs(blue.Radius - lastBlueRadius) > 3
+			or abs(blue.Longitude - lastBlueLongitude) > 0.05);
 		blueHasManeuvered = 1;
 		lastBlueLongitude = blue.Longitude;
 		lastBlueRadius = blue.Radius;
@@ -851,7 +1089,7 @@ Define Procedure ComputeRed1DriftOrbitRadius(
 		
 		Call ComputeDeltaMeanMotion(r, r, meanMotionBlue, deltaMeanMotion);
 		opt.SetConstraintValue(0, 
-			rad(L_B - 0.2 - L_0) - deltaMeanMotion * driftTime.ToSeconds());
+			rad(L_B - 0.31 - L_0) - deltaMeanMotion * driftTime.ToSeconds());
 		
 		opt.Minimize(0);
 		
@@ -926,7 +1164,7 @@ EndProcedure;
 
 Define Procedure IsBlueInStableGeoOrbit(Spacecraft blue, Variable blueIsInStableGeoOrbit);
 	blueIsInStableGeoOrbit = 0;
-	If (abs(blue.Radius - 42164) < 5);
+	If (abs(blue.Radius - 42164) < 3);
 		If (blue.E < 0.001);
 			blueIsInStableGeoOrbit = 1;
 		End;
@@ -966,6 +1204,30 @@ Define Procedure AddBurnToActions(Array dv, TimeSpan epoch, Variable formationIn
 EndProcedure;
 
 
+
+
+Define Procedure visualize(Optimizer opt, ViewWindow vw, Variable clearTails);
+	Variable phase;
+	Variable node;
+	Array colors = ColorTools.GetPaletteColors("Light");
+	
+	If (clearTails);
+		vw.ResetTails();
+	End;
+	
+	vw.BeginBatchUpdate();
+	For phase = 0 to opt.TrajectoryPhases.Count - 1;
+		opt.TrajectoryPhases[phase].PathConstantColor = colors[phase];
+		For node = 0 to opt.TrajectoryPhases[phase].NumberOfNodes - 1;
+			opt.TrajectoryPhases[phase].NodeIndexToView = node;
+			Update vw;
+		End;
+		opt.TrajectoryPhases[phase].NodeIndexToView = -999;
+		vw.InsertLineBreak();
+	End;
+	vw.EndBatchUpdate();
+EndProcedure;
+
 Define Procedure ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(
 		Spacecraft red,
 		Spacecraft blue,
@@ -985,6 +1247,11 @@ Define Procedure ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(
 	
 	Call ComputeRed2Or3DriftOrbitRadius(red, blue, incursionEpoch, arrivalRadius, driftTime, driftOrbitRadius);
 	Array dv;
+	
+	red.Save("IC");
+	Variable initialA = red.A;
+	Variable initalI = red.I;
+	
 	Call TargetNewOrbitSingleBurn(red, red.Radius, driftOrbitRadius, burns[0]);
 	burnEpochs[0] = red.Epoch;
 	burn.BurnDirection = burns[0];
@@ -1015,10 +1282,219 @@ Define Procedure ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(
 	burns[5] = -burns[4];
 	burnEpochs[5] = red.Epoch + TimeSpan.FromMinutes(red.Period);
 	
+	red.Restore("IC");
+	
 	Variable i;
+	Optimizer opt;
+	opt.Reset(1);
 	For i = 0 to burns.Count - 1;
-		Call AddBurnToActions(burns[i], burnEpochs[i], redIndex);
+		opt.AddStateVariable("burn" + (i+1).ToString() + "1", burns[i][0], -0.01, 0.01);
+		opt.AddStateVariable("burn" + (i+1).ToString() + "2", burns[i][1], -0.01, 0.01);
+		opt.AddStateVariable("burnEpoch" + (i+1).ToString(),  burnEpochs[i].ToDays(), burnEpochs[i].ToDays() - 0.1, burnEpochs[i].ToDays() + 0.1);
 	End;
+	
+	Variable lonAdjustment = 0.02;
+	
+	opt.AddConstraint("startTime", red.Epoch.ToDays(), red.Epoch.ToDays());
+	opt.AddConstraint("driftE", 0, 0, 1000);
+	opt.AddConstraint("arrivalRadius", arrivalRadius, arrivalRadius, 100);
+	opt.AddConstraint("arrivalRdotV", 0, 0);
+	opt.AddConstraint("arrivalLon", blue.Longitude + lonAdjustment, blue.Longitude + lonAdjustment, 1);
+	opt.AddConstraint("arrivalTime", incursionEpoch.ToDays(), incursionEpoch.ToDays());
+	opt.AddConstraint("rpoRp", blue.A-incursionRadialSeparation, blue.A-incursionRadialSeparation, 100);
+	opt.AddConstraint("rpoRa", blue.A+incursionRadialSeparation, blue.A+incursionRadialSeparation, 100);
+	opt.AddConstraint("rpoDuration", 1, 1);
+	opt.AddConstraintBlock(2, "lastBurn", 0, 0);
+	
+	opt.SaveObjectToProcess(red);
+	
+	opt.MaximumNominalEvaluationCount = 70;
+	opt.FeasibilityTolerance = 1e-6;
+	opt.FiniteDifferenceMethod = 1;
+	
+	Variable totalDV;
+	
+	IpoptOptions ipopt;
+	ipopt.Tolerance = 1e-3;
+	opt.LoadEngine(ipopt);
+	While (opt.IsRunning());
+		opt.UpdateStateVariables();
+		opt.RestoreObjectsInProcess();
+		
+		totalDV = 0;
+		For i = 0 to burns.Count - 1;
+			burns[i][0] = opt.GetStateVariableValue("burn" + (i+1).ToString() + "1");
+			burns[i][1] = opt.GetStateVariableValue("burn" + (i+1).ToString() + "2");
+			burns[i][2] = 0;
+			burnEpochs[i] = TimeSpan.FromDays(opt.GetStateVariableValue("burnEpoch" + (i+1).ToString()));
+			red.StepToEpoch(burnEpochs[i]);
+			burn.BurnDirection = burns[i];
+			totalDV += burns[i].Norm;
+			
+			If (i == 4);
+				opt.SetConstraintValue("arrivalRadius", red.Radius);
+				opt.SetConstraintValue("arrivalRdotV", red.Position.Normalized.DotProduct(red.Velocity.Normalized));
+				opt.SetConstraintValue("arrivalLon", red.Longitude);
+				opt.SetConstraintValue("arrivalTime", red.Epoch.ToDays());
+			End;
+				
+			red.Maneuver(burn);
+			
+			If (i == 1);
+				opt.SetConstraintValue("driftE", red.Periapsis - red.Apoapsis);
+			ElseIf (i == 4);
+				opt.SetConstraintValue("rpoRp", red.Periapsis);
+				opt.SetConstraintValue("rpoRa", red.Apoapsis);
+			End;
+		End;
+		
+		opt.SetConstraintValue("startTime", burnEpochs[0].ToDays());
+		opt.SetConstraintValue("rpoDuration", (burnEpochs[5] - burnEpochs[4]).ToDays());
+		opt.SetConstraintValue("lastBurn1", burns[5][0] + burns[4][0]);
+		opt.SetConstraintValue("lastBurn2", burns[5][1] + burns[4][1]);
+	
+		
+		opt.Minimize(totalDV*1);
+	
+		
+		If (opt.OptimizationPhase == 1);
+			Report opt.NominalEvaluationCount, "   ",
+			opt.ObjectiveFunctionValue, "   ",
+			opt.MaximumInfeasibility, "   ",
+			opt.MaximumInfeasibilitySource to ConsoleSolver;
+		End;
+		
+	End;
+	Report opt.ReturnString, "Best DV: " + (opt.GetBestObjectiveFunctionValue() / 1).ToString() to ConsoleSolver;
+	opt.RestoreObjectsInProcess();
+		
+		
+		
+		
+		
+	
+//	List<TrajectoryPhase> traj;
+//	traj.Count = 0;
+//	traj.Count = burns.Count + 1;
+//	TimeSpan duration;
+//	Variable nodesPerRev = 40;
+//	Variable numNodes;
+//	red.StepToEpoch(red.Epoch - TimeSpan.FromHours(1));
+//	For i = 0 to burns.Count - 1;
+//		duration = burnEpochs[i] - red.Epoch;
+//		numNodes = max(3, nodesPerRev * duration.ToDays());
+//		traj[i].AddNodes(red, duration, numNodes, 0);
+//		traj[i].SetPositionBounds("path", -42164*1.2, 42164*1.2);
+//		burn.BurnDirection = burns[i];
+//		red.Maneuver(burn);
+//	End;
+//	traj[burns.Count].AddNodes(red, TimeSpan.FromHours(1), 3, 0);
+//	
+//	traj[0].Lock("first");
+//	traj[0].LockTimeOfFlight();
+//	
+//	traj[4].LockEpoch("last", incursionEpoch);
+//	traj[4].AddRadiusConstraint("last", arrivalRadius, arrivalRadius);
+//	
+//	traj[6].LockTimeOfFlight();
+//	
+//	Optimizer opt;
+//	opt.Reset(1);
+//	For i = 0 to traj.Count - 1;
+//		opt.AddTrajectoryPhase(traj[i]);
+//	End;
+//	
+//	For i = 0 to traj.Count - 2;
+//		opt.AddPhasePositionLink(traj[i], traj[i+1]);
+//		opt.AddPhaseMassLink(traj[i], traj[i+1]);
+//		opt.AddPhaseEpochLink(traj[i], traj[i+1]);
+//		opt.AddPhaseLinkDeltaVConstraint(traj[i], traj[i+1], 0.01);
+//	End;
+//	
+//	opt.SaveObjectToProcess(blue);
+//	
+//	opt.AddConstraint("rpoLon", blue.Longitude, blue.Longitude);
+//	opt.AddConstraint("rpoRdotV", 0, 0);
+//	opt.AddConstraint("rpoRp", blue.A-incursionRadialSeparation, blue.A-incursionRadialSeparation, 100);
+//	opt.AddConstraint("rpoRa", blue.A+incursionRadialSeparation, blue.A+incursionRadialSeparation, 100);
+//	opt.AddConstraint("rpoDuration", 0, 0);
+//	opt.AddConstraint("finalA", initialA, initialA, 100);
+//	opt.AddConstraint("driftE", 0, 0, 1000);
+//	
+//	opt.AddConstraintBlock(traj.Count, "I", 0, 0, 100);
+////	opt.AddConstraint("finalE", 0, 0);
+//	
+//	opt.MaximumNominalEvaluationCount = 400;
+//	opt.FeasibilityTolerance = 1e-4;
+//	opt.FiniteDifferenceMethod = 1;
+//	
+//	Variable totalDV;
+//	
+//	IpoptOptions ipopt;
+//	ipopt.Tolerance = 1e-3;
+//	opt.LoadEngine(ipopt);
+//	While (opt.IsRunning());
+//		opt.UpdateStateVariables();
+//		opt.RestoreObjectsInProcess();
+//		
+//		traj[2].FirstNode.SetSpacecraftState(red);
+//		opt.SetConstraintValue("driftE", red.Periapsis - red.Apoapsis);
+//		
+//		traj[5].FirstNode.SetSpacecraftState(red);
+//		opt.SetConstraintValue("rpoLon", red.Longitude);
+//		opt.SetConstraintValue("rpoRdotV", red.Position.Normalized.DotProduct(red.Velocity.Normalized));
+//		opt.SetConstraintValue("rpoRp", red.Periapsis);
+//		opt.SetConstraintValue("rpoRa", red.Apoapsis);
+//		opt.SetConstraintValue("rpoDuration", blue.Period - traj[5].TimeOfFlight.ToMinutes());
+//		
+//		traj[6].FirstNode.SetSpacecraftState(red);
+//		opt.SetConstraintValue("finalA", red.A);
+////		opt.SetConstraintValue("finalE", red.E);
+//		
+//		For i = 0 to traj.Count - 1;
+//			traj[i].FirstNode.SetSpacecraftState(red);
+//			opt.SetConstraintValue("I" + (i+1).ToString(), red.I - initalI);
+//		End;
+//		
+//		totalDV = 0;
+//		For i = 0 to traj.Count - 2;
+//			totalDV += traj[i].ComputeInterphaseDeltaV(traj[i+1]).Norm;
+//		End;
+//		opt.Minimize(totalDV*10);
+//		
+//		
+//		If (opt.OptimizationPhase == 1);
+//			Report opt.NominalEvaluationCount, "   ",
+//			opt.ObjectiveFunctionValue, "   ",
+//			opt.MaximumInfeasibility, "   ",
+//			opt.MaximumInfeasibilitySource to ConsoleSolver;
+//		End;
+//		
+//	End;
+//	Report opt.ReturnString, "Best DV: " + (opt.GetBestObjectiveFunctionValue() / 10).ToString() to ConsoleSolver;
+//	opt.RestoreObjectsInProcess();
+//	opt.Reset();
+//	
+//	red.Restore("IC");
+//	
+//	For i = 0 to burns.Count;
+//		traj[i].ApplyBestSolution();		
+//	End;
+	
+	For i = 0 to burns.Count - 1;
+//		red.StepToEpoch(traj[i+1].FirstNode.Epoch);
+//		burnEpochs[i] = red.Epoch;
+//		burns[i] = AttitudeConvert(0, 6, red, traj[i].ComputeInterphaseDeltaV(traj[i+1]));
+		
+		burns[i][0] = opt.GetBestStateVariableValue("burn" + (i+1).ToString() + "1");
+		burns[i][1] = opt.GetBestStateVariableValue("burn" + (i+1).ToString() + "2");
+		burns[i][2] = 0;
+		burnEpochs[i] = TimeSpan.FromDays(opt.GetBestStateVariableValue("burnEpoch" + (i+1).ToString()));
+		
+		Call AddBurnToActions(burns[i], burnEpochs[i], redIndex);
+		
+	End;
+	red.Restore("IC");
 	
 EndProcedure;
 
@@ -1143,9 +1619,9 @@ Define Procedure ComputeDisableScriptStrategy(Formation red, Formation blue, Var
 
 	Send "updateWillOccur", 1 to connection;
 	
-	Call ComputeDisableScriptRed1TransitManeuversAndAddToActions(red[0], blue[0], incursionEpoch, driftTime);
-	Call ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(red[1], blue[0], incursionEpoch, driftTime, 1);
+//	Call ComputeDisableScriptRed1TransitManeuversAndAddToActions(red[0], blue[0], incursionEpoch, driftTime);
 	Call ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(red[2], blue[0], incursionEpoch, driftTime, 2);
+	Call ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(red[1], blue[0], incursionEpoch, driftTime, 1);
 	updateHasBeenComputed = 1;
 EndProcedure;
 

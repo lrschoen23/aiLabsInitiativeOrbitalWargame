@@ -1676,7 +1676,7 @@ Define Procedure RequestBlueEvasiveManeuverFromServer(Formation blue);
 	Send blue[0].GetCartesianState(),
 		 blue[0].Epoch.ToDays(),
 		 initialKepStateBlue1,
-		 blue[0].Longitude + 0.05,
+		 blue[0].Longitude + 0.08,
 		 {0.1, 0.5},
 		 uplinkTime.ToHours() to blueStrategyServer;
 	
@@ -1725,7 +1725,7 @@ Define Procedure RequestBlueStationKeepFromServer(Formation blue, Array dv);
 EndProcedure;
 
 Define Procedure RequestRedStrategyUpdateFromServer(Formation red, Formation blue);
-	TimeSpan redUplinkTime = TimeSpan.FromHours(4);
+	TimeSpan redUplinkTime = simChoiceSpacing.Scaled(0.5);
 	
 	Send "stratUpdateRequest", redStrategyRequest_updateStrategy to redStrategyServer;
 	Send "strategyUpdateData",
@@ -2855,7 +2855,7 @@ While (blueIsOffNominal or redIsEngaged);
 	Call GetNextQueuedActionEpoch(nextQueuedActionEpoch);
 	While (nextQueuedActionEpoch < nextChoiceEpoch);
 		If (nextQueuedActionEpoch < simEpoch);
-			Diagnostics.ReportErrorMessage(0, "Encountered action epoch prior to simulation epoch.");
+			Diagnostics.ReportErrorMessage(0, "Encountered action epoch prior to simulation epoch." + (simEpoch - nextQueuedActionEpoch).ToHours().ToString());
 		End;
 		Call PopNextQueuedAction(nextQueuedAction);
 		Call AdvanceSimToFutureEpoch(red, blue, nextQueuedAction.epoch);
@@ -4281,7 +4281,7 @@ Define Procedure RequestBlueEvasiveManeuverFromServer(Formation blue);
 	Send blue[0].GetCartesianState(),
 		 blue[0].Epoch.ToDays(),
 		 initialKepStateBlue1,
-		 blue[0].Longitude + 0.05,
+		 blue[0].Longitude + 0.08,
 		 {0.1, 0.5},
 		 uplinkTime.ToHours() to blueStrategyServer;
 	
@@ -4330,7 +4330,7 @@ Define Procedure RequestBlueStationKeepFromServer(Formation blue, Array dv);
 EndProcedure;
 
 Define Procedure RequestRedStrategyUpdateFromServer(Formation red, Formation blue);
-	TimeSpan redUplinkTime = TimeSpan.FromHours(4);
+	TimeSpan redUplinkTime = simChoiceSpacing.Scaled(0.5);
 	
 	Send "stratUpdateRequest", redStrategyRequest_updateStrategy to redStrategyServer;
 	Send "strategyUpdateData",
@@ -5435,7 +5435,7 @@ While (blueIsOffNominal or redIsEngaged);
 	Call GetNextQueuedActionEpoch(nextQueuedActionEpoch);
 	While (nextQueuedActionEpoch < nextChoiceEpoch);
 		If (nextQueuedActionEpoch < simEpoch);
-			Diagnostics.ReportErrorMessage(0, "Encountered action epoch prior to simulation epoch.");
+			Diagnostics.ReportErrorMessage(0, "Encountered action epoch prior to simulation epoch." + (simEpoch - nextQueuedActionEpoch).ToHours().ToString());
 		End;
 		Call PopNextQueuedAction(nextQueuedAction);
 		Call AdvanceSimToFutureEpoch(red, blue, nextQueuedAction.epoch);
