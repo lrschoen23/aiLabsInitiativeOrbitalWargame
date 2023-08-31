@@ -58,12 +58,14 @@ burn.AttitudeSystem = 6;
 
 Global Variable red2and3RadialSeparation = 60;
 
-Define Procedure InitializeForceModel(ForceModel fm);
-	fm.PlanetFieldDegree[2] = 0;
-	fm.PlanetFieldOrder[2] = 0;
-	fm.Drag = 0;
-	fm.Sun = 0;
-	fm.Moon = 0;
+Define Procedure InitializePropagator(Spacecraft sc);
+	sc.SetPropagatorType("TwoBody");
+	
+//	fm.PlanetFieldDegree[2] = 0;
+//	fm.PlanetFieldOrder[2] = 0;
+//	fm.Drag = 0;
+//	fm.Sun = 0;
+//	fm.Moon = 0;
 EndProcedure;
 
 
@@ -80,7 +82,7 @@ Define Procedure InitializeFormations(Formation red, Formation blue);
                            1});
                            
 	blue[0].EulerAngles[1] = 90;
-	Call InitializeForceModel((blue[0].Propagator AsType Integrator).ForceModel);
+	Call InitializePropagator(blue[0]);
 	
 	blue[0].AddSensor("uplink");
 	blue[0].Sensors[sensorIndexUplink].ConeHalfAngle = 15;
@@ -125,7 +127,7 @@ Define Procedure InitializeFormations(Formation red, Formation blue);
 	Variable i;
 	For i = 0 to red.Count - 1;
 		red[i].Epoch = simStartEpoch;
-		Call InitializeForceModel((red[i].Propagator AsType Integrator).ForceModel);
+		Call InitializePropagator(red[i]);
 	End;
 EndProcedure;
 
@@ -221,7 +223,7 @@ Define Procedure TargetNewOrbit(
 		
 		burn.BurnDirection = opt.GetStateVariableValues[0:2];
 		totalDV = burn.BurnDirection.Norm;
-		sc.Maneuver(burn);
+		Maneuver sc using burn;
 		
 		futureEpoch = sc.Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
 		WhileStepping sc to (sc.Epoch == futureEpoch);
@@ -229,7 +231,7 @@ Define Procedure TargetNewOrbit(
 		
 		burn.BurnDirection = opt.GetStateVariableValues[3:5];
 		totalDV += burn.BurnDirection.Norm;
-		sc.Maneuver(burn);
+		Maneuver sc using burn;
 		
 		opt.SetConstraintValue("A", sc.A);
 		opt.SetConstraintValue("E", sc.E);
@@ -275,7 +277,7 @@ Define Procedure TargetNewOrbit(
 		End;
 		
 		burn.BurnDirection = dv2;
-		sc.Maneuver(burn);
+		Maneuver sc using burn;
 		
 		Call ComputeStationKeepingManeuver(sc, longitude, extraDv);
 		dv2 += extraDv;
@@ -322,7 +324,7 @@ Define Procedure TargetNewRelativeOrbit(
 		
 		burn.BurnDirection = opt.GetStateVariableValues[0:2];
 		totalDV = burn.BurnDirection.Norm;
-		sc.Maneuver(burn);
+		Maneuver sc using burn;
 		
 		futureEpoch = sc.Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
 		WhileStepping sc to (sc.Epoch == futureEpoch);
@@ -332,7 +334,7 @@ Define Procedure TargetNewRelativeOrbit(
 		
 		burn.BurnDirection = opt.GetStateVariableValues[3:5];
 		totalDV += burn.BurnDirection.Norm;
-		sc.Maneuver(burn);
+		Maneuver sc using burn;
 		
 		opt.SetConstraintValue("A", sc.A);
 		opt.SetConstraintValue("E", sc.E);

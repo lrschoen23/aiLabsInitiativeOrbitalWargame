@@ -632,8 +632,9 @@ redStrategyServer.PortNumber = redStrategyServerPort;
 redStrategyServer.SocketTimeout = 60;
 Open redStrategyServer;
 
-Send simStepSize.ToSeconds() to redStrategyServer;
-Send gameMode to redStrategyServer;
+Send "simStepSize", simStepSize.ToSeconds() to redStrategyServer;
+Send "gameMode", gameMode to redStrategyServer;
+Send "simChoiceSpacing", simChoiceSpacing.ToDays() to redStrategyServer;
 ]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
@@ -1190,7 +1191,7 @@ Define Procedure ComputePredict(
 	
 EndProcedure;
 
-Define Procedure UpdateDataReadouts(Formation red, Formation blue);
+Define Procedure UpdateDataReadouts(Formation red, Formation blue, TimeSpan stepJustTaken);
 	Variable angle;
 	Variable i;
 	
@@ -1230,13 +1231,13 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 		
 		rangeR1.AddPoints(0, rangeB1_R1);
 		For i = 0 to rangeR1.Data.RowCount - 1;
-			rangeR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+			rangeR1.Data[i, 0] -= stepJustTaken.ToHours();
 		End;
 		rangeR1CurrentLocation.Data[0, 0:1] = rangeR1.Data[rangeR1.Data.RowCount - 1, 0:1];
 		
 		angleFromPayloadR1.AddPoints(0, angle);
 		For i = 0 to angleFromPayloadR1.Data.RowCount - 1;
-			angleFromPayloadR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+			angleFromPayloadR1.Data[i, 0] -= stepJustTaken.ToHours();
 		End;
 		angleFromPayloadR1CurrentLocation.Data[0, 0:1] = angleFromPayloadR1.Data[angleFromPayloadR1.Data.RowCount - 1, 0:1];
 		
@@ -1247,13 +1248,13 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 		
 		rangeR2.AddPoints(0, rangeB1_R2);
 		For i = 0 to rangeR2.Data.RowCount - 1;
-			rangeR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+			rangeR2.Data[i, 0] -= stepJustTaken.ToHours();
 		End;
 		rangeR2CurrentLocation.Data[0, 0:1] = rangeR2.Data[rangeR2.Data.RowCount - 1, 0:1];
 		
 		angleFromPayloadR2.AddPoints(0, angle);
 		For i = 0 to angleFromPayloadR2.Data.RowCount - 1;
-			angleFromPayloadR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+			angleFromPayloadR2.Data[i, 0] -= stepJustTaken.ToHours();
 		End;
 		angleFromPayloadR2CurrentLocation.Data[0, 0:1] = angleFromPayloadR2.Data[angleFromPayloadR2.Data.RowCount - 1, 0:1];
 		
@@ -1264,13 +1265,13 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 		
 		rangeR3.AddPoints(0, rangeB1_R3);
 		For i = 0 to rangeR3.Data.RowCount - 1;
-			rangeR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+			rangeR3.Data[i, 0] -= stepJustTaken.ToHours();
 		End;
 		rangeR3CurrentLocation.Data[0, 0:1] = rangeR3.Data[rangeR3.Data.RowCount - 1, 0:1];
 		
 		angleFromPayloadR3.AddPoints(0, angle);
 		For i = 0 to angleFromPayloadR3.Data.RowCount - 1;
-			angleFromPayloadR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+			angleFromPayloadR3.Data[i, 0] -= stepJustTaken.ToHours();
 		End;
 		angleFromPayloadR3CurrentLocation.Data[0, 0:1] = angleFromPayloadR3.Data[angleFromPayloadR3.Data.RowCount - 1, 0:1];
 
@@ -1328,13 +1329,13 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 		
 		rangeR1.AddPoints(0, -999);
 		For i = 0 to rangeR1.Data.RowCount - 1;
-			rangeR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+			rangeR1.Data[i, 0] -= stepJustTaken.ToHours();
 		End;
 		rangeR1CurrentLocation.Data[0, 0:1] = rangeR1.Data[rangeR1.Data.RowCount - 1, 0:1];
 		
 		angleFromPayloadR1.AddPoints(0, -999);
 		For i = 0 to angleFromPayloadR1.Data.RowCount - 1;
-			angleFromPayloadR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+			angleFromPayloadR1.Data[i, 0] -= stepJustTaken.ToHours();
 		End;
 		angleFromPayloadR1CurrentLocation.Data[0, 0:1] = angleFromPayloadR1.Data[angleFromPayloadR1.Data.RowCount - 1, 0:1];
 		
@@ -1344,13 +1345,13 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 		
 		rangeR2.AddPoints(0, -999);
 		For i = 0 to rangeR2.Data.RowCount - 1;
-			rangeR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+			rangeR2.Data[i, 0] -= stepJustTaken.ToHours();
 		End;
 		rangeR2CurrentLocation.Data[0, 0:1] = rangeR2.Data[rangeR2.Data.RowCount - 1, 0:1];
 		
 		angleFromPayloadR2.AddPoints(0, -999);
 		For i = 0 to angleFromPayloadR2.Data.RowCount - 1;
-			angleFromPayloadR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+			angleFromPayloadR2.Data[i, 0] -= stepJustTaken.ToHours();
 		End;
 		angleFromPayloadR2CurrentLocation.Data[0, 0:1] = angleFromPayloadR2.Data[angleFromPayloadR2.Data.RowCount - 1, 0:1];
 		
@@ -1360,13 +1361,13 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 		
 		rangeR3.AddPoints(0, -999);
 		For i = 0 to rangeR3.Data.RowCount - 1;
-			rangeR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+			rangeR3.Data[i, 0] -= stepJustTaken.ToHours();
 		End;
 		rangeR3CurrentLocation.Data[0, 0:1] = rangeR3.Data[rangeR3.Data.RowCount - 1, 0:1];
 		
 		angleFromPayloadR3.AddPoints(0, -999);
 		For i = 0 to angleFromPayloadR3.Data.RowCount - 1;
-			angleFromPayloadR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+			angleFromPayloadR3.Data[i, 0] -= stepJustTaken.ToHours();
 		End;
 		angleFromPayloadR3CurrentLocation.Data[0, 0:1] = angleFromPayloadR3.Data[angleFromPayloadR3.Data.RowCount - 1, 0:1];
 
@@ -1437,7 +1438,7 @@ Define Procedure IsInsidePayloadKeepOutZone(Variable range, Variable angle, Vari
 	End;
 EndProcedure;
 
-Define Procedure PostBlueStepSubroutine(Formation red, Formation blue);
+Define Procedure PostBlueStepSubroutine(Formation red, Formation blue, TimeSpan stepJustTaken);
 	Variable range;
 	Variable angle;
 	Variable isInsidePayloadKeepOutZone;
@@ -1486,32 +1487,16 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue);
 		blue[0].EulerAngles[0] = desiredBluePayloadOrientationAngle;
 	End;
 	
-	Call UpdateDataReadouts(red, blue);
+	Call UpdateDataReadouts(red, blue, stepJustTaken);
 EndProcedure;
 
-Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan futureEpoch);	
+Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan futureEpoch);
+	TimeSpan previousEpoch = blue[0].Epoch;
 	WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
-		Call PostBlueStepSubroutine(red, blue);
+		Call PostBlueStepSubroutine(red, blue, blue[0].Epoch - previousEpoch);
+		previousEpoch = blue[0].Epoch;
 	End;
 EndProcedure;
-
-Define Procedure AdvanceSimToFutureEpochWithBlueSlew(Formation red, Formation blue, TimeSpan futureEpoch, Variable slewAngle);
-	Variable slewRateDegPerSecond = slewAngle / (futureEpoch - blue[0].Epoch).ToSeconds();
-	Variable initialAngle = blue[0].EulerAngles[0];
-	TimeSpan initialEpoch = blue[0].Epoch;
-	
-	WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
-		blue[0].EulerAngles[0] = initialAngle + slewRateDegPerSecond * (blue[0].Epoch - initialEpoch).ToSeconds();	
-		Call PostBlueStepSubroutine(red, blue);
-	End;
-EndProcedure;
-
-Define Procedure AdvanceSimUplinkPeriod(Formation red, Formation blue);
-	viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 1);
-	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(0.5));
-	viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 0);
-EndProcedure;
-
 
 
 Define Procedure AddBurnToQueue(
@@ -1614,18 +1599,20 @@ EndProcedure;
 
 Define Procedure RetrieveRedStrategyFromServerAndAddToQueue();
 	Variable i;
-	Variable epochDays;
+	Variable epochWholeSeconds;
+	Variable epochFractionalSeconds;
 	Receive socketVerificationLabel, redActionQueue.Count from redStrategyServer;
 	Call ValidateSocketVerificationLabel("numRedActions");
 	For i = 0 to redActionQueue.Count - 1;
 		redActionQueue[i].burnRIC.Dimension = 3;
 		Receive socketVerificationLabel,
-				epochDays,
+				epochWholeSeconds,
+				epochFractionalSeconds,
 			 	redActionQueue[i].burnRIC,
 				redActionQueue[i].formationIndex,
 				redActionQueue[i].additionalAction from redStrategyServer;
 		Call ValidateSocketVerificationLabel("redAction");
-		redActionQueue[i].epoch = TimeSpan.FromDays(epochDays);
+		redActionQueue[i].epoch = TimeSpan.FromSecondsAndFractionalSeconds(epochWholeSeconds, epochFractionalSeconds);
 		redActionQueue[i].isBlue = 0;
 	End;
 	
@@ -1636,7 +1623,7 @@ EndProcedure;
 Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, Formation blue);
 	If (queuedAction.isBlue);
 		burn.BurnDirection = queuedAction.burnRIC;
-		blue[queuedAction.formationIndex].Maneuver(burn);
+		Maneuver blue[queuedAction.formationIndex] using burn;
 		
 		If (queuedAction.additionalAction == additionalAction_retrieveOrbitChange);
 			Call RetrieveBlueOrbitChangeFromServerAndAddToQueue();
@@ -1649,7 +1636,8 @@ Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, F
 		End;
 	Else;
 		burn.BurnDirection = queuedAction.burnRIC;
-		red[queuedAction.formationIndex].Maneuver(burn);
+		Maneuver red[queuedAction.formationIndex] using burn;
+		
 		
 		If (queuedAction.additionalAction == additionalAction_retrieveRedStrategy);
 			Call RetrieveRedStrategyFromServerAndAddToQueue();
@@ -1661,17 +1649,12 @@ Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, F
 			Else;
 				Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
 			End;
-		ElseIf (queuedAction.additionalAction == additionalAction_redToggleJamming);
-			If (redJammerState == activatableAsset_off);
-				Call SetRedJammerState(activatableAsset_on, red);
-			ElseIf(redJammerState == activatableAsset_on);
-				Call SetRedJammerState(activatableAsset_off, red);
-			End;
 		ElseIf (queuedAction.additionalAction == additionalAction_redDeployInspector);
 			If (red.Count != 3);
 				Diagnostics.ReportErrorMessage(0, "Incorrect number of red spacecraft encountered.");
 			End;
 			red.Count += 1;
+			Call InitializePropagator(red[3]);
 			red[3].BodyScale = 200;
 			red[3].DisplayName = "Red" + red.Count.ToString();
 			red[3].Color = colorRed4;
@@ -1762,7 +1745,8 @@ Define Procedure RequestRedStrategyUpdateFromServer(Formation red, Formation blu
 		 red[0].GetCartesianState(),
 		 red[1].GetCartesianState(),
 		 red[2].GetCartesianState(),
-		 blue[0].Epoch.ToDays(),
+		 blue[0].Epoch.GetWholeSeconds(),
+		 blue[0].Epoch.GetFractionalSeconds(),
 	 	 redUplinkTime.ToDays() to redStrategyServer;
 	
 	Variable redStrategyUpdateWillOccur;
@@ -3293,8 +3277,9 @@ redStrategyServer.PortNumber = redStrategyServerPort;
 redStrategyServer.SocketTimeout = 60;
 Open redStrategyServer;
 
-Send simStepSize.ToSeconds() to redStrategyServer;
-Send gameMode to redStrategyServer;
+Send "simStepSize", simStepSize.ToSeconds() to redStrategyServer;
+Send "gameMode", gameMode to redStrategyServer;
+Send "simChoiceSpacing", simChoiceSpacing.ToDays() to redStrategyServer;
 
 
 Variable redHasNotDisengaged = 1;
@@ -3831,7 +3816,7 @@ Define Procedure ComputePredict(
 	
 EndProcedure;
 
-Define Procedure UpdateDataReadouts(Formation red, Formation blue);
+Define Procedure UpdateDataReadouts(Formation red, Formation blue, TimeSpan stepJustTaken);
 	Variable angle;
 	Variable i;
 	
@@ -3871,13 +3856,13 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 		
 		rangeR1.AddPoints(0, rangeB1_R1);
 		For i = 0 to rangeR1.Data.RowCount - 1;
-			rangeR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+			rangeR1.Data[i, 0] -= stepJustTaken.ToHours();
 		End;
 		rangeR1CurrentLocation.Data[0, 0:1] = rangeR1.Data[rangeR1.Data.RowCount - 1, 0:1];
 		
 		angleFromPayloadR1.AddPoints(0, angle);
 		For i = 0 to angleFromPayloadR1.Data.RowCount - 1;
-			angleFromPayloadR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+			angleFromPayloadR1.Data[i, 0] -= stepJustTaken.ToHours();
 		End;
 		angleFromPayloadR1CurrentLocation.Data[0, 0:1] = angleFromPayloadR1.Data[angleFromPayloadR1.Data.RowCount - 1, 0:1];
 		
@@ -3888,13 +3873,13 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 		
 		rangeR2.AddPoints(0, rangeB1_R2);
 		For i = 0 to rangeR2.Data.RowCount - 1;
-			rangeR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+			rangeR2.Data[i, 0] -= stepJustTaken.ToHours();
 		End;
 		rangeR2CurrentLocation.Data[0, 0:1] = rangeR2.Data[rangeR2.Data.RowCount - 1, 0:1];
 		
 		angleFromPayloadR2.AddPoints(0, angle);
 		For i = 0 to angleFromPayloadR2.Data.RowCount - 1;
-			angleFromPayloadR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+			angleFromPayloadR2.Data[i, 0] -= stepJustTaken.ToHours();
 		End;
 		angleFromPayloadR2CurrentLocation.Data[0, 0:1] = angleFromPayloadR2.Data[angleFromPayloadR2.Data.RowCount - 1, 0:1];
 		
@@ -3905,13 +3890,13 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 		
 		rangeR3.AddPoints(0, rangeB1_R3);
 		For i = 0 to rangeR3.Data.RowCount - 1;
-			rangeR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+			rangeR3.Data[i, 0] -= stepJustTaken.ToHours();
 		End;
 		rangeR3CurrentLocation.Data[0, 0:1] = rangeR3.Data[rangeR3.Data.RowCount - 1, 0:1];
 		
 		angleFromPayloadR3.AddPoints(0, angle);
 		For i = 0 to angleFromPayloadR3.Data.RowCount - 1;
-			angleFromPayloadR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+			angleFromPayloadR3.Data[i, 0] -= stepJustTaken.ToHours();
 		End;
 		angleFromPayloadR3CurrentLocation.Data[0, 0:1] = angleFromPayloadR3.Data[angleFromPayloadR3.Data.RowCount - 1, 0:1];
 
@@ -3969,13 +3954,13 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 		
 		rangeR1.AddPoints(0, -999);
 		For i = 0 to rangeR1.Data.RowCount - 1;
-			rangeR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+			rangeR1.Data[i, 0] -= stepJustTaken.ToHours();
 		End;
 		rangeR1CurrentLocation.Data[0, 0:1] = rangeR1.Data[rangeR1.Data.RowCount - 1, 0:1];
 		
 		angleFromPayloadR1.AddPoints(0, -999);
 		For i = 0 to angleFromPayloadR1.Data.RowCount - 1;
-			angleFromPayloadR1.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+			angleFromPayloadR1.Data[i, 0] -= stepJustTaken.ToHours();
 		End;
 		angleFromPayloadR1CurrentLocation.Data[0, 0:1] = angleFromPayloadR1.Data[angleFromPayloadR1.Data.RowCount - 1, 0:1];
 		
@@ -3985,13 +3970,13 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 		
 		rangeR2.AddPoints(0, -999);
 		For i = 0 to rangeR2.Data.RowCount - 1;
-			rangeR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+			rangeR2.Data[i, 0] -= stepJustTaken.ToHours();
 		End;
 		rangeR2CurrentLocation.Data[0, 0:1] = rangeR2.Data[rangeR2.Data.RowCount - 1, 0:1];
 		
 		angleFromPayloadR2.AddPoints(0, -999);
 		For i = 0 to angleFromPayloadR2.Data.RowCount - 1;
-			angleFromPayloadR2.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+			angleFromPayloadR2.Data[i, 0] -= stepJustTaken.ToHours();
 		End;
 		angleFromPayloadR2CurrentLocation.Data[0, 0:1] = angleFromPayloadR2.Data[angleFromPayloadR2.Data.RowCount - 1, 0:1];
 		
@@ -4001,13 +3986,13 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue);
 		
 		rangeR3.AddPoints(0, -999);
 		For i = 0 to rangeR3.Data.RowCount - 1;
-			rangeR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+			rangeR3.Data[i, 0] -= stepJustTaken.ToHours();
 		End;
 		rangeR3CurrentLocation.Data[0, 0:1] = rangeR3.Data[rangeR3.Data.RowCount - 1, 0:1];
 		
 		angleFromPayloadR3.AddPoints(0, -999);
 		For i = 0 to angleFromPayloadR3.Data.RowCount - 1;
-			angleFromPayloadR3.Data[i, 0] -= (blue[0].Propagator AsType Integrator).StepJustTaken.ToHours();
+			angleFromPayloadR3.Data[i, 0] -= stepJustTaken.ToHours();
 		End;
 		angleFromPayloadR3CurrentLocation.Data[0, 0:1] = angleFromPayloadR3.Data[angleFromPayloadR3.Data.RowCount - 1, 0:1];
 
@@ -4078,7 +4063,7 @@ Define Procedure IsInsidePayloadKeepOutZone(Variable range, Variable angle, Vari
 	End;
 EndProcedure;
 
-Define Procedure PostBlueStepSubroutine(Formation red, Formation blue);
+Define Procedure PostBlueStepSubroutine(Formation red, Formation blue, TimeSpan stepJustTaken);
 	Variable range;
 	Variable angle;
 	Variable isInsidePayloadKeepOutZone;
@@ -4127,32 +4112,16 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue);
 		blue[0].EulerAngles[0] = desiredBluePayloadOrientationAngle;
 	End;
 	
-	Call UpdateDataReadouts(red, blue);
+	Call UpdateDataReadouts(red, blue, stepJustTaken);
 EndProcedure;
 
-Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan futureEpoch);	
+Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan futureEpoch);
+	TimeSpan previousEpoch = blue[0].Epoch;
 	WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
-		Call PostBlueStepSubroutine(red, blue);
+		Call PostBlueStepSubroutine(red, blue, blue[0].Epoch - previousEpoch);
+		previousEpoch = blue[0].Epoch;
 	End;
 EndProcedure;
-
-Define Procedure AdvanceSimToFutureEpochWithBlueSlew(Formation red, Formation blue, TimeSpan futureEpoch, Variable slewAngle);
-	Variable slewRateDegPerSecond = slewAngle / (futureEpoch - blue[0].Epoch).ToSeconds();
-	Variable initialAngle = blue[0].EulerAngles[0];
-	TimeSpan initialEpoch = blue[0].Epoch;
-	
-	WhileStepping blue[0] to (blue[0].Epoch == futureEpoch);
-		blue[0].EulerAngles[0] = initialAngle + slewRateDegPerSecond * (blue[0].Epoch - initialEpoch).ToSeconds();	
-		Call PostBlueStepSubroutine(red, blue);
-	End;
-EndProcedure;
-
-Define Procedure AdvanceSimUplinkPeriod(Formation red, Formation blue);
-	viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 1);
-	Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(0.5));
-	viewMain3D.SetShowObject(overlayUploadingLog.ObjectId, 0);
-EndProcedure;
-
 
 
 Define Procedure AddBurnToQueue(
@@ -4255,18 +4224,20 @@ EndProcedure;
 
 Define Procedure RetrieveRedStrategyFromServerAndAddToQueue();
 	Variable i;
-	Variable epochDays;
+	Variable epochWholeSeconds;
+	Variable epochFractionalSeconds;
 	Receive socketVerificationLabel, redActionQueue.Count from redStrategyServer;
 	Call ValidateSocketVerificationLabel("numRedActions");
 	For i = 0 to redActionQueue.Count - 1;
 		redActionQueue[i].burnRIC.Dimension = 3;
 		Receive socketVerificationLabel,
-				epochDays,
+				epochWholeSeconds,
+				epochFractionalSeconds,
 			 	redActionQueue[i].burnRIC,
 				redActionQueue[i].formationIndex,
 				redActionQueue[i].additionalAction from redStrategyServer;
 		Call ValidateSocketVerificationLabel("redAction");
-		redActionQueue[i].epoch = TimeSpan.FromDays(epochDays);
+		redActionQueue[i].epoch = TimeSpan.FromSecondsAndFractionalSeconds(epochWholeSeconds, epochFractionalSeconds);
 		redActionQueue[i].isBlue = 0;
 	End;
 	
@@ -4277,7 +4248,7 @@ EndProcedure;
 Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, Formation blue);
 	If (queuedAction.isBlue);
 		burn.BurnDirection = queuedAction.burnRIC;
-		blue[queuedAction.formationIndex].Maneuver(burn);
+		Maneuver blue[queuedAction.formationIndex] using burn;
 		
 		If (queuedAction.additionalAction == additionalAction_retrieveOrbitChange);
 			Call RetrieveBlueOrbitChangeFromServerAndAddToQueue();
@@ -4290,7 +4261,8 @@ Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, F
 		End;
 	Else;
 		burn.BurnDirection = queuedAction.burnRIC;
-		red[queuedAction.formationIndex].Maneuver(burn);
+		Maneuver red[queuedAction.formationIndex] using burn;
+		
 		
 		If (queuedAction.additionalAction == additionalAction_retrieveRedStrategy);
 			Call RetrieveRedStrategyFromServerAndAddToQueue();
@@ -4302,17 +4274,12 @@ Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, F
 			Else;
 				Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
 			End;
-		ElseIf (queuedAction.additionalAction == additionalAction_redToggleJamming);
-			If (redJammerState == activatableAsset_off);
-				Call SetRedJammerState(activatableAsset_on, red);
-			ElseIf(redJammerState == activatableAsset_on);
-				Call SetRedJammerState(activatableAsset_off, red);
-			End;
 		ElseIf (queuedAction.additionalAction == additionalAction_redDeployInspector);
 			If (red.Count != 3);
 				Diagnostics.ReportErrorMessage(0, "Incorrect number of red spacecraft encountered.");
 			End;
 			red.Count += 1;
+			Call InitializePropagator(red[3]);
 			red[3].BodyScale = 200;
 			red[3].DisplayName = "Red" + red.Count.ToString();
 			red[3].Color = colorRed4;
@@ -4403,7 +4370,8 @@ Define Procedure RequestRedStrategyUpdateFromServer(Formation red, Formation blu
 		 red[0].GetCartesianState(),
 		 red[1].GetCartesianState(),
 		 red[2].GetCartesianState(),
-		 blue[0].Epoch.ToDays(),
+		 blue[0].Epoch.GetWholeSeconds(),
+		 blue[0].Epoch.GetFractionalSeconds(),
 	 	 redUplinkTime.ToDays() to redStrategyServer;
 	
 	Variable redStrategyUpdateWillOccur;

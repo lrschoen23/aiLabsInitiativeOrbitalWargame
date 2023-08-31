@@ -151,7 +151,8 @@ connection.PortNumber = redStrategyServerPort;
 connection.SocketTimeout = -1;
 
 
-Global TimeSpan red2and3TransitOrbitTime = TimeSpan.FromDays(0.2);]]></FreeFormScript>
+Global TimeSpan red2and3TransitOrbitTime = TimeSpan.FromDays(0.2);
+Global TimeSpan simChoiceSpacing;]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
         <Label>FreeForm</Label>
@@ -313,7 +314,7 @@ Define Procedure TargetNewOrbitSingleBurn(
 		opt.RestoreObjectsInProcess();
 		
 		burn.BurnDirection[0:1] = opt.GetStateVariableValues();
-		sc.Maneuver(burn);
+		Maneuver sc using burn;
 		 
 		opt.Minimize(
 		(sc.Periapsis - r_p)^2 +
@@ -459,25 +460,25 @@ Define Procedure ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(
 	Call TargetNewOrbitSingleBurn(red, red.Radius, driftOrbitRadius, burns[0]);
 	burnEpochs[0] = red.Epoch;
 	burn.BurnDirection = burns[0];
-	red.Maneuver(burn);
+	Maneuver red using burn;
 	red.StepToEpoch(red.Epoch + red2and3TransitOrbitTime);
 	
 	Call TargetNewOrbitSingleBurn(red, driftOrbitRadius, driftOrbitRadius, burns[1]);
 	burnEpochs[1] = red.Epoch;
 	burn.BurnDirection = burns[1];
-	red.Maneuver(burn);
+	Maneuver red using burn;
 	red.StepToEpoch(red.Epoch + driftTime);
 	
 	Call TargetNewOrbitSingleBurn(red, driftOrbitRadius, arrivalRadius, burns[2]);
 	burnEpochs[2] = red.Epoch;
 	burn.BurnDirection = burns[2];
-	red.Maneuver(burn);
+	Maneuver red using burn;
 	red.StepToEpoch(red.Epoch + red2and3TransitOrbitTime);
 	
 	Call TargetNewOrbitSingleBurn(red, arrivalRadius, arrivalRadius, burns[3]);
 	burnEpochs[3] = red.Epoch;
 	burn.BurnDirection = burns[3];
-	red.Maneuver(burn);
+	Maneuver red using burn;
 	red.StepToEpoch(red.Epoch + red2and3TransitOrbitTime);
 	
 	Call TargetNewOrbitSingleBurn(red, arrivalRadius, blue.Radius + factor*incursionRadialSeparation, burns[4]);
@@ -542,7 +543,7 @@ Define Procedure ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(
 				opt.SetConstraintValue("arrivalTime", red.Epoch.ToDays());
 			End;
 				
-			red.Maneuver(burn);
+			Maneuver red using burn;
 			
 			If (i == 1);
 				opt.SetConstraintValue("driftE", red.Periapsis - red.Apoapsis);
@@ -736,14 +737,14 @@ Define Procedure ComputeInspectorBurns(
 		opt.RestoreObjectsInProcess();
 		
 		burn.BurnDirection = opt.GetStateVariableValues()[0:2];
-		red4.Maneuver(burn);
+		Maneuver red4 using burn;
 		totalDV = burn.BurnDirection.Norm;
 		
 		red4.StepToEpoch(killOperationStartEpoch);
 		
 		burn.BurnDirection = opt.GetStateVariableValues()[3:5];
-		red4.Maneuver(burn);
-		totalDV += burn.BurnDirection.Norm;
+		Maneuver red4 using burn;
+		totalDV += 10*burn.BurnDirection.Norm;
 		
 		relativeState = blue.GetCartesianState() - red4.GetCartesianState();
 		opt.SetConstraintValues(relativeState);
@@ -761,14 +762,15 @@ Define Procedure ComputeInspectorBurns(
 	Report opt.ReturnString to ConsoleSolver;
 	opt.RestoreObjectsInProcess();
 	
-	burn.BurnDirection = opt.GetStateVariableValues()[0:2];
-	red4.Maneuver(burn);
+	burn.BurnDirection = opt.GetBestStateVariableValues()[0:2];
+	Maneuver red4 using burn;
 	Call AddBurnToActions(burn.BurnDirection, red4.Epoch, 3);
 
 	red4.StepToEpoch(killOperationStartEpoch);
 	
-	burn.BurnDirection = opt.GetStateVariableValues()[3:5];
-	red4.Maneuver(burn);
+	
+	burn.BurnDirection = opt.GetBestStateVariableValues()[3:5];
+	Maneuver red4 using burn;
 	Call AddBurnToActions(burn.BurnDirection, red4.Epoch, 3);
 	
 	red4.StepToEpoch(killOperationCompletionEpoch);
@@ -789,14 +791,14 @@ Define Procedure ComputeInspectorBurns(
 		opt.RestoreObjectsInProcess();
 		
 		burn.BurnDirection = opt.GetStateVariableValues()[0:2];
-		red4.Maneuver(burn);
+		Maneuver red4 using burn;
 		totalDV = burn.BurnDirection.Norm;
 		
 		red4.StepToEpoch(inspectorReturnEpoch);
 		
 		burn.BurnDirection = opt.GetStateVariableValues()[3:5];
-		red4.Maneuver(burn);
-		totalDV += burn.BurnDirection.Norm;
+		Maneuver red4 using burn;
+		totalDV += 10*burn.BurnDirection.Norm;
 		
 		relativeState = red1.GetCartesianState() - red4.GetCartesianState();
 		opt.SetConstraintValues(relativeState);
@@ -814,14 +816,14 @@ Define Procedure ComputeInspectorBurns(
 	Report opt.ReturnString to ConsoleSolver;
 	opt.RestoreObjectsInProcess();
 	
-	burn.BurnDirection = opt.GetStateVariableValues()[0:2];
-	red4.Maneuver(burn);
+	burn.BurnDirection = opt.GetBestStateVariableValues()[0:2];
+	Maneuver red4 using burn;
 	Call AddBurnToActions(burn.BurnDirection, red4.Epoch, 3);
 
 	red4.StepToEpoch(inspectorReturnEpoch);
 	
-	burn.BurnDirection = opt.GetStateVariableValues()[3:5];
-	red4.Maneuver(burn);
+	burn.BurnDirection = opt.GetBestStateVariableValues()[3:5];
+	Maneuver red4 using burn;
 	Call AddBurnToActions(burn.BurnDirection, red4.Epoch, 3);
 
 	blue.Restore("IC");
@@ -858,10 +860,10 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 	Call AddBurnToActions(dv2, red.Epoch + interBurnTime, 0);
 	
 	burn.BurnDirection = dv1;
-	red.Maneuver(burn);
+	Maneuver red using burn;
 	red.StepToEpoch(red.Epoch + interBurnTime);
 	burn.BurnDirection = dv2;
-	red.Maneuver(burn);
+	Maneuver red using burn;
 	
 	red.StepToEpoch(incursionEpoch);
 	blue.StepToEpoch(red.Epoch);
@@ -883,10 +885,10 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 	Call AddBurnToActions(dv2, red.Epoch + interBurnTime, 0);
 	
 	burn.BurnDirection = dv1;
-	red.Maneuver(burn);
+	Maneuver red using burn;
 	red.StepToEpoch(red.Epoch + interBurnTime);
 	burn.BurnDirection = dv2;
-	red.Maneuver(burn);
+	Maneuver red using burn;
 	TimeSpan inspectorDeployDelay = TimeSpan.FromHours(1);
 	red.StepToEpoch(red.Epoch + inspectorDeployDelay);
 	
@@ -899,8 +901,8 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 	Spacecraft redInspector;
 	redInspector.Epoch = red.Epoch;
 	redInspector.SetCartesianState(red.GetCartesianState());
-	Call InitializeForceModel((redInspector.Propagator AsType Integrator).ForceModel);
-	(redInspector.Propagator AsType Integrator).FixedStep = 0;
+	Call InitializePropagator(redInspector);
+//	(redInspector.Propagator AsType Integrator).FixedStep = 0;
 	
 	TimeSpan rendezvousCoastDuration = TimeSpan.FromHours(8);
 	TimeSpan killOperationDuration = TimeSpan.FromHours(8);
@@ -1038,6 +1040,10 @@ TimeSpan epochToStepTo;
 Variable i;
 
 Variable updateHasBeenComputed;
+Variable simChoiceSpacingDays;
+
+Variable epochWholeSeconds;
+Variable epochFractionalSeconds;
 
 While (1);	
 	Report "Listening on port ", connection.PortNumber.ToString(), "..." to Console;
@@ -1046,14 +1052,20 @@ While (1);
 	ConsoleSolver.Clear();
 	Report "Connected" to Console;
 	
-	Receive stepSizeSeconds from connection;
+	Receive socketVerificationLabel, stepSizeSeconds from connection;
+	Call ValidateSocketVerificationLabel("simStepSize");
 //	stepSizeSeconds = 800;
 	blue[0].Propagator.StepSize = TimeSpan.FromSeconds(stepSizeSeconds);
 	red[0].Propagator.StepSize = TimeSpan.FromSeconds(stepSizeSeconds);
 	red[1].Propagator.StepSize = TimeSpan.FromSeconds(stepSizeSeconds);
 	red[2].Propagator.StepSize = TimeSpan.FromSeconds(stepSizeSeconds);
 	
-	Receive gameMode from connection;
+	Receive socketVerificationLabel, gameMode from connection;
+	Call ValidateSocketVerificationLabel("gameMode");
+	
+	Receive socketVerificationLabel, simChoiceSpacingDays from connection;
+	Call ValidateSocketVerificationLabel("simChoiceSpacing");
+	simChoiceSpacing = TimeSpan.FromDays(simChoiceSpacingDays);
 	
 	// Reset these globals so we get an initial strategy update
 	lastBlueRadius = 0;
@@ -1074,14 +1086,17 @@ While (1);
 						red1CartState,
 						red2CartState,
 						red3CartState,
-						epochDays,
+						epochWholeSeconds,
+						epochFractionalSeconds,
 						uplinkTimeDays from connection;
 				Call ValidateSocketVerificationLabel("strategyUpdateData");
 				
-				blue[0].Epoch = TimeSpan.FromDays(epochDays);
-				red[0].Epoch = TimeSpan.FromDays(epochDays);
-				red[1].Epoch = TimeSpan.FromDays(epochDays);
-				red[2].Epoch = TimeSpan.FromDays(epochDays);
+				
+				
+				blue[0].Epoch = TimeSpan.FromSecondsAndFractionalSeconds(epochWholeSeconds, epochFractionalSeconds);
+				red[0].Epoch = blue[0].Epoch;
+				red[1].Epoch = blue[0].Epoch;
+				red[2].Epoch = blue[0].Epoch;
 				
 				blue[0].SetCartesianState(blueCartState);
 				red[0].SetCartesianState(red1CartState);
@@ -1107,7 +1122,8 @@ While (1);
 					Send "numRedActions", actions.Count to connection;
 					For i = 0 to actions.Count - 1;
 						Send "redAction",
-							 actions[i].epoch.ToDays(),
+							 actions[i].epoch.GetWholeSeconds(),
+							 actions[i].epoch.GetFractionalSeconds(),
 							 actions[i].burnRIC,
 							 actions[i].formationIndex,
 							 actions[i].additionalAction to connection;
@@ -1171,6 +1187,7 @@ connection.SocketTimeout = -1;
 
 
 Global TimeSpan red2and3TransitOrbitTime = TimeSpan.FromDays(0.2);
+Global TimeSpan simChoiceSpacing;
 
 Define Procedure HasBlueManeuvered(Spacecraft blue, Variable blueHasManeuvered);
 	blueHasManeuvered = 0;
@@ -1327,7 +1344,7 @@ Define Procedure TargetNewOrbitSingleBurn(
 		opt.RestoreObjectsInProcess();
 		
 		burn.BurnDirection[0:1] = opt.GetStateVariableValues();
-		sc.Maneuver(burn);
+		Maneuver sc using burn;
 		 
 		opt.Minimize(
 		(sc.Periapsis - r_p)^2 +
@@ -1473,25 +1490,25 @@ Define Procedure ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(
 	Call TargetNewOrbitSingleBurn(red, red.Radius, driftOrbitRadius, burns[0]);
 	burnEpochs[0] = red.Epoch;
 	burn.BurnDirection = burns[0];
-	red.Maneuver(burn);
+	Maneuver red using burn;
 	red.StepToEpoch(red.Epoch + red2and3TransitOrbitTime);
 	
 	Call TargetNewOrbitSingleBurn(red, driftOrbitRadius, driftOrbitRadius, burns[1]);
 	burnEpochs[1] = red.Epoch;
 	burn.BurnDirection = burns[1];
-	red.Maneuver(burn);
+	Maneuver red using burn;
 	red.StepToEpoch(red.Epoch + driftTime);
 	
 	Call TargetNewOrbitSingleBurn(red, driftOrbitRadius, arrivalRadius, burns[2]);
 	burnEpochs[2] = red.Epoch;
 	burn.BurnDirection = burns[2];
-	red.Maneuver(burn);
+	Maneuver red using burn;
 	red.StepToEpoch(red.Epoch + red2and3TransitOrbitTime);
 	
 	Call TargetNewOrbitSingleBurn(red, arrivalRadius, arrivalRadius, burns[3]);
 	burnEpochs[3] = red.Epoch;
 	burn.BurnDirection = burns[3];
-	red.Maneuver(burn);
+	Maneuver red using burn;
 	red.StepToEpoch(red.Epoch + red2and3TransitOrbitTime);
 	
 	Call TargetNewOrbitSingleBurn(red, arrivalRadius, blue.Radius + factor*incursionRadialSeparation, burns[4]);
@@ -1556,7 +1573,7 @@ Define Procedure ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(
 				opt.SetConstraintValue("arrivalTime", red.Epoch.ToDays());
 			End;
 				
-			red.Maneuver(burn);
+			Maneuver red using burn;
 			
 			If (i == 1);
 				opt.SetConstraintValue("driftE", red.Periapsis - red.Apoapsis);
@@ -1750,14 +1767,14 @@ Define Procedure ComputeInspectorBurns(
 		opt.RestoreObjectsInProcess();
 		
 		burn.BurnDirection = opt.GetStateVariableValues()[0:2];
-		red4.Maneuver(burn);
+		Maneuver red4 using burn;
 		totalDV = burn.BurnDirection.Norm;
 		
 		red4.StepToEpoch(killOperationStartEpoch);
 		
 		burn.BurnDirection = opt.GetStateVariableValues()[3:5];
-		red4.Maneuver(burn);
-		totalDV += burn.BurnDirection.Norm;
+		Maneuver red4 using burn;
+		totalDV += 10*burn.BurnDirection.Norm;
 		
 		relativeState = blue.GetCartesianState() - red4.GetCartesianState();
 		opt.SetConstraintValues(relativeState);
@@ -1775,14 +1792,15 @@ Define Procedure ComputeInspectorBurns(
 	Report opt.ReturnString to ConsoleSolver;
 	opt.RestoreObjectsInProcess();
 	
-	burn.BurnDirection = opt.GetStateVariableValues()[0:2];
-	red4.Maneuver(burn);
+	burn.BurnDirection = opt.GetBestStateVariableValues()[0:2];
+	Maneuver red4 using burn;
 	Call AddBurnToActions(burn.BurnDirection, red4.Epoch, 3);
 
 	red4.StepToEpoch(killOperationStartEpoch);
 	
-	burn.BurnDirection = opt.GetStateVariableValues()[3:5];
-	red4.Maneuver(burn);
+	
+	burn.BurnDirection = opt.GetBestStateVariableValues()[3:5];
+	Maneuver red4 using burn;
 	Call AddBurnToActions(burn.BurnDirection, red4.Epoch, 3);
 	
 	red4.StepToEpoch(killOperationCompletionEpoch);
@@ -1803,14 +1821,14 @@ Define Procedure ComputeInspectorBurns(
 		opt.RestoreObjectsInProcess();
 		
 		burn.BurnDirection = opt.GetStateVariableValues()[0:2];
-		red4.Maneuver(burn);
+		Maneuver red4 using burn;
 		totalDV = burn.BurnDirection.Norm;
 		
 		red4.StepToEpoch(inspectorReturnEpoch);
 		
 		burn.BurnDirection = opt.GetStateVariableValues()[3:5];
-		red4.Maneuver(burn);
-		totalDV += burn.BurnDirection.Norm;
+		Maneuver red4 using burn;
+		totalDV += 10*burn.BurnDirection.Norm;
 		
 		relativeState = red1.GetCartesianState() - red4.GetCartesianState();
 		opt.SetConstraintValues(relativeState);
@@ -1828,14 +1846,14 @@ Define Procedure ComputeInspectorBurns(
 	Report opt.ReturnString to ConsoleSolver;
 	opt.RestoreObjectsInProcess();
 	
-	burn.BurnDirection = opt.GetStateVariableValues()[0:2];
-	red4.Maneuver(burn);
+	burn.BurnDirection = opt.GetBestStateVariableValues()[0:2];
+	Maneuver red4 using burn;
 	Call AddBurnToActions(burn.BurnDirection, red4.Epoch, 3);
 
 	red4.StepToEpoch(inspectorReturnEpoch);
 	
-	burn.BurnDirection = opt.GetStateVariableValues()[3:5];
-	red4.Maneuver(burn);
+	burn.BurnDirection = opt.GetBestStateVariableValues()[3:5];
+	Maneuver red4 using burn;
 	Call AddBurnToActions(burn.BurnDirection, red4.Epoch, 3);
 
 	blue.Restore("IC");
@@ -1872,10 +1890,10 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 	Call AddBurnToActions(dv2, red.Epoch + interBurnTime, 0);
 	
 	burn.BurnDirection = dv1;
-	red.Maneuver(burn);
+	Maneuver red using burn;
 	red.StepToEpoch(red.Epoch + interBurnTime);
 	burn.BurnDirection = dv2;
-	red.Maneuver(burn);
+	Maneuver red using burn;
 	
 	red.StepToEpoch(incursionEpoch);
 	blue.StepToEpoch(red.Epoch);
@@ -1897,10 +1915,10 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 	Call AddBurnToActions(dv2, red.Epoch + interBurnTime, 0);
 	
 	burn.BurnDirection = dv1;
-	red.Maneuver(burn);
+	Maneuver red using burn;
 	red.StepToEpoch(red.Epoch + interBurnTime);
 	burn.BurnDirection = dv2;
-	red.Maneuver(burn);
+	Maneuver red using burn;
 	TimeSpan inspectorDeployDelay = TimeSpan.FromHours(1);
 	red.StepToEpoch(red.Epoch + inspectorDeployDelay);
 	
@@ -1913,8 +1931,8 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 	Spacecraft redInspector;
 	redInspector.Epoch = red.Epoch;
 	redInspector.SetCartesianState(red.GetCartesianState());
-	Call InitializeForceModel((redInspector.Propagator AsType Integrator).ForceModel);
-	(redInspector.Propagator AsType Integrator).FixedStep = 0;
+	Call InitializePropagator(redInspector);
+//	(redInspector.Propagator AsType Integrator).FixedStep = 0;
 	
 	TimeSpan rendezvousCoastDuration = TimeSpan.FromHours(8);
 	TimeSpan killOperationDuration = TimeSpan.FromHours(8);
@@ -2047,6 +2065,10 @@ TimeSpan epochToStepTo;
 Variable i;
 
 Variable updateHasBeenComputed;
+Variable simChoiceSpacingDays;
+
+Variable epochWholeSeconds;
+Variable epochFractionalSeconds;
 
 While (1);	
 	Report "Listening on port ", connection.PortNumber.ToString(), "..." to Console;
@@ -2055,14 +2077,20 @@ While (1);
 	ConsoleSolver.Clear();
 	Report "Connected" to Console;
 	
-	Receive stepSizeSeconds from connection;
+	Receive socketVerificationLabel, stepSizeSeconds from connection;
+	Call ValidateSocketVerificationLabel("simStepSize");
 //	stepSizeSeconds = 800;
 	blue[0].Propagator.StepSize = TimeSpan.FromSeconds(stepSizeSeconds);
 	red[0].Propagator.StepSize = TimeSpan.FromSeconds(stepSizeSeconds);
 	red[1].Propagator.StepSize = TimeSpan.FromSeconds(stepSizeSeconds);
 	red[2].Propagator.StepSize = TimeSpan.FromSeconds(stepSizeSeconds);
 	
-	Receive gameMode from connection;
+	Receive socketVerificationLabel, gameMode from connection;
+	Call ValidateSocketVerificationLabel("gameMode");
+	
+	Receive socketVerificationLabel, simChoiceSpacingDays from connection;
+	Call ValidateSocketVerificationLabel("simChoiceSpacing");
+	simChoiceSpacing = TimeSpan.FromDays(simChoiceSpacingDays);
 	
 	// Reset these globals so we get an initial strategy update
 	lastBlueRadius = 0;
@@ -2083,14 +2111,17 @@ While (1);
 						red1CartState,
 						red2CartState,
 						red3CartState,
-						epochDays,
+						epochWholeSeconds,
+						epochFractionalSeconds,
 						uplinkTimeDays from connection;
 				Call ValidateSocketVerificationLabel("strategyUpdateData");
 				
-				blue[0].Epoch = TimeSpan.FromDays(epochDays);
-				red[0].Epoch = TimeSpan.FromDays(epochDays);
-				red[1].Epoch = TimeSpan.FromDays(epochDays);
-				red[2].Epoch = TimeSpan.FromDays(epochDays);
+				
+				
+				blue[0].Epoch = TimeSpan.FromSecondsAndFractionalSeconds(epochWholeSeconds, epochFractionalSeconds);
+				red[0].Epoch = blue[0].Epoch;
+				red[1].Epoch = blue[0].Epoch;
+				red[2].Epoch = blue[0].Epoch;
 				
 				blue[0].SetCartesianState(blueCartState);
 				red[0].SetCartesianState(red1CartState);
@@ -2116,7 +2147,8 @@ While (1);
 					Send "numRedActions", actions.Count to connection;
 					For i = 0 to actions.Count - 1;
 						Send "redAction",
-							 actions[i].epoch.ToDays(),
+							 actions[i].epoch.GetWholeSeconds(),
+							 actions[i].epoch.GetFractionalSeconds(),
 							 actions[i].burnRIC,
 							 actions[i].formationIndex,
 							 actions[i].additionalAction to connection;
