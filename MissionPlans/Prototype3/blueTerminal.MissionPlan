@@ -415,12 +415,12 @@ overlaySensorLegend.AddShape();
 Call ConfigureTextBoxOverlayShape(
 	overlaySensorLegend,
 	0, 1,
-	1 - sensorLegendBoxWidth + overlayBorderBuffer, overlayBorderBuffer,
+	1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer,
 	ColorTools.Purple, "Uplink");
 Call ConfigureTextBoxOverlayShape(
 	overlaySensorLegend,
 	2, 3,
-	1 - sensorLegendBoxWidth + overlayBorderBuffer, overlayBorderBuffer*2 + sensorLegendBoxHeight,
+	1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer*2 + sensorLegendBoxHeight,
 	ColorTools.Lime, "Payload Orientation");
 	
 Global WindowOverlay overlayStatusIndicators;
@@ -883,6 +883,8 @@ pwAngleFromPayload.UseMonitorMode = 1;
 pwAngleFromPayload.Legend.Location = 1;
 Call SetMaxPoints(pwAngleFromPayload, tailPoints);
 
+pwAngleFromPayload.YAxis.LabelsSpacing = 45;
+
 // rangeAngleFromPayloadXX
 Call InitializePlotMainSeries(angleFromPayloadR1, "Red1", colorRed1);
 Call InitializePlotMainSeries(angleFromPayloadR2, "Red2", colorRed2);
@@ -1009,6 +1011,8 @@ pwAngleRange.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
 pwAngleRange.UseMonitorMode = 1;
 pwAngleRange.Legend.Location = 1;
 Call SetMaxPoints(pwAngleRange, tailPoints);
+
+pwAngleRange.XAxis.LabelsSpacing = 45;
 
 // rangeAngleFromPayloadXX
 Call InitializePlotMainSeries(rangeAngleFromPayloadR1, "Red1", colorRed1);
@@ -3212,12 +3216,12 @@ overlaySensorLegend.AddShape();
 Call ConfigureTextBoxOverlayShape(
 	overlaySensorLegend,
 	0, 1,
-	1 - sensorLegendBoxWidth + overlayBorderBuffer, overlayBorderBuffer,
+	1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer,
 	ColorTools.Purple, "Uplink");
 Call ConfigureTextBoxOverlayShape(
 	overlaySensorLegend,
 	2, 3,
-	1 - sensorLegendBoxWidth + overlayBorderBuffer, overlayBorderBuffer*2 + sensorLegendBoxHeight,
+	1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer*2 + sensorLegendBoxHeight,
 	ColorTools.Lime, "Payload Orientation");
 	
 Global WindowOverlay overlayStatusIndicators;
@@ -3670,6 +3674,8 @@ pwAngleFromPayload.UseMonitorMode = 1;
 pwAngleFromPayload.Legend.Location = 1;
 Call SetMaxPoints(pwAngleFromPayload, tailPoints);
 
+pwAngleFromPayload.YAxis.LabelsSpacing = 45;
+
 // rangeAngleFromPayloadXX
 Call InitializePlotMainSeries(angleFromPayloadR1, "Red1", colorRed1);
 Call InitializePlotMainSeries(angleFromPayloadR2, "Red2", colorRed2);
@@ -3796,6 +3802,8 @@ pwAngleRange.PointsToUpdate = 5 * 300 / simStepSize.ToSeconds();
 pwAngleRange.UseMonitorMode = 1;
 pwAngleRange.Legend.Location = 1;
 Call SetMaxPoints(pwAngleRange, tailPoints);
+
+pwAngleRange.XAxis.LabelsSpacing = 45;
 
 // rangeAngleFromPayloadXX
 Call InitializePlotMainSeries(rangeAngleFromPayloadR1, "Red1", colorRed1);
