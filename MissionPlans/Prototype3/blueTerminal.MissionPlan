@@ -268,7 +268,7 @@
         <FreeFormScript><![CDATA[//Show MainMenu;
 
 //Global Constant Variable gameMode = userChoice;
-Global Constant Variable gameMode = gameMode_disableScript;
+Global Constant Variable gameMode = gameMode_benignScript;
 simStepSizeSeconds = 1000;
 
 Global Constant Variable autoChooseNominalOperation = 0;
@@ -617,6 +617,8 @@ Global Constant Variable nominalBluePayloadOrientationAngle = blue[0].EulerAngle
 // Start with this value as true so we get an initial strategy for red
 Global Variable blueHasManeuveredSinceLastRedStrategyUpdate = 1;
 
+Global Variable killOperationIsComplete = 0;
+
 
 Global Socket blueStrategyServer;
 blueStrategyServer.SocketType = "client";
@@ -731,6 +733,8 @@ Define Procedure InitializePlot(PlotWindow plot, String title, String xLabel, St
 	plot.PlotTitle.Text = title;
 	plot.XAxis.Title.Text = xLabel;
 	plot.YAxis.Title.Text = yLabel;
+	plot.XAxis.LabelsFormat = "#,##0.####";
+	plot.YAxis.LabelsFormat = "#,##0.####";
 	plot.WindowTitle = windowHandle;
 	plot.PlotSubTitle.Visible = 0;
 	plot.HighQualityRendering = 1;
@@ -1474,9 +1478,7 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue, TimeSpan 
 	Variable slewRateDegPerSecond;
 	Variable angleDifference;
 	If (blueSlewCompletionEpoch > simEpoch);
-//		If (abs(desiredBluePayloadOrientationAngle - initialBluePayloadOrientationAngle) > 180);
-//			slewRateDegPerSecond *= -1;
-//		End;
+
 		angleDifference = (desiredBluePayloadOrientationAngle - initialBluePayloadOrientationAngle + 180) % 360 - 180;
 		If (angleDifference < -180);
 			angleDifference += 360;
@@ -1498,7 +1500,13 @@ Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan
 	End;
 EndProcedure;
 
-
+]]></FreeFormScript>
+      </FreeForm>
+      <FreeForm enabled="true">
+        <Label>Strategy Procedures</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[
 Define Procedure AddBurnToQueue(
 	Array dv,
 	TimeSpan epoch,
@@ -1673,10 +1681,21 @@ Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, F
 				Diagnostics.ReportErrorMessage(0, "Incorrect number of red spacecraft encountered.");
 			End;
 			red.Count -= 1;
+		ElseIf (queuedAction.additionalAction == additionalAction_redKillOperation);
+			If (red.Count != 4);
+				Diagnostics.ReportErrorMessage(0, "Incorrect number of red spacecraft encountered.");
+			End;
+			If ((red[3].Position - blue[0].Position).Norm < 1);
+				blueOperationsScore = 0;
+				redObjectiveScore = 0;
+				killOperationIsComplete = 1;
+			End;
+		ElseIf (queuedAction.additionalAction == additionalAction_redDisengage);
+			redIsEngaged = 0;
 		ElseIf (queuedAction.additionalAction == additionalAction_none);
 			// do nothing
 		Else;
-			Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
+			Diagnostics.ReportErrorMessage(0, "Encountered unexpected value: " + queuedAction.additionalAction.ToString());
 		End;
 	End;
 EndProcedure;
@@ -1787,26 +1806,20 @@ Define Procedure BuildOperatorActionsMenu();
 	OperatorActions.AddLabel(msg);
 	OperatorActions.AddSeparator("", 1);
 	
-	If (redJammerState == activatableAsset_on);
+	If (killOperationIsComplete == 1);
+		msg = "WARNING: Orbital asset is non-responsive.";
+		OperatorActions.AddLabel(msg);
+		OperatorActions.AddSeparator("", 1);
+	ElseIf (redJammerState == activatableAsset_on);
 		msg = "WARNING: Primary comms path is currently disrupted.";
 		OperatorActions.AddLabel(msg);
 		OperatorActions.AddSeparator("", 1);
 	End;
 	
+	
 	Variable multiChoiceID = OperatorActions.AddMultiChoice("userChoice", "Select an action:", "choice_nominal", 1);
 	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_nominal",   "Continue nominal operations");
 	
-	If (blueBackupCommsState == activatableAsset_off);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Prepare secondary comms path");
-	ElseIf (blueBackupCommsState == activatableAsset_ready);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to secondary comms path");
-	ElseIf (blueBackupCommsState == activatableAsset_on);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Revert to primary comms path");
-	End;
-	
-	If (redJammerState == activatableAsset_off);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_slew", "Slew payload away from closest red spacecraft");
-	End;
 	
 	If (blueJammerState == activatableAsset_off);
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Prepare ground-based jamming unit");
@@ -1816,12 +1829,26 @@ Define Procedure BuildOperatorActionsMenu();
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "De-activate ground-based jamming unit");
 	End;
 	
-	If (redJammerState == activatableAsset_off);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_evasive",   "Perform evasive maneuver");
-	End;
-	
-	If (blueIsOffNominal);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_returnToNominal",   "Return BlueSat to nominal attitude/location");
+	If (killOperationIsComplete == 0);
+		If (blueBackupCommsState == activatableAsset_off);
+			OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Prepare secondary comms path");
+		ElseIf (blueBackupCommsState == activatableAsset_ready);
+			OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to secondary comms path");
+		ElseIf (blueBackupCommsState == activatableAsset_on);
+			OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Revert to primary comms path");
+		End;
+		
+		If (redJammerState == activatableAsset_off);
+			OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_slew", "Slew payload away from closest red spacecraft");
+		End;
+		
+		If (redJammerState == activatableAsset_off);
+			OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_evasive",   "Perform evasive maneuver");
+		End;
+		
+		If (blueIsOffNominal and redJammerState == activatableAsset_off);
+			OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_returnToNominal",   "Return BlueSat to nominal attitude/location");
+		End;
 	End;
 	
 	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_reevaluate",  "Re-evaluate data");
@@ -2911,14 +2938,14 @@ End;
 OutputLayout.BringWindowToFront(pwResultsBarChart.ID);
 OutputLayout.ApplyUpdates();
 
-Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(24*1));]]></FreeFormScript>
+Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromDays(3));]]></FreeFormScript>
       </FreeForm>
     </ProjectCommands>
   </ProjectMissionSequence>
   <ProjectScript><![CDATA[//Show MainMenu;
 
 //Global Constant Variable gameMode = userChoice;
-Global Constant Variable gameMode = gameMode_disableScript;
+Global Constant Variable gameMode = gameMode_benignScript;
 simStepSizeSeconds = 1000;
 
 Global Constant Variable autoChooseNominalOperation = 0;
@@ -3262,6 +3289,8 @@ Global Constant Variable nominalBluePayloadOrientationAngle = blue[0].EulerAngle
 // Start with this value as true so we get an initial strategy for red
 Global Variable blueHasManeuveredSinceLastRedStrategyUpdate = 1;
 
+Global Variable killOperationIsComplete = 0;
+
 
 Global Socket blueStrategyServer;
 blueStrategyServer.SocketType = "client";
@@ -3366,6 +3395,8 @@ Define Procedure InitializePlot(PlotWindow plot, String title, String xLabel, St
 	plot.PlotTitle.Text = title;
 	plot.XAxis.Title.Text = xLabel;
 	plot.YAxis.Title.Text = yLabel;
+	plot.XAxis.LabelsFormat = "#,##0.####";
+	plot.YAxis.LabelsFormat = "#,##0.####";
 	plot.WindowTitle = windowHandle;
 	plot.PlotSubTitle.Visible = 0;
 	plot.HighQualityRendering = 1;
@@ -4099,9 +4130,7 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue, TimeSpan 
 	Variable slewRateDegPerSecond;
 	Variable angleDifference;
 	If (blueSlewCompletionEpoch > simEpoch);
-//		If (abs(desiredBluePayloadOrientationAngle - initialBluePayloadOrientationAngle) > 180);
-//			slewRateDegPerSecond *= -1;
-//		End;
+
 		angleDifference = (desiredBluePayloadOrientationAngle - initialBluePayloadOrientationAngle + 180) % 360 - 180;
 		If (angleDifference < -180);
 			angleDifference += 360;
@@ -4122,6 +4151,7 @@ Define Procedure AdvanceSimToFutureEpoch(Formation red, Formation blue, TimeSpan
 		previousEpoch = blue[0].Epoch;
 	End;
 EndProcedure;
+
 
 
 Define Procedure AddBurnToQueue(
@@ -4298,10 +4328,21 @@ Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, F
 				Diagnostics.ReportErrorMessage(0, "Incorrect number of red spacecraft encountered.");
 			End;
 			red.Count -= 1;
+		ElseIf (queuedAction.additionalAction == additionalAction_redKillOperation);
+			If (red.Count != 4);
+				Diagnostics.ReportErrorMessage(0, "Incorrect number of red spacecraft encountered.");
+			End;
+			If ((red[3].Position - blue[0].Position).Norm < 1);
+				blueOperationsScore = 0;
+				redObjectiveScore = 0;
+				killOperationIsComplete = 1;
+			End;
+		ElseIf (queuedAction.additionalAction == additionalAction_redDisengage);
+			redIsEngaged = 0;
 		ElseIf (queuedAction.additionalAction == additionalAction_none);
 			// do nothing
 		Else;
-			Diagnostics.ReportErrorMessage(0, "Encountered unexpected value.");
+			Diagnostics.ReportErrorMessage(0, "Encountered unexpected value: " + queuedAction.additionalAction.ToString());
 		End;
 	End;
 EndProcedure;
@@ -4407,26 +4448,20 @@ Define Procedure BuildOperatorActionsMenu();
 	OperatorActions.AddLabel(msg);
 	OperatorActions.AddSeparator("", 1);
 	
-	If (redJammerState == activatableAsset_on);
+	If (killOperationIsComplete == 1);
+		msg = "WARNING: Orbital asset is non-responsive.";
+		OperatorActions.AddLabel(msg);
+		OperatorActions.AddSeparator("", 1);
+	ElseIf (redJammerState == activatableAsset_on);
 		msg = "WARNING: Primary comms path is currently disrupted.";
 		OperatorActions.AddLabel(msg);
 		OperatorActions.AddSeparator("", 1);
 	End;
 	
+	
 	Variable multiChoiceID = OperatorActions.AddMultiChoice("userChoice", "Select an action:", "choice_nominal", 1);
 	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_nominal",   "Continue nominal operations");
 	
-	If (blueBackupCommsState == activatableAsset_off);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Prepare secondary comms path");
-	ElseIf (blueBackupCommsState == activatableAsset_ready);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to secondary comms path");
-	ElseIf (blueBackupCommsState == activatableAsset_on);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Revert to primary comms path");
-	End;
-	
-	If (redJammerState == activatableAsset_off);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_slew", "Slew payload away from closest red spacecraft");
-	End;
 	
 	If (blueJammerState == activatableAsset_off);
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Prepare ground-based jamming unit");
@@ -4436,12 +4471,26 @@ Define Procedure BuildOperatorActionsMenu();
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "De-activate ground-based jamming unit");
 	End;
 	
-	If (redJammerState == activatableAsset_off);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_evasive",   "Perform evasive maneuver");
-	End;
-	
-	If (blueIsOffNominal);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_returnToNominal",   "Return BlueSat to nominal attitude/location");
+	If (killOperationIsComplete == 0);
+		If (blueBackupCommsState == activatableAsset_off);
+			OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Prepare secondary comms path");
+		ElseIf (blueBackupCommsState == activatableAsset_ready);
+			OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to secondary comms path");
+		ElseIf (blueBackupCommsState == activatableAsset_on);
+			OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Revert to primary comms path");
+		End;
+		
+		If (redJammerState == activatableAsset_off);
+			OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_slew", "Slew payload away from closest red spacecraft");
+		End;
+		
+		If (redJammerState == activatableAsset_off);
+			OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_evasive",   "Perform evasive maneuver");
+		End;
+		
+		If (blueIsOffNominal and redJammerState == activatableAsset_off);
+			OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_returnToNominal",   "Return BlueSat to nominal attitude/location");
+		End;
 	End;
 	
 	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_reevaluate",  "Re-evaluate data");
@@ -5511,6 +5560,6 @@ End;
 OutputLayout.BringWindowToFront(pwResultsBarChart.ID);
 OutputLayout.ApplyUpdates();
 
-Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(24*1));]]></ProjectScript>
+Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromDays(3));]]></ProjectScript>
   <ProjectNotes></ProjectNotes>
 </FreeFlyerProjectFile>

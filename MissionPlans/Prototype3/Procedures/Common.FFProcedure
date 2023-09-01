@@ -30,6 +30,8 @@ Global Constant Variable additionalAction_redToggleJamming     = 3;
 Global Constant Variable additionalAction_retrieveRedStrategy  = 4;
 Global Constant Variable additionalAction_redDeployInspector   = 5;
 Global Constant Variable additionalAction_redUndeployInspector = 6;
+Global Constant Variable additionalAction_redKillOperation     = 7;
+Global Constant Variable additionalAction_redDisengage         = 8;
 
 Global Constant Variable queueType_none     = 0;
 Global Constant Variable queueType_blueBurn = 1;

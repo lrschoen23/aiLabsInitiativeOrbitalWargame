@@ -145,6 +145,8 @@ Global Array lastStableBlueGeoOrbit(6);
 Global Variable lastBlueRadius;
 Global Variable lastBlueLongitude;
 
+Global Variable numberOfComputedStrategyUpdates;
+
 Global Socket connection;
 connection.SocketType = "server";
 connection.PortNumber = redStrategyServerPort;
@@ -380,32 +382,12 @@ Define Procedure AddBurnToActions(Array dv, TimeSpan epoch, Variable formationIn
 	lastAction.formationIndex = formationIndex;
 EndProcedure;
 
-Define Procedure AddJammerToggleToActions(TimeSpan epoch);
+Define Procedure AddAdditionalActionToActions(TimeSpan epoch, Variable additionalAction);
 	Alias lastAction = actions[actions.Count - 1];
 	actions.Count += 1;
 	lastAction.epoch = epoch;
 	lastAction.burnRIC = {0,0,0};
-	lastAction.additionalAction = additionalAction_redToggleJamming;
-	lastAction.isBlue = 0;
-	lastAction.formationIndex = 0;
-EndProcedure;
-
-Define Procedure AddDeployInspectorToActions(TimeSpan epoch);
-	Alias lastAction = actions[actions.Count - 1];
-	actions.Count += 1;
-	lastAction.epoch = epoch;
-	lastAction.burnRIC = {0,0,0};
-	lastAction.additionalAction = additionalAction_redDeployInspector;
-	lastAction.isBlue = 0;
-	lastAction.formationIndex = 0;
-EndProcedure;
-
-Define Procedure AddUndeployInspectorToActions(TimeSpan epoch);
-	Alias lastAction = actions[actions.Count - 1];
-	actions.Count += 1;
-	lastAction.epoch = epoch;
-	lastAction.burnRIC = {0,0,0};
-	lastAction.additionalAction = additionalAction_redUndeployInspector;
+	lastAction.additionalAction = additionalAction;
 	lastAction.isBlue = 0;
 	lastAction.formationIndex = 0;
 EndProcedure;
@@ -781,6 +763,7 @@ Define Procedure ComputeInspectorBurns(
 
 	red4.StepToEpoch(killOperationStartEpoch);
 	
+	Call AddAdditionalActionToActions(red4.Epoch, additionalAction_redKillOperation);	
 	
 	burn.BurnDirection = dv2;
 	Maneuver red4 using burn;
@@ -867,7 +850,7 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 	TimeSpan inspectorDeployDelay = TimeSpan.FromHours(1);
 	red.StepToEpoch(red.Epoch + inspectorDeployDelay);
 	
-	Call AddDeployInspectorToActions(red.Epoch);
+	Call AddAdditionalActionToActions(red.Epoch, additionalAction_redDeployInspector);
 	
 	TimeSpan inspectorDepartDelay = TimeSpan.FromHours(1);
 	red.StepToEpoch(red.Epoch + inspectorDepartDelay);
@@ -884,7 +867,7 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 	Call ComputeInspectorBurns(redInspector, red, blue, rendezvousCoastDuration, killOperationDuration);
 	red.StepToEpoch(red.Epoch + inspectorDepartDelay);
 	
-	Call AddUndeployInspectorToActions(red.Epoch);
+	Call AddAdditionalActionToActions(red.Epoch, additionalAction_redUndeployInspector);
 	
 	red.StepToEpoch(red.Epoch + inspectorDeployDelay);
 
@@ -899,6 +882,90 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 	
 	Call AddBurnToActions(dv1, red.Epoch, 0);
 	Call AddBurnToActions(dv2, red.Epoch + interBurnTime, 0);
+	
+	Call AddAdditionalActionToActions(red.Epoch + interBurnTime, additionalAction_redDisengage);
+EndProcedure;
+
+
+Define Procedure ComputeObservationScriptRed1TransitManeuversAndAddToActions(
+		Spacecraft red,
+		Spacecraft blue,
+		TimeSpan incursionEpoch,
+		TimeSpan driftTime);
+	Variable driftOrbitRadius;
+	Call ComputeRed1DriftOrbitRadius(red, blue, incursionEpoch, driftTime, driftOrbitRadius);
+	
+	Array desiredKepState;
+	Array driftOrbitKepState;
+	desiredKepState = red.GetKeplerianState();
+	desiredKepState[0] = driftOrbitRadius;
+	desiredKepState[1] = 1e-6;
+	driftOrbitKepState = desiredKepState;
+	
+	Array dv1(3);
+	Array dv2(3);
+	TimeSpan interBurnTime;
+	Call TargetNewOrbit(
+		red,
+		desiredKepState,
+		-999,
+		{0.4, 0.6},
+		dv1,
+		dv2,
+		interBurnTime);
+	
+	Call AddBurnToActions(dv1, red.Epoch, 0);
+	Call AddBurnToActions(dv2, red.Epoch + interBurnTime, 0);
+	
+	burn.BurnDirection = dv1;
+	Maneuver red using burn;
+	red.StepToEpoch(red.Epoch + interBurnTime);
+	burn.BurnDirection = dv2;
+	Maneuver red using burn;
+	
+	red.StepToEpoch(incursionEpoch);
+	blue.StepToEpoch(red.Epoch);
+	
+	desiredKepState = blue.GetKeplerianState();
+	desiredKepState[1] += 0.001;
+	desiredKepState[2] = blue.I + 0.06;
+	desiredKepState[4] -= 0.1;
+	
+	Call TargetNewRelativeOrbit(
+		red,
+		blue,
+		desiredKepState,
+		{0.01, 0.9},
+		dv1,
+		dv2,
+		interBurnTime);
+	
+	Call AddBurnToActions(dv1, red.Epoch, 0);
+	Call AddBurnToActions(dv2, red.Epoch + interBurnTime, 0);
+	
+	burn.BurnDirection = dv1;
+	Maneuver red using burn;
+	red.StepToEpoch(red.Epoch + interBurnTime);
+	burn.BurnDirection = dv2;
+	Maneuver red using burn;
+	
+	red.StepToEpoch(red.Epoch + TimeSpan.FromDays(1));
+	
+	driftOrbitKepState[2] = red.I;
+
+	Call TargetNewOrbit(
+		red,
+		driftOrbitKepState,
+		-999,
+		{0.4, 0.9},
+		dv1,
+		dv2,
+		interBurnTime);
+	
+	Call AddBurnToActions(dv1, red.Epoch, 0);
+	Call AddBurnToActions(dv2, red.Epoch + interBurnTime, 0);
+	
+	Call AddAdditionalActionToActions(red.Epoch + interBurnTime + TimeSpan.FromHours(1), additionalAction_redDisengage);
 EndProcedure;
 
 
@@ -914,7 +981,7 @@ Define Procedure ReturnToNominal(Formation red);
 		red[1],
 		desiredKepState,
 		-999,
-		{0.01, 0.5},
+		{0.4, 0.9},
 		dv1,
 		dv2,
 		interBurnTime);
@@ -930,13 +997,101 @@ Define Procedure ReturnToNominal(Formation red);
 		red[2],
 		desiredKepState,
 		-999,
-		{0.01, 0.5},
+		{0.4, 0.9},
 		dv1,
 		dv2,
 		interBurnTime);
 	
 	Call AddBurnToActions(dv1, red[2].Epoch, 2);
 	Call AddBurnToActions(dv2, red[2].Epoch + interBurnTime, 2);
+	
+	
+	desiredKepState = red[0].GetKeplerianState();
+	desiredKepState[0] = 42120;
+	desiredKepState[1] = 0;
+	
+	Call TargetNewOrbit(
+		red[2],
+		desiredKepState,
+		-999,
+		{0.4, 0.9},
+		dv1,
+		dv2,
+		interBurnTime);
+	
+	Call AddBurnToActions(dv1, red[0].Epoch, 0);
+	Call AddBurnToActions(dv2, red[0].Epoch + interBurnTime, 0);
+	
+	Call AddAdditionalActionToActions(red[0].Epoch + interBurnTime + TimeSpan.FromHours(1), additionalAction_redDisengage);
+EndProcedure;
+
+
+Define Procedure ComputeBenignScriptStrategy(Formation red, Formation blue, Variable updateHasBeenComputed);
+	actions.Clear();
+	updateHasBeenComputed = 0;
+	
+	If (numberOfComputedStrategyUpdates != 0);
+		Send "updateWillOccur", 0 to connection; // signal no update
+		Report "No update will occur" to Console;
+		ExitProcedure;
+	End;
+
+	Send "updateWillOccur", 1 to connection;
+	
+	TimeSpan incursionEpoch = simStartEpoch + TimeSpan.FromHours(24*3.9 + 0);
+	TimeSpan driftTime = incursionEpoch - blue[0].Epoch - red2and3TransitOrbitTime.Scaled(3);
+	Variable driftOrbitRadius;
+	Call ComputeRed1DriftOrbitRadius(red[0], blue[0], incursionEpoch, driftTime, driftOrbitRadius);
+	
+	Array desiredKepState;
+	Array driftOrbitKepState;
+	desiredKepState = red[0].GetKeplerianState();
+	desiredKepState[0] = driftOrbitRadius;
+	desiredKepState[1] = 1e-6;
+	driftOrbitKepState = desiredKepState;
+	
+	Array dv1(3);
+	Array dv2(3);
+	TimeSpan interBurnTime;
+	Call TargetNewOrbit(
+		red[0],
+		desiredKepState,
+		-999,
+		{0.4, 0.6},
+		dv1,
+		dv2,
+		interBurnTime);
+	
+	Call AddBurnToActions(dv1, red[0].Epoch, 0);
+	Call AddBurnToActions(dv2, red[0].Epoch + interBurnTime, 0);
+	
+	Call AddAdditionalActionToActions(incursionEpoch + TimeSpan.FromDays(0.5), additionalAction_redDisengage);
+	
+	numberOfComputedStrategyUpdates += 1;
+	updateHasBeenComputed = 1;
+EndProcedure;
+
+
+Define Procedure ComputeObservationScriptStrategy(Formation red, Formation blue, Variable updateHasBeenComputed);
+	actions.Clear();
+	updateHasBeenComputed = 0;
+	
+	Variable updateWillOccur = 0;
+	Call WillUpdateOccur(blue[0], updateWillOccur);
+	If (!updateWillOccur);
+		Send "updateWillOccur", 0 to connection; // signal no update
+		Report "No update will occur" to Console;
+		ExitProcedure;
+	End;
+
+	Send "updateWillOccur", 1 to connection;
+	
+	TimeSpan incursionEpoch = simStartEpoch + TimeSpan.FromHours(24*4 + 0);
+	TimeSpan driftTime = incursionEpoch - blue[0].Epoch - red2and3TransitOrbitTime.Scaled(3);
+	Call ComputeObservationScriptRed1TransitManeuversAndAddToActions(red[0], blue[0], incursionEpoch, driftTime);
+	
+	numberOfComputedStrategyUpdates += 1;
+	updateHasBeenComputed = 1;
 EndProcedure;
 
 
@@ -960,6 +1115,8 @@ Define Procedure ComputeDisableScriptStrategy(Formation red, Formation blue, Var
 		Send "updateWillOccur", 1 to connection;
 		Report "Drift time too small, returning to nominal" to Console;
 		
+		Call ReturnToNominal(red);
+		
 		updateHasBeenComputed = 1;
 		ExitProcedure;
 	End;
@@ -970,9 +1127,10 @@ Define Procedure ComputeDisableScriptStrategy(Formation red, Formation blue, Var
 	Call ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(red[1], blue[0], incursionEpoch, driftTime, 1);
 	Call ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(red[2], blue[0], incursionEpoch, driftTime, 2);
 	
-	Call AddJammerToggleToActions(incursionEpoch);
-	Call AddJammerToggleToActions(incursionEpoch + TimeSpan.FromDays(1));
+	Call AddAdditionalActionToActions(incursionEpoch, additionalAction_redToggleJamming);
+	Call AddAdditionalActionToActions(incursionEpoch + TimeSpan.FromDays(1), additionalAction_redToggleJamming);
 	
+	numberOfComputedStrategyUpdates += 1;
 	updateHasBeenComputed = 1;
 EndProcedure;
 
@@ -1058,6 +1216,7 @@ While (1);
 	// Reset these globals so we get an initial strategy update
 	lastBlueRadius = 0;
 	lastBlueLongitude = -999;
+	numberOfComputedStrategyUpdates = 0;
 	
 	Try;
 		While (1);
@@ -1079,8 +1238,6 @@ While (1);
 						uplinkTimeDays from connection;
 				Call ValidateSocketVerificationLabel("strategyUpdateData");
 				
-				
-				
 				blue[0].Epoch = TimeSpan.FromSecondsAndFractionalSeconds(epochWholeSeconds, epochFractionalSeconds);
 				red[0].Epoch = blue[0].Epoch;
 				red[1].Epoch = blue[0].Epoch;
@@ -1097,9 +1254,9 @@ While (1);
 				End;
 				
 				If (gameMode == gameMode_benignScript);
-					// TODO
+					Call ComputeBenignScriptStrategy(red, blue, updateHasBeenComputed);
 				ElseIf (gameMode == gameMode_observationScript);
-					// TODO
+					Call ComputeObservationScriptStrategy(red, blue, updateHasBeenComputed);
 				ElseIf (gameMode == gameMode_disableScript);
 					Call ComputeDisableScriptStrategy(red, blue, updateHasBeenComputed);
 				End;
@@ -1121,6 +1278,9 @@ While (1);
 			End;
 		End;
 	End;
+	
+	Report Diagnostics.GetLastErrorMessages() to Console;
+	Diagnostics.ClearErrorMessages();
 	
 	Close connection;
 	Report "" to Console;
@@ -1167,6 +1327,8 @@ Global Array lastStableBlueGeoOrbit(6);
 
 Global Variable lastBlueRadius;
 Global Variable lastBlueLongitude;
+
+Global Variable numberOfComputedStrategyUpdates;
 
 Global Socket connection;
 connection.SocketType = "server";
@@ -1398,32 +1560,12 @@ Define Procedure AddBurnToActions(Array dv, TimeSpan epoch, Variable formationIn
 	lastAction.formationIndex = formationIndex;
 EndProcedure;
 
-Define Procedure AddJammerToggleToActions(TimeSpan epoch);
+Define Procedure AddAdditionalActionToActions(TimeSpan epoch, Variable additionalAction);
 	Alias lastAction = actions[actions.Count - 1];
 	actions.Count += 1;
 	lastAction.epoch = epoch;
 	lastAction.burnRIC = {0,0,0};
-	lastAction.additionalAction = additionalAction_redToggleJamming;
-	lastAction.isBlue = 0;
-	lastAction.formationIndex = 0;
-EndProcedure;
-
-Define Procedure AddDeployInspectorToActions(TimeSpan epoch);
-	Alias lastAction = actions[actions.Count - 1];
-	actions.Count += 1;
-	lastAction.epoch = epoch;
-	lastAction.burnRIC = {0,0,0};
-	lastAction.additionalAction = additionalAction_redDeployInspector;
-	lastAction.isBlue = 0;
-	lastAction.formationIndex = 0;
-EndProcedure;
-
-Define Procedure AddUndeployInspectorToActions(TimeSpan epoch);
-	Alias lastAction = actions[actions.Count - 1];
-	actions.Count += 1;
-	lastAction.epoch = epoch;
-	lastAction.burnRIC = {0,0,0};
-	lastAction.additionalAction = additionalAction_redUndeployInspector;
+	lastAction.additionalAction = additionalAction;
 	lastAction.isBlue = 0;
 	lastAction.formationIndex = 0;
 EndProcedure;
@@ -1799,6 +1941,7 @@ Define Procedure ComputeInspectorBurns(
 
 	red4.StepToEpoch(killOperationStartEpoch);
 	
+	Call AddAdditionalActionToActions(red4.Epoch, additionalAction_redKillOperation);	
 	
 	burn.BurnDirection = dv2;
 	Maneuver red4 using burn;
@@ -1885,7 +2028,7 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 	TimeSpan inspectorDeployDelay = TimeSpan.FromHours(1);
 	red.StepToEpoch(red.Epoch + inspectorDeployDelay);
 	
-	Call AddDeployInspectorToActions(red.Epoch);
+	Call AddAdditionalActionToActions(red.Epoch, additionalAction_redDeployInspector);
 	
 	TimeSpan inspectorDepartDelay = TimeSpan.FromHours(1);
 	red.StepToEpoch(red.Epoch + inspectorDepartDelay);
@@ -1902,7 +2045,7 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 	Call ComputeInspectorBurns(redInspector, red, blue, rendezvousCoastDuration, killOperationDuration);
 	red.StepToEpoch(red.Epoch + inspectorDepartDelay);
 	
-	Call AddUndeployInspectorToActions(red.Epoch);
+	Call AddAdditionalActionToActions(red.Epoch, additionalAction_redUndeployInspector);
 	
 	red.StepToEpoch(red.Epoch + inspectorDeployDelay);
 
@@ -1917,6 +2060,90 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 	
 	Call AddBurnToActions(dv1, red.Epoch, 0);
 	Call AddBurnToActions(dv2, red.Epoch + interBurnTime, 0);
+	
+	Call AddAdditionalActionToActions(red.Epoch + interBurnTime, additionalAction_redDisengage);
+EndProcedure;
+
+
+Define Procedure ComputeObservationScriptRed1TransitManeuversAndAddToActions(
+		Spacecraft red,
+		Spacecraft blue,
+		TimeSpan incursionEpoch,
+		TimeSpan driftTime);
+	Variable driftOrbitRadius;
+	Call ComputeRed1DriftOrbitRadius(red, blue, incursionEpoch, driftTime, driftOrbitRadius);
+	
+	Array desiredKepState;
+	Array driftOrbitKepState;
+	desiredKepState = red.GetKeplerianState();
+	desiredKepState[0] = driftOrbitRadius;
+	desiredKepState[1] = 1e-6;
+	driftOrbitKepState = desiredKepState;
+	
+	Array dv1(3);
+	Array dv2(3);
+	TimeSpan interBurnTime;
+	Call TargetNewOrbit(
+		red,
+		desiredKepState,
+		-999,
+		{0.4, 0.6},
+		dv1,
+		dv2,
+		interBurnTime);
+	
+	Call AddBurnToActions(dv1, red.Epoch, 0);
+	Call AddBurnToActions(dv2, red.Epoch + interBurnTime, 0);
+	
+	burn.BurnDirection = dv1;
+	Maneuver red using burn;
+	red.StepToEpoch(red.Epoch + interBurnTime);
+	burn.BurnDirection = dv2;
+	Maneuver red using burn;
+	
+	red.StepToEpoch(incursionEpoch);
+	blue.StepToEpoch(red.Epoch);
+	
+	desiredKepState = blue.GetKeplerianState();
+	desiredKepState[1] += 0.001;
+	desiredKepState[2] = blue.I + 0.06;
+	desiredKepState[4] -= 0.1;
+	
+	Call TargetNewRelativeOrbit(
+		red,
+		blue,
+		desiredKepState,
+		{0.01, 0.9},
+		dv1,
+		dv2,
+		interBurnTime);
+	
+	Call AddBurnToActions(dv1, red.Epoch, 0);
+	Call AddBurnToActions(dv2, red.Epoch + interBurnTime, 0);
+	
+	burn.BurnDirection = dv1;
+	Maneuver red using burn;
+	red.StepToEpoch(red.Epoch + interBurnTime);
+	burn.BurnDirection = dv2;
+	Maneuver red using burn;
+	
+	red.StepToEpoch(red.Epoch + TimeSpan.FromDays(1));
+	
+	driftOrbitKepState[2] = red.I;
+
+	Call TargetNewOrbit(
+		red,
+		driftOrbitKepState,
+		-999,
+		{0.4, 0.9},
+		dv1,
+		dv2,
+		interBurnTime);
+	
+	Call AddBurnToActions(dv1, red.Epoch, 0);
+	Call AddBurnToActions(dv2, red.Epoch + interBurnTime, 0);
+	
+	Call AddAdditionalActionToActions(red.Epoch + interBurnTime + TimeSpan.FromHours(1), additionalAction_redDisengage);
 EndProcedure;
 
 
@@ -1932,7 +2159,7 @@ Define Procedure ReturnToNominal(Formation red);
 		red[1],
 		desiredKepState,
 		-999,
-		{0.01, 0.5},
+		{0.4, 0.9},
 		dv1,
 		dv2,
 		interBurnTime);
@@ -1948,13 +2175,101 @@ Define Procedure ReturnToNominal(Formation red);
 		red[2],
 		desiredKepState,
 		-999,
-		{0.01, 0.5},
+		{0.4, 0.9},
 		dv1,
 		dv2,
 		interBurnTime);
 	
 	Call AddBurnToActions(dv1, red[2].Epoch, 2);
 	Call AddBurnToActions(dv2, red[2].Epoch + interBurnTime, 2);
+	
+	
+	desiredKepState = red[0].GetKeplerianState();
+	desiredKepState[0] = 42120;
+	desiredKepState[1] = 0;
+	
+	Call TargetNewOrbit(
+		red[2],
+		desiredKepState,
+		-999,
+		{0.4, 0.9},
+		dv1,
+		dv2,
+		interBurnTime);
+	
+	Call AddBurnToActions(dv1, red[0].Epoch, 0);
+	Call AddBurnToActions(dv2, red[0].Epoch + interBurnTime, 0);
+	
+	Call AddAdditionalActionToActions(red[0].Epoch + interBurnTime + TimeSpan.FromHours(1), additionalAction_redDisengage);
+EndProcedure;
+
+
+Define Procedure ComputeBenignScriptStrategy(Formation red, Formation blue, Variable updateHasBeenComputed);
+	actions.Clear();
+	updateHasBeenComputed = 0;
+	
+	If (numberOfComputedStrategyUpdates != 0);
+		Send "updateWillOccur", 0 to connection; // signal no update
+		Report "No update will occur" to Console;
+		ExitProcedure;
+	End;
+
+	Send "updateWillOccur", 1 to connection;
+	
+	TimeSpan incursionEpoch = simStartEpoch + TimeSpan.FromHours(24*3.9 + 0);
+	TimeSpan driftTime = incursionEpoch - blue[0].Epoch - red2and3TransitOrbitTime.Scaled(3);
+	Variable driftOrbitRadius;
+	Call ComputeRed1DriftOrbitRadius(red[0], blue[0], incursionEpoch, driftTime, driftOrbitRadius);
+	
+	Array desiredKepState;
+	Array driftOrbitKepState;
+	desiredKepState = red[0].GetKeplerianState();
+	desiredKepState[0] = driftOrbitRadius;
+	desiredKepState[1] = 1e-6;
+	driftOrbitKepState = desiredKepState;
+	
+	Array dv1(3);
+	Array dv2(3);
+	TimeSpan interBurnTime;
+	Call TargetNewOrbit(
+		red[0],
+		desiredKepState,
+		-999,
+		{0.4, 0.6},
+		dv1,
+		dv2,
+		interBurnTime);
+	
+	Call AddBurnToActions(dv1, red[0].Epoch, 0);
+	Call AddBurnToActions(dv2, red[0].Epoch + interBurnTime, 0);
+	
+	Call AddAdditionalActionToActions(incursionEpoch + TimeSpan.FromDays(0.5), additionalAction_redDisengage);
+	
+	numberOfComputedStrategyUpdates += 1;
+	updateHasBeenComputed = 1;
+EndProcedure;
+
+
+Define Procedure ComputeObservationScriptStrategy(Formation red, Formation blue, Variable updateHasBeenComputed);
+	actions.Clear();
+	updateHasBeenComputed = 0;
+	
+	Variable updateWillOccur = 0;
+	Call WillUpdateOccur(blue[0], updateWillOccur);
+	If (!updateWillOccur);
+		Send "updateWillOccur", 0 to connection; // signal no update
+		Report "No update will occur" to Console;
+		ExitProcedure;
+	End;
+
+	Send "updateWillOccur", 1 to connection;
+	
+	TimeSpan incursionEpoch = simStartEpoch + TimeSpan.FromHours(24*4 + 0);
+	TimeSpan driftTime = incursionEpoch - blue[0].Epoch - red2and3TransitOrbitTime.Scaled(3);
+	Call ComputeObservationScriptRed1TransitManeuversAndAddToActions(red[0], blue[0], incursionEpoch, driftTime);
+	
+	numberOfComputedStrategyUpdates += 1;
+	updateHasBeenComputed = 1;
 EndProcedure;
 
 
@@ -1978,6 +2293,8 @@ Define Procedure ComputeDisableScriptStrategy(Formation red, Formation blue, Var
 		Send "updateWillOccur", 1 to connection;
 		Report "Drift time too small, returning to nominal" to Console;
 		
+		Call ReturnToNominal(red);
+		
 		updateHasBeenComputed = 1;
 		ExitProcedure;
 	End;
@@ -1988,9 +2305,10 @@ Define Procedure ComputeDisableScriptStrategy(Formation red, Formation blue, Var
 	Call ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(red[1], blue[0], incursionEpoch, driftTime, 1);
 	Call ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(red[2], blue[0], incursionEpoch, driftTime, 2);
 	
-	Call AddJammerToggleToActions(incursionEpoch);
-	Call AddJammerToggleToActions(incursionEpoch + TimeSpan.FromDays(1));
+	Call AddAdditionalActionToActions(incursionEpoch, additionalAction_redToggleJamming);
+	Call AddAdditionalActionToActions(incursionEpoch + TimeSpan.FromDays(1), additionalAction_redToggleJamming);
 	
+	numberOfComputedStrategyUpdates += 1;
 	updateHasBeenComputed = 1;
 EndProcedure;
 
@@ -2071,6 +2389,7 @@ While (1);
 	// Reset these globals so we get an initial strategy update
 	lastBlueRadius = 0;
 	lastBlueLongitude = -999;
+	numberOfComputedStrategyUpdates = 0;
 	
 	Try;
 		While (1);
@@ -2092,8 +2411,6 @@ While (1);
 						uplinkTimeDays from connection;
 				Call ValidateSocketVerificationLabel("strategyUpdateData");
 				
-				
-				
 				blue[0].Epoch = TimeSpan.FromSecondsAndFractionalSeconds(epochWholeSeconds, epochFractionalSeconds);
 				red[0].Epoch = blue[0].Epoch;
 				red[1].Epoch = blue[0].Epoch;
@@ -2110,9 +2427,9 @@ While (1);
 				End;
 				
 				If (gameMode == gameMode_benignScript);
-					// TODO
+					Call ComputeBenignScriptStrategy(red, blue, updateHasBeenComputed);
 				ElseIf (gameMode == gameMode_observationScript);
-					// TODO
+					Call ComputeObservationScriptStrategy(red, blue, updateHasBeenComputed);
 				ElseIf (gameMode == gameMode_disableScript);
 					Call ComputeDisableScriptStrategy(red, blue, updateHasBeenComputed);
 				End;
@@ -2134,6 +2451,9 @@ While (1);
 			End;
 		End;
 	End;
+	
+	Report Diagnostics.GetLastErrorMessages() to Console;
+	Diagnostics.ClearErrorMessages();
 	
 	Close connection;
 	Report "" to Console;
