@@ -1797,11 +1797,11 @@ Define Procedure BuildOperatorActionsMenu();
 	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_nominal",   "Continue nominal operations");
 	
 	If (blueBackupCommsState == activatableAsset_off);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Ready secondary comms path");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Prepare secondary comms path");
 	ElseIf (blueBackupCommsState == activatableAsset_ready);
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to secondary comms path");
 	ElseIf (blueBackupCommsState == activatableAsset_on);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to primary comm path");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Revert to primary comms path");
 	End;
 	
 	If (redJammerState == activatableAsset_off);
@@ -1809,7 +1809,7 @@ Define Procedure BuildOperatorActionsMenu();
 	End;
 	
 	If (blueJammerState == activatableAsset_off);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Ready ground-based jamming unit");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Prepare ground-based jamming unit");
 	ElseIf (blueJammerState == activatableAsset_ready);
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Activate ground-based jamming unit");
 	ElseIf (blueJammerState == activatableAsset_on);
@@ -4417,11 +4417,11 @@ Define Procedure BuildOperatorActionsMenu();
 	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_nominal",   "Continue nominal operations");
 	
 	If (blueBackupCommsState == activatableAsset_off);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Ready secondary comms path");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Prepare secondary comms path");
 	ElseIf (blueBackupCommsState == activatableAsset_ready);
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to secondary comms path");
 	ElseIf (blueBackupCommsState == activatableAsset_on);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Switch to primary comm path");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Revert to primary comms path");
 	End;
 	
 	If (redJammerState == activatableAsset_off);
@@ -4429,7 +4429,7 @@ Define Procedure BuildOperatorActionsMenu();
 	End;
 	
 	If (blueJammerState == activatableAsset_off);
-		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Ready ground-based jamming unit");
+		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Prepare ground-based jamming unit");
 	ElseIf (blueJammerState == activatableAsset_ready);
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Activate ground-based jamming unit");
 	ElseIf (blueJammerState == activatableAsset_on);

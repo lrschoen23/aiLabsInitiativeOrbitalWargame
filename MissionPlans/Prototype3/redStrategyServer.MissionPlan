@@ -704,6 +704,63 @@ Define Procedure ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(
 EndProcedure;
 
 
+Define Procedure ComputeRendezvousBurns(
+		Spacecraft sc,
+		Spacecraft target,
+		TimeSpan rendezvousEpoch,
+		Array dv1,
+		Array dv2);
+	Optimizer opt;
+	opt.Reset(1);
+	opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
+	opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
+	opt.AddConstraintBlock(3, "relativePos", 0, 0);
+	opt.AddConstraintBlock(3, "relativeVel", 0, 0);
+	
+	opt.SaveObjectToProcess(sc);
+	
+	Variable totalDV;
+	Array relativeState;
+	target.Save("IC");
+	target.StepToEpoch(rendezvousEpoch);
+	
+	opt.LoadEngine();
+	While (opt.IsRunning());
+		opt.UpdateStateVariables();
+		opt.RestoreObjectsInProcess();
+		
+		burn.BurnDirection = opt.GetStateVariableValues()[0:2];
+		Maneuver sc using burn;
+		totalDV = burn.BurnDirection.Norm;
+		
+		sc.StepToEpoch(rendezvousEpoch);
+		
+		burn.BurnDirection = opt.GetStateVariableValues()[3:5];
+		Maneuver sc using burn;
+		totalDV += 10*burn.BurnDirection.Norm;
+		
+		relativeState = target.GetCartesianState() - sc.GetCartesianState();
+		opt.SetConstraintValues(relativeState);
+		
+		opt.Minimize(totalDV);
+	
+//		If (opt.OptimizationPhase == 1);
+//			Report opt.NominalEvaluationCount, "   ",
+//			opt.ObjectiveFunctionValue, "   ",
+//			opt.MaximumInfeasibility, "   ",
+//			opt.MaximumInfeasibilitySource to ConsoleSolver;
+//		End;
+	End;
+	Report opt.ReturnString to ConsoleSolver;
+	opt.RestoreObjectsInProcess();
+	
+	dv1 = opt.GetBestStateVariableValues()[0:2];
+	dv2 = opt.GetBestStateVariableValues()[3:5];
+	
+	target.Restore("IC");
+EndProcedure;
+
+
 Define Procedure ComputeInspectorBurns(
 	Spacecraft red4,
 	Spacecraft red1,
@@ -713,121 +770,37 @@ Define Procedure ComputeInspectorBurns(
 	TimeSpan killOperationStartEpoch = blue.Epoch + rendezvousCoastDuration;
 	TimeSpan killOperationCompletionEpoch = killOperationStartEpoch + killOperationDuration;
 	TimeSpan inspectorReturnEpoch = killOperationCompletionEpoch + rendezvousCoastDuration;
-	Array relativeState;
 	
-	blue.Save("IC");
-	red1.Save("IC");
+	Array dv1;
+	Array dv2;
+	Call ComputeRendezvousBurns(red4, blue, killOperationStartEpoch, dv1, dv2);
 	
-	blue.StepToEpoch(killOperationStartEpoch);
-	
-	Optimizer opt;
-	opt.Reset(1);
-	opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
-	opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
-	opt.AddConstraintBlock(3, "relativePos", 0, 0);
-	opt.AddConstraintBlock(3, "relativeVel", 0, 0);
-	
-	opt.SaveObjectToProcess(red4);
-	
-	Variable totalDV;
-	
-	opt.LoadEngine();
-	While (opt.IsRunning());
-		opt.UpdateStateVariables();
-		opt.RestoreObjectsInProcess();
-		
-		burn.BurnDirection = opt.GetStateVariableValues()[0:2];
-		Maneuver red4 using burn;
-		totalDV = burn.BurnDirection.Norm;
-		
-		red4.StepToEpoch(killOperationStartEpoch);
-		
-		burn.BurnDirection = opt.GetStateVariableValues()[3:5];
-		Maneuver red4 using burn;
-		totalDV += 10*burn.BurnDirection.Norm;
-		
-		relativeState = blue.GetCartesianState() - red4.GetCartesianState();
-		opt.SetConstraintValues(relativeState);
-		
-		opt.Minimize(totalDV);
-	
-		If (opt.OptimizationPhase == 1);
-			Report opt.NominalEvaluationCount, "   ",
-			opt.ObjectiveFunctionValue, "   ",
-			opt.MaximumInfeasibility, "   ",
-			opt.MaximumInfeasibilitySource to ConsoleSolver;
-		End;
-	End;
-	
-	Report opt.ReturnString to ConsoleSolver;
-	opt.RestoreObjectsInProcess();
-	
-	burn.BurnDirection = opt.GetBestStateVariableValues()[0:2];
+	burn.BurnDirection = dv1;
 	Maneuver red4 using burn;
 	Call AddBurnToActions(burn.BurnDirection, red4.Epoch, 3);
 
 	red4.StepToEpoch(killOperationStartEpoch);
 	
 	
-	burn.BurnDirection = opt.GetBestStateVariableValues()[3:5];
+	burn.BurnDirection = dv2;
 	Maneuver red4 using burn;
 	Call AddBurnToActions(burn.BurnDirection, red4.Epoch, 3);
 	
 	red4.StepToEpoch(killOperationCompletionEpoch);
 	
-	red1.StepToEpoch(inspectorReturnEpoch);
+	Call ComputeRendezvousBurns(red4, red1, inspectorReturnEpoch, dv1, dv2);
 	
-	opt.Reset(1);
-	opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
-	opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
-	opt.AddConstraintBlock(3, "relativePos", 0, 0);
-	opt.AddConstraintBlock(3, "relativeVel", 0, 0);
-	
-	opt.SaveObjectToProcess(red4);
-	
-	opt.LoadEngine();
-	While (opt.IsRunning());
-		opt.UpdateStateVariables();
-		opt.RestoreObjectsInProcess();
-		
-		burn.BurnDirection = opt.GetStateVariableValues()[0:2];
-		Maneuver red4 using burn;
-		totalDV = burn.BurnDirection.Norm;
-		
-		red4.StepToEpoch(inspectorReturnEpoch);
-		
-		burn.BurnDirection = opt.GetStateVariableValues()[3:5];
-		Maneuver red4 using burn;
-		totalDV += 10*burn.BurnDirection.Norm;
-		
-		relativeState = red1.GetCartesianState() - red4.GetCartesianState();
-		opt.SetConstraintValues(relativeState);
-		
-		opt.Minimize(totalDV);
-		
-		If (opt.OptimizationPhase == 1);
-			Report opt.NominalEvaluationCount, "   ",
-			opt.ObjectiveFunctionValue, "   ",
-			opt.MaximumInfeasibility, "   ",
-			opt.MaximumInfeasibilitySource to ConsoleSolver;
-		End;
-	End;
-	
-	Report opt.ReturnString to ConsoleSolver;
-	opt.RestoreObjectsInProcess();
-	
-	burn.BurnDirection = opt.GetBestStateVariableValues()[0:2];
+	burn.BurnDirection = dv1;
 	Maneuver red4 using burn;
 	Call AddBurnToActions(burn.BurnDirection, red4.Epoch, 3);
 
 	red4.StepToEpoch(inspectorReturnEpoch);
+	red1.StepToEpoch(inspectorReturnEpoch);
 	
-	burn.BurnDirection = opt.GetBestStateVariableValues()[3:5];
+	burn.BurnDirection = dv2;
 	Maneuver red4 using burn;
 	Call AddBurnToActions(burn.BurnDirection, red4.Epoch, 3);
-
-	blue.Restore("IC");
-	red1.Restore("IC");
+	
 EndProcedure;
 
 
@@ -840,9 +813,11 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 	Call ComputeRed1DriftOrbitRadius(red, blue, incursionEpoch, driftTime, driftOrbitRadius);
 	
 	Array desiredKepState;
+	Array driftOrbitKepState;
 	desiredKepState = red.GetKeplerianState();
 	desiredKepState[0] = driftOrbitRadius;
 	desiredKepState[1] = 1e-6;
+	driftOrbitKepState = desiredKepState;
 	
 	Array dv1(3);
 	Array dv2(3);
@@ -902,7 +877,6 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 	redInspector.Epoch = red.Epoch;
 	redInspector.SetCartesianState(red.GetCartesianState());
 	Call InitializePropagator(redInspector);
-//	(redInspector.Propagator AsType Integrator).FixedStep = 0;
 	
 	TimeSpan rendezvousCoastDuration = TimeSpan.FromHours(8);
 	TimeSpan killOperationDuration = TimeSpan.FromHours(8);
@@ -910,7 +884,21 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 	Call ComputeInspectorBurns(redInspector, red, blue, rendezvousCoastDuration, killOperationDuration);
 	red.StepToEpoch(red.Epoch + inspectorDepartDelay);
 	
-	Call AddUndeployInspectorToActions(red.Epoch + inspectorDepartDelay + rendezvousCoastDuration.Scaled(2) + killOperationDuration);
+	Call AddUndeployInspectorToActions(red.Epoch);
+	
+	red.StepToEpoch(red.Epoch + inspectorDeployDelay);
+
+	Call TargetNewOrbit(
+		red,
+		driftOrbitKepState,
+		-999,
+		{0.4, 0.9},
+		dv1,
+		dv2,
+		interBurnTime);
+	
+	Call AddBurnToActions(dv1, red.Epoch, 0);
+	Call AddBurnToActions(dv2, red.Epoch + interBurnTime, 0);
 EndProcedure;
 
 
@@ -1734,6 +1722,63 @@ Define Procedure ComputeDisableScriptRed2And3TransitManeuversAndAddToActions(
 EndProcedure;
 
 
+Define Procedure ComputeRendezvousBurns(
+		Spacecraft sc,
+		Spacecraft target,
+		TimeSpan rendezvousEpoch,
+		Array dv1,
+		Array dv2);
+	Optimizer opt;
+	opt.Reset(1);
+	opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
+	opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
+	opt.AddConstraintBlock(3, "relativePos", 0, 0);
+	opt.AddConstraintBlock(3, "relativeVel", 0, 0);
+	
+	opt.SaveObjectToProcess(sc);
+	
+	Variable totalDV;
+	Array relativeState;
+	target.Save("IC");
+	target.StepToEpoch(rendezvousEpoch);
+	
+	opt.LoadEngine();
+	While (opt.IsRunning());
+		opt.UpdateStateVariables();
+		opt.RestoreObjectsInProcess();
+		
+		burn.BurnDirection = opt.GetStateVariableValues()[0:2];
+		Maneuver sc using burn;
+		totalDV = burn.BurnDirection.Norm;
+		
+		sc.StepToEpoch(rendezvousEpoch);
+		
+		burn.BurnDirection = opt.GetStateVariableValues()[3:5];
+		Maneuver sc using burn;
+		totalDV += 10*burn.BurnDirection.Norm;
+		
+		relativeState = target.GetCartesianState() - sc.GetCartesianState();
+		opt.SetConstraintValues(relativeState);
+		
+		opt.Minimize(totalDV);
+	
+//		If (opt.OptimizationPhase == 1);
+//			Report opt.NominalEvaluationCount, "   ",
+//			opt.ObjectiveFunctionValue, "   ",
+//			opt.MaximumInfeasibility, "   ",
+//			opt.MaximumInfeasibilitySource to ConsoleSolver;
+//		End;
+	End;
+	Report opt.ReturnString to ConsoleSolver;
+	opt.RestoreObjectsInProcess();
+	
+	dv1 = opt.GetBestStateVariableValues()[0:2];
+	dv2 = opt.GetBestStateVariableValues()[3:5];
+	
+	target.Restore("IC");
+EndProcedure;
+
+
 Define Procedure ComputeInspectorBurns(
 	Spacecraft red4,
 	Spacecraft red1,
@@ -1743,121 +1788,37 @@ Define Procedure ComputeInspectorBurns(
 	TimeSpan killOperationStartEpoch = blue.Epoch + rendezvousCoastDuration;
 	TimeSpan killOperationCompletionEpoch = killOperationStartEpoch + killOperationDuration;
 	TimeSpan inspectorReturnEpoch = killOperationCompletionEpoch + rendezvousCoastDuration;
-	Array relativeState;
 	
-	blue.Save("IC");
-	red1.Save("IC");
+	Array dv1;
+	Array dv2;
+	Call ComputeRendezvousBurns(red4, blue, killOperationStartEpoch, dv1, dv2);
 	
-	blue.StepToEpoch(killOperationStartEpoch);
-	
-	Optimizer opt;
-	opt.Reset(1);
-	opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
-	opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
-	opt.AddConstraintBlock(3, "relativePos", 0, 0);
-	opt.AddConstraintBlock(3, "relativeVel", 0, 0);
-	
-	opt.SaveObjectToProcess(red4);
-	
-	Variable totalDV;
-	
-	opt.LoadEngine();
-	While (opt.IsRunning());
-		opt.UpdateStateVariables();
-		opt.RestoreObjectsInProcess();
-		
-		burn.BurnDirection = opt.GetStateVariableValues()[0:2];
-		Maneuver red4 using burn;
-		totalDV = burn.BurnDirection.Norm;
-		
-		red4.StepToEpoch(killOperationStartEpoch);
-		
-		burn.BurnDirection = opt.GetStateVariableValues()[3:5];
-		Maneuver red4 using burn;
-		totalDV += 10*burn.BurnDirection.Norm;
-		
-		relativeState = blue.GetCartesianState() - red4.GetCartesianState();
-		opt.SetConstraintValues(relativeState);
-		
-		opt.Minimize(totalDV);
-	
-		If (opt.OptimizationPhase == 1);
-			Report opt.NominalEvaluationCount, "   ",
-			opt.ObjectiveFunctionValue, "   ",
-			opt.MaximumInfeasibility, "   ",
-			opt.MaximumInfeasibilitySource to ConsoleSolver;
-		End;
-	End;
-	
-	Report opt.ReturnString to ConsoleSolver;
-	opt.RestoreObjectsInProcess();
-	
-	burn.BurnDirection = opt.GetBestStateVariableValues()[0:2];
+	burn.BurnDirection = dv1;
 	Maneuver red4 using burn;
 	Call AddBurnToActions(burn.BurnDirection, red4.Epoch, 3);
 
 	red4.StepToEpoch(killOperationStartEpoch);
 	
 	
-	burn.BurnDirection = opt.GetBestStateVariableValues()[3:5];
+	burn.BurnDirection = dv2;
 	Maneuver red4 using burn;
 	Call AddBurnToActions(burn.BurnDirection, red4.Epoch, 3);
 	
 	red4.StepToEpoch(killOperationCompletionEpoch);
 	
-	red1.StepToEpoch(inspectorReturnEpoch);
+	Call ComputeRendezvousBurns(red4, red1, inspectorReturnEpoch, dv1, dv2);
 	
-	opt.Reset(1);
-	opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
-	opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
-	opt.AddConstraintBlock(3, "relativePos", 0, 0);
-	opt.AddConstraintBlock(3, "relativeVel", 0, 0);
-	
-	opt.SaveObjectToProcess(red4);
-	
-	opt.LoadEngine();
-	While (opt.IsRunning());
-		opt.UpdateStateVariables();
-		opt.RestoreObjectsInProcess();
-		
-		burn.BurnDirection = opt.GetStateVariableValues()[0:2];
-		Maneuver red4 using burn;
-		totalDV = burn.BurnDirection.Norm;
-		
-		red4.StepToEpoch(inspectorReturnEpoch);
-		
-		burn.BurnDirection = opt.GetStateVariableValues()[3:5];
-		Maneuver red4 using burn;
-		totalDV += 10*burn.BurnDirection.Norm;
-		
-		relativeState = red1.GetCartesianState() - red4.GetCartesianState();
-		opt.SetConstraintValues(relativeState);
-		
-		opt.Minimize(totalDV);
-		
-		If (opt.OptimizationPhase == 1);
-			Report opt.NominalEvaluationCount, "   ",
-			opt.ObjectiveFunctionValue, "   ",
-			opt.MaximumInfeasibility, "   ",
-			opt.MaximumInfeasibilitySource to ConsoleSolver;
-		End;
-	End;
-	
-	Report opt.ReturnString to ConsoleSolver;
-	opt.RestoreObjectsInProcess();
-	
-	burn.BurnDirection = opt.GetBestStateVariableValues()[0:2];
+	burn.BurnDirection = dv1;
 	Maneuver red4 using burn;
 	Call AddBurnToActions(burn.BurnDirection, red4.Epoch, 3);
 
 	red4.StepToEpoch(inspectorReturnEpoch);
+	red1.StepToEpoch(inspectorReturnEpoch);
 	
-	burn.BurnDirection = opt.GetBestStateVariableValues()[3:5];
+	burn.BurnDirection = dv2;
 	Maneuver red4 using burn;
 	Call AddBurnToActions(burn.BurnDirection, red4.Epoch, 3);
-
-	blue.Restore("IC");
-	red1.Restore("IC");
+	
 EndProcedure;
 
 
@@ -1870,9 +1831,11 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 	Call ComputeRed1DriftOrbitRadius(red, blue, incursionEpoch, driftTime, driftOrbitRadius);
 	
 	Array desiredKepState;
+	Array driftOrbitKepState;
 	desiredKepState = red.GetKeplerianState();
 	desiredKepState[0] = driftOrbitRadius;
 	desiredKepState[1] = 1e-6;
+	driftOrbitKepState = desiredKepState;
 	
 	Array dv1(3);
 	Array dv2(3);
@@ -1932,7 +1895,6 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 	redInspector.Epoch = red.Epoch;
 	redInspector.SetCartesianState(red.GetCartesianState());
 	Call InitializePropagator(redInspector);
-//	(redInspector.Propagator AsType Integrator).FixedStep = 0;
 	
 	TimeSpan rendezvousCoastDuration = TimeSpan.FromHours(8);
 	TimeSpan killOperationDuration = TimeSpan.FromHours(8);
@@ -1940,7 +1902,21 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 	Call ComputeInspectorBurns(redInspector, red, blue, rendezvousCoastDuration, killOperationDuration);
 	red.StepToEpoch(red.Epoch + inspectorDepartDelay);
 	
-	Call AddUndeployInspectorToActions(red.Epoch + inspectorDepartDelay + rendezvousCoastDuration.Scaled(2) + killOperationDuration);
+	Call AddUndeployInspectorToActions(red.Epoch);
+	
+	red.StepToEpoch(red.Epoch + inspectorDeployDelay);
+
+	Call TargetNewOrbit(
+		red,
+		driftOrbitKepState,
+		-999,
+		{0.4, 0.9},
+		dv1,
+		dv2,
+		interBurnTime);
+	
+	Call AddBurnToActions(dv1, red.Epoch, 0);
+	Call AddBurnToActions(dv2, red.Epoch + interBurnTime, 0);
 EndProcedure;
 
 
