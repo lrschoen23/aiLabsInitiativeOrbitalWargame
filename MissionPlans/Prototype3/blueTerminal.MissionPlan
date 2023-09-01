@@ -354,38 +354,17 @@ overlayRed1Future.ShapeTickWidth = 5;
 overlayRed2Future.ShapeTickWidth = 5;
 overlayRed3Future.ShapeTickWidth = 5;
 
-Variable viewwindowOverlayTextSize = 22;
-Global Constant Variable overlayBorderBuffer = 0.013;
-Global WindowOverlay overlayDateTime;
-overlayDateTime.Shapes[0].SetPosition(0, overlayBorderBuffer, overlayBorderBuffer);
-overlayDateTime.Shapes[0].TextOptions.Font.Typeface = typeface;
-overlayDateTime.Shapes[0].TextOptions.Font.Size = viewwindowOverlayTextSize;
 
 Global Variable screenWidth;
 Global Variable screenHeight;
 OutputLayout.GetScreenSize(screenWidth, screenHeight);
 
-Global Constant Variable sensorLegendBoxWidth = 0.21*0 + 0.26;
+Global Constant Variable overlayBorderBuffer = 0.013;
+Global Constant Variable sensorLegendBoxWidth = 0.21*1 + 0.26*0;
 Global Constant Variable sensorLegendBoxHeight = 0.022 + overlayBorderBuffer*2;
-Global WindowOverlay overlaySensorLegend;
-overlaySensorLegend.AddShape();
-overlaySensorLegend.AddShape();
-overlaySensorLegend.AddShape();
-
-overlaySensorLegend.Shapes[0].Type = "Rectangle";
-overlaySensorLegend.Shapes[1].Type = "Rectangle";
-overlaySensorLegend.Shapes[2].Type = "Text";
-overlaySensorLegend.Shapes[3].Type = "Text";
-
-overlaySensorLegend.Shapes[2].TextOptions.Font.Typeface = typeface;
-overlaySensorLegend.Shapes[3].TextOptions.Font.Typeface = typeface;
-
-overlaySensorLegend.Shapes[2].TextOptions.Font.Size = viewwindowOverlayTextSize;
-overlaySensorLegend.Shapes[3].TextOptions.Font.Size = viewwindowOverlayTextSize;
-
-Define Procedure InitializeSensorLegendRectangle(WindowOverlay overlay, Variable index, Variable color);
+Define Procedure InitializeSensorLegendRectangle(WindowOverlay overlay, Variable index, Variable opacity, Variable color);
 	overlay.Shapes[index].RectangleOptions.FillColor = color;
-	overlay.Shapes[index].RectangleOptions.FillOpacity = 0.3;
+	overlay.Shapes[index].RectangleOptions.FillOpacity = opacity;
 	overlay.Shapes[index].RectangleOptions.BorderColor = color;
 	overlay.Shapes[index].RectangleOptions.BorderWidth = 3;
 	overlay.Shapes[index].RectangleOptions.BorderOpacity = 1;
@@ -400,16 +379,83 @@ Define Procedure InitializeSensorLegendText(WindowOverlay overlay, Variable inde
 	overlay.Shapes[index].BringToFront();
 EndProcedure;
 
-Call InitializeSensorLegendRectangle(overlaySensorLegend, 0, ColorTools.Purple);
-Call InitializeSensorLegendRectangle(overlaySensorLegend, 1, ColorTools.Lime);
+Global Variable viewwindowOverlayTextSize = 22;
+Define Procedure ConfigureTextBoxOverlayShape(
+		WindowOverlay overlay,
+		Variable boxIndex,
+		Variable textIndex,
+		Variable x,
+		Variable y,
+		Variable color,
+		String text);
+	overlay.Shapes[boxIndex].Type = "Rectangle";
+	overlay.Shapes[textIndex].Type = "Text";
+	
+	overlay.Shapes[textIndex].TextOptions.Font.Typeface = typeface;
+	overlay.Shapes[textIndex].TextOptions.Font.Size = viewwindowOverlayTextSize;
+	
+	Call InitializeSensorLegendRectangle(overlay, boxIndex, 0.3, color);
+	Call InitializeSensorLegendText(overlay, textIndex, text);
+	
+	overlay.Shapes[boxIndex].SetPosition(0, x, y);
+	overlay.Shapes[textIndex].SetPosition(0, x + overlayBorderBuffer, y);
+EndProcedure;
 
-Call InitializeSensorLegendText(overlaySensorLegend, 2, "Uplink");
-Call InitializeSensorLegendText(overlaySensorLegend, 3, "Payload Orientation");
+Global WindowOverlay overlayDateTime;
+overlayDateTime.Shapes[0].SetPosition(0, overlayBorderBuffer, overlayBorderBuffer);
+overlayDateTime.Shapes[0].TextOptions.Font.Typeface = typeface;
+overlayDateTime.Shapes[0].TextOptions.Font.Size = viewwindowOverlayTextSize;
 
-overlaySensorLegend.Shapes[0].SetPosition(0, 1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer);
-overlaySensorLegend.Shapes[1].SetPosition(0, 1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer*2 + sensorLegendBoxHeight);
-overlaySensorLegend.Shapes[2].SetPosition(0, 1 - sensorLegendBoxWidth, overlayBorderBuffer);
-overlaySensorLegend.Shapes[3].SetPosition(0, 1 - sensorLegendBoxWidth, overlayBorderBuffer*2 + sensorLegendBoxHeight);
+
+Global WindowOverlay overlaySensorLegend;
+overlaySensorLegend.AddShape();
+overlaySensorLegend.AddShape();
+overlaySensorLegend.AddShape();
+
+Call ConfigureTextBoxOverlayShape(
+	overlaySensorLegend,
+	0, 1,
+	1 - sensorLegendBoxWidth + overlayBorderBuffer, overlayBorderBuffer,
+	ColorTools.Purple, "Uplink");
+Call ConfigureTextBoxOverlayShape(
+	overlaySensorLegend,
+	2, 3,
+	1 - sensorLegendBoxWidth + overlayBorderBuffer, overlayBorderBuffer*2 + sensorLegendBoxHeight,
+	ColorTools.Lime, "Payload Orientation");
+	
+Global WindowOverlay overlayStatusIndicators;
+overlayStatusIndicators.AddShape();
+Call ConfigureTextBoxOverlayShape(
+	overlayStatusIndicators,
+	0, 1,
+	overlayBorderBuffer, 1 - sensorLegendBoxHeight - overlayBorderBuffer,
+	ColorTools.Gray, "Predict: " + aheadPredictTime.ToHours().ToString() + " hours");
+	
+Define Procedure updateStatusIndicatorsOverlay();
+	overlayStatusIndicators.Shapes[1].TextOptions.Text = "Predict: " + aheadPredictTime.ToHours().ToString() + " hours";
+EndProcedure;
+
+//overlaySensorLegend.Shapes[0].Type = "Rectangle";
+//overlaySensorLegend.Shapes[1].Type = "Rectangle";
+//overlaySensorLegend.Shapes[2].Type = "Text";
+//overlaySensorLegend.Shapes[3].Type = "Text";
+//
+//overlaySensorLegend.Shapes[2].TextOptions.Font.Typeface = typeface;
+//overlaySensorLegend.Shapes[3].TextOptions.Font.Typeface = typeface;
+//
+//overlaySensorLegend.Shapes[2].TextOptions.Font.Size = viewwindowOverlayTextSize;
+//overlaySensorLegend.Shapes[3].TextOptions.Font.Size = viewwindowOverlayTextSize;
+//
+//Call InitializeSensorLegendRectangle(overlaySensorLegend, 0, 0.3, ColorTools.Purple);
+//Call InitializeSensorLegendRectangle(overlaySensorLegend, 1, 0.3, ColorTools.Lime);
+//
+//Call InitializeSensorLegendText(overlaySensorLegend, 2, "Uplink");
+//Call InitializeSensorLegendText(overlaySensorLegend, 3, "Payload Orientation");
+//
+//overlaySensorLegend.Shapes[0].SetPosition(0, 1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer);
+//overlaySensorLegend.Shapes[1].SetPosition(0, 1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer*2 + sensorLegendBoxHeight);
+//overlaySensorLegend.Shapes[2].SetPosition(0, 1 - sensorLegendBoxWidth, overlayBorderBuffer);
+//overlaySensorLegend.Shapes[3].SetPosition(0, 1 - sensorLegendBoxWidth, overlayBorderBuffer*2 + sensorLegendBoxHeight);
 
 
 Global WindowOverlay overlayUploadingLog;
@@ -422,7 +468,7 @@ overlayUploadingLog.Shapes[0].TextOptions.Text = "UPLINKING DATA...";
 
 overlayUploadingLog.AddShape();
 overlayUploadingLog.Shapes[1].Type = "Rectangle";
-Call InitializeSensorLegendRectangle(overlayUploadingLog, 1, ColorTools.LightGray);
+Call InitializeSensorLegendRectangle(overlayUploadingLog, 1, 0.3, ColorTools.LightGray);
 overlayUploadingLog.Shapes[1].SetSize(0, uploadingLogWidth, uploadingLogHeight);
 overlayUploadingLog.Shapes[1].SetPosition(0, (1 - uploadingLogWidth) / 2, 1 - uploadingLogHeight - overlayBorderBuffer);
 
@@ -441,6 +487,7 @@ Define Procedure InitializeViewWindow(ViewWindow vw, String windowTitle, Formati
 	vw.AddObject(overlayRed3Future);
 	vw.AddObject(overlayDateTime);
 	vw.AddObject(overlaySensorLegend);
+	vw.AddObject(overlayStatusIndicators);
 	
 	vw.SetShowName(0, TypeOf(CelestialObject), 0);
 	vw.SetShowBody(blueJammer.ObjectId, 0);
@@ -1968,6 +2015,7 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 			blueBackupCommsState = activatableAsset_ready;
 			aheadPredictTime = aheadPredictTimeNominal;
 		End;
+		Call updateStatusIndicatorsOverlay();
 	End;
 	
 	If (userChoice == choice_jam);
@@ -3103,38 +3151,17 @@ overlayRed1Future.ShapeTickWidth = 5;
 overlayRed2Future.ShapeTickWidth = 5;
 overlayRed3Future.ShapeTickWidth = 5;
 
-Variable viewwindowOverlayTextSize = 22;
-Global Constant Variable overlayBorderBuffer = 0.013;
-Global WindowOverlay overlayDateTime;
-overlayDateTime.Shapes[0].SetPosition(0, overlayBorderBuffer, overlayBorderBuffer);
-overlayDateTime.Shapes[0].TextOptions.Font.Typeface = typeface;
-overlayDateTime.Shapes[0].TextOptions.Font.Size = viewwindowOverlayTextSize;
 
 Global Variable screenWidth;
 Global Variable screenHeight;
 OutputLayout.GetScreenSize(screenWidth, screenHeight);
 
-Global Constant Variable sensorLegendBoxWidth = 0.21*0 + 0.26;
+Global Constant Variable overlayBorderBuffer = 0.013;
+Global Constant Variable sensorLegendBoxWidth = 0.21*1 + 0.26*0;
 Global Constant Variable sensorLegendBoxHeight = 0.022 + overlayBorderBuffer*2;
-Global WindowOverlay overlaySensorLegend;
-overlaySensorLegend.AddShape();
-overlaySensorLegend.AddShape();
-overlaySensorLegend.AddShape();
-
-overlaySensorLegend.Shapes[0].Type = "Rectangle";
-overlaySensorLegend.Shapes[1].Type = "Rectangle";
-overlaySensorLegend.Shapes[2].Type = "Text";
-overlaySensorLegend.Shapes[3].Type = "Text";
-
-overlaySensorLegend.Shapes[2].TextOptions.Font.Typeface = typeface;
-overlaySensorLegend.Shapes[3].TextOptions.Font.Typeface = typeface;
-
-overlaySensorLegend.Shapes[2].TextOptions.Font.Size = viewwindowOverlayTextSize;
-overlaySensorLegend.Shapes[3].TextOptions.Font.Size = viewwindowOverlayTextSize;
-
-Define Procedure InitializeSensorLegendRectangle(WindowOverlay overlay, Variable index, Variable color);
+Define Procedure InitializeSensorLegendRectangle(WindowOverlay overlay, Variable index, Variable opacity, Variable color);
 	overlay.Shapes[index].RectangleOptions.FillColor = color;
-	overlay.Shapes[index].RectangleOptions.FillOpacity = 0.3;
+	overlay.Shapes[index].RectangleOptions.FillOpacity = opacity;
 	overlay.Shapes[index].RectangleOptions.BorderColor = color;
 	overlay.Shapes[index].RectangleOptions.BorderWidth = 3;
 	overlay.Shapes[index].RectangleOptions.BorderOpacity = 1;
@@ -3149,16 +3176,83 @@ Define Procedure InitializeSensorLegendText(WindowOverlay overlay, Variable inde
 	overlay.Shapes[index].BringToFront();
 EndProcedure;
 
-Call InitializeSensorLegendRectangle(overlaySensorLegend, 0, ColorTools.Purple);
-Call InitializeSensorLegendRectangle(overlaySensorLegend, 1, ColorTools.Lime);
+Global Variable viewwindowOverlayTextSize = 22;
+Define Procedure ConfigureTextBoxOverlayShape(
+		WindowOverlay overlay,
+		Variable boxIndex,
+		Variable textIndex,
+		Variable x,
+		Variable y,
+		Variable color,
+		String text);
+	overlay.Shapes[boxIndex].Type = "Rectangle";
+	overlay.Shapes[textIndex].Type = "Text";
+	
+	overlay.Shapes[textIndex].TextOptions.Font.Typeface = typeface;
+	overlay.Shapes[textIndex].TextOptions.Font.Size = viewwindowOverlayTextSize;
+	
+	Call InitializeSensorLegendRectangle(overlay, boxIndex, 0.3, color);
+	Call InitializeSensorLegendText(overlay, textIndex, text);
+	
+	overlay.Shapes[boxIndex].SetPosition(0, x, y);
+	overlay.Shapes[textIndex].SetPosition(0, x + overlayBorderBuffer, y);
+EndProcedure;
 
-Call InitializeSensorLegendText(overlaySensorLegend, 2, "Uplink");
-Call InitializeSensorLegendText(overlaySensorLegend, 3, "Payload Orientation");
+Global WindowOverlay overlayDateTime;
+overlayDateTime.Shapes[0].SetPosition(0, overlayBorderBuffer, overlayBorderBuffer);
+overlayDateTime.Shapes[0].TextOptions.Font.Typeface = typeface;
+overlayDateTime.Shapes[0].TextOptions.Font.Size = viewwindowOverlayTextSize;
 
-overlaySensorLegend.Shapes[0].SetPosition(0, 1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer);
-overlaySensorLegend.Shapes[1].SetPosition(0, 1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer*2 + sensorLegendBoxHeight);
-overlaySensorLegend.Shapes[2].SetPosition(0, 1 - sensorLegendBoxWidth, overlayBorderBuffer);
-overlaySensorLegend.Shapes[3].SetPosition(0, 1 - sensorLegendBoxWidth, overlayBorderBuffer*2 + sensorLegendBoxHeight);
+
+Global WindowOverlay overlaySensorLegend;
+overlaySensorLegend.AddShape();
+overlaySensorLegend.AddShape();
+overlaySensorLegend.AddShape();
+
+Call ConfigureTextBoxOverlayShape(
+	overlaySensorLegend,
+	0, 1,
+	1 - sensorLegendBoxWidth + overlayBorderBuffer, overlayBorderBuffer,
+	ColorTools.Purple, "Uplink");
+Call ConfigureTextBoxOverlayShape(
+	overlaySensorLegend,
+	2, 3,
+	1 - sensorLegendBoxWidth + overlayBorderBuffer, overlayBorderBuffer*2 + sensorLegendBoxHeight,
+	ColorTools.Lime, "Payload Orientation");
+	
+Global WindowOverlay overlayStatusIndicators;
+overlayStatusIndicators.AddShape();
+Call ConfigureTextBoxOverlayShape(
+	overlayStatusIndicators,
+	0, 1,
+	overlayBorderBuffer, 1 - sensorLegendBoxHeight - overlayBorderBuffer,
+	ColorTools.Gray, "Predict: " + aheadPredictTime.ToHours().ToString() + " hours");
+	
+Define Procedure updateStatusIndicatorsOverlay();
+	overlayStatusIndicators.Shapes[1].TextOptions.Text = "Predict: " + aheadPredictTime.ToHours().ToString() + " hours";
+EndProcedure;
+
+//overlaySensorLegend.Shapes[0].Type = "Rectangle";
+//overlaySensorLegend.Shapes[1].Type = "Rectangle";
+//overlaySensorLegend.Shapes[2].Type = "Text";
+//overlaySensorLegend.Shapes[3].Type = "Text";
+//
+//overlaySensorLegend.Shapes[2].TextOptions.Font.Typeface = typeface;
+//overlaySensorLegend.Shapes[3].TextOptions.Font.Typeface = typeface;
+//
+//overlaySensorLegend.Shapes[2].TextOptions.Font.Size = viewwindowOverlayTextSize;
+//overlaySensorLegend.Shapes[3].TextOptions.Font.Size = viewwindowOverlayTextSize;
+//
+//Call InitializeSensorLegendRectangle(overlaySensorLegend, 0, 0.3, ColorTools.Purple);
+//Call InitializeSensorLegendRectangle(overlaySensorLegend, 1, 0.3, ColorTools.Lime);
+//
+//Call InitializeSensorLegendText(overlaySensorLegend, 2, "Uplink");
+//Call InitializeSensorLegendText(overlaySensorLegend, 3, "Payload Orientation");
+//
+//overlaySensorLegend.Shapes[0].SetPosition(0, 1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer);
+//overlaySensorLegend.Shapes[1].SetPosition(0, 1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer*2 + sensorLegendBoxHeight);
+//overlaySensorLegend.Shapes[2].SetPosition(0, 1 - sensorLegendBoxWidth, overlayBorderBuffer);
+//overlaySensorLegend.Shapes[3].SetPosition(0, 1 - sensorLegendBoxWidth, overlayBorderBuffer*2 + sensorLegendBoxHeight);
 
 
 Global WindowOverlay overlayUploadingLog;
@@ -3171,7 +3265,7 @@ overlayUploadingLog.Shapes[0].TextOptions.Text = "UPLINKING DATA...";
 
 overlayUploadingLog.AddShape();
 overlayUploadingLog.Shapes[1].Type = "Rectangle";
-Call InitializeSensorLegendRectangle(overlayUploadingLog, 1, ColorTools.LightGray);
+Call InitializeSensorLegendRectangle(overlayUploadingLog, 1, 0.3, ColorTools.LightGray);
 overlayUploadingLog.Shapes[1].SetSize(0, uploadingLogWidth, uploadingLogHeight);
 overlayUploadingLog.Shapes[1].SetPosition(0, (1 - uploadingLogWidth) / 2, 1 - uploadingLogHeight - overlayBorderBuffer);
 
@@ -3190,6 +3284,7 @@ Define Procedure InitializeViewWindow(ViewWindow vw, String windowTitle, Formati
 	vw.AddObject(overlayRed3Future);
 	vw.AddObject(overlayDateTime);
 	vw.AddObject(overlaySensorLegend);
+	vw.AddObject(overlayStatusIndicators);
 	
 	vw.SetShowName(0, TypeOf(CelestialObject), 0);
 	vw.SetShowBody(blueJammer.ObjectId, 0);
@@ -4687,6 +4782,7 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 			blueBackupCommsState = activatableAsset_ready;
 			aheadPredictTime = aheadPredictTimeNominal;
 		End;
+		Call updateStatusIndicatorsOverlay();
 	End;
 	
 	If (userChoice == choice_jam);
