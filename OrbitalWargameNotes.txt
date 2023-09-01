@@ -1,10 +1,8 @@
 Mission Plan Notes;
 
 
-- change axis formats on plots
 - slim down plot procedures library
 - add predict duration overlay
-- game score annotation for specific values
 
 
 EM/RF people: Billy Gonzolez, scott donel

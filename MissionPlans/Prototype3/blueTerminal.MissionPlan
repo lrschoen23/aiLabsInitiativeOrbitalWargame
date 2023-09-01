@@ -281,7 +281,9 @@ Global TimeSpan slewTime = simChoiceSpacing.Scaled(0.5);
 If (uplinkTime > simChoiceSpacing);
 	Diagnostics.ReportErrorMessage(
 		0, "Uplink time must be less than or equal to choice spacing time in order to avoid race conditions with the strategy server.");
-End;]]></FreeFormScript>
+End;
+
+Global String typeface = "Gill Sans MT"; // Tahoma, Gill Sans MT]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
         <Label>Initialize</Label>
@@ -352,10 +354,12 @@ overlayRed1Future.ShapeTickWidth = 5;
 overlayRed2Future.ShapeTickWidth = 5;
 overlayRed3Future.ShapeTickWidth = 5;
 
-
+Variable viewwindowOverlayTextSize = 22;
 Global Constant Variable overlayBorderBuffer = 0.013;
 Global WindowOverlay overlayDateTime;
 overlayDateTime.Shapes[0].SetPosition(0, overlayBorderBuffer, overlayBorderBuffer);
+overlayDateTime.Shapes[0].TextOptions.Font.Typeface = typeface;
+overlayDateTime.Shapes[0].TextOptions.Font.Size = viewwindowOverlayTextSize;
 
 Global Variable screenWidth;
 Global Variable screenHeight;
@@ -372,6 +376,12 @@ overlaySensorLegend.Shapes[0].Type = "Rectangle";
 overlaySensorLegend.Shapes[1].Type = "Rectangle";
 overlaySensorLegend.Shapes[2].Type = "Text";
 overlaySensorLegend.Shapes[3].Type = "Text";
+
+overlaySensorLegend.Shapes[2].TextOptions.Font.Typeface = typeface;
+overlaySensorLegend.Shapes[3].TextOptions.Font.Typeface = typeface;
+
+overlaySensorLegend.Shapes[2].TextOptions.Font.Size = viewwindowOverlayTextSize;
+overlaySensorLegend.Shapes[3].TextOptions.Font.Size = viewwindowOverlayTextSize;
 
 Define Procedure InitializeSensorLegendRectangle(WindowOverlay overlay, Variable index, Variable color);
 	overlay.Shapes[index].RectangleOptions.FillColor = color;
@@ -419,7 +429,8 @@ overlayUploadingLog.Shapes[1].SetPosition(0, (1 - uploadingLogWidth) / 2, 1 - up
 overlayUploadingLog.Shapes[0].BringToFront();
 
 Global ViewFont vf;
-vf.Size = 14;
+vf.Typeface = typeface;
+vf.Size = 17;
 
 Define Procedure InitializeViewWindow(ViewWindow vw, String windowTitle, Formation red, Formation blue);
 	vw.AddObject(blue);
@@ -700,7 +711,9 @@ EndProcedure;
         <Label>Initialize Plots</Label>
         <Bookmarks />
         <Breakpoints />
-        <FreeFormScript><![CDATA[Define Procedure InitializePlotPredictSeries(PlotScatterSeries series, String label, Variable color);
+        <FreeFormScript><![CDATA[
+
+Define Procedure InitializePlotPredictSeries(PlotScatterSeries series, String label, Variable color);
 	series.Label = label;
 	series.MarkersColor = color;
 
@@ -731,13 +744,36 @@ EndProcedure;
 Define Procedure InitializePlot(PlotWindow plot, String title, String xLabel, String yLabel, String windowHandle);
 	plot.SetBackgroundColorPalette("DarkGray");
 	plot.PlotTitle.Text = title;
+	plot.PlotTitle.Font.Size = 16;
+	
+	plot.XAxis.Title.Font = plot.PlotTitle.Font;
+	plot.YAxis.Title.Font = plot.PlotTitle.Font;
+	
 	plot.XAxis.Title.Text = xLabel;
 	plot.YAxis.Title.Text = yLabel;
+	
+	plot.XAxis.Title.Font.Size = 14;
+	plot.YAxis.Title.Font.Size = 14;
+	
+	plot.XAxis.Title.Font.Bold = 1;
+	plot.YAxis.Title.Font.Bold = 1;
+	
+	plot.XAxis.LabelsFont.Size = 11;
+	plot.YAxis.LabelsFont.Size = 11;
+	
+	plot.XAxis.LabelsFont.Bold = 1;
+	plot.YAxis.LabelsFont.Bold = 1;
+	
+	plot.Legend.Font.Size = 11;
+	
 	plot.XAxis.LabelsFormat = "#,##0.####";
 	plot.YAxis.LabelsFormat = "#,##0.####";
+	
 	plot.WindowTitle = windowHandle;
 	plot.PlotSubTitle.Visible = 0;
 	plot.HighQualityRendering = 1;
+	
+	plot.SetTypeface(typeface);
 EndProcedure;
 
 Define Procedure InitializePlotAxisRanges(PlotWindow plot, Array x, Array y);
@@ -1029,7 +1065,7 @@ Call AddFloatingLabelToPlot(
 	pwRadiusLongitude.YAxis.MinimumValue + (pwRadiusLongitude.YAxis.MaximumValue - pwRadiusLongitude.YAxis.MinimumValue) * 0.15,
 	ColorTools.Green,
 	ColorTools.LightGray,
-	"Candara",
+	"Verdana",
 	16,
 	"To Earth");
 Call AddSinglePointToPlot(
@@ -1045,7 +1081,6 @@ Call AddSinglePointToPlot(
 // set up results bar chart
 Global PlotWindow pwResultsBarChart;
 pwResultsBarChart.PointsToUpdate = 1;
-pwResultsBarChart.WindowTitle = "Game Score";
 Global Variable redObjectiveScore = 100;
 Global Variable blueOperationsScore = 100;
 Global Variable tensionScore = 100;
@@ -1062,13 +1097,55 @@ pwResultsBarChart.Legend.Location = 1;
 (pwResultsBarChart.Series[2] AsType PlotScatterSeries).LineColor = ColorTools.Purple;
 
 
+Variable resultsAnnotationSize = 14;
+Call AddFloatingLabelToPlot(
+	pwResultsBarChart, 1, 0,
+	ColorTools.White, -999,
+	"Verdana", resultsAnnotationSize, "");
+Call AddFloatingLabelToPlot(
+	pwResultsBarChart, 2, 0,
+	ColorTools.White, -999,
+	"Verdana", resultsAnnotationSize, "");
+Call AddFloatingLabelToPlot(
+	pwResultsBarChart, 3, 0,
+	ColorTools.White, -999,
+	"Verdana", resultsAnnotationSize, "");
+	
+Call InitializePlot(pwResultsBarChart, "Results", "", "Score (%)", "Game Score");
+pwResultsBarChart.XAxis.LabelsColor = pwResultsBarChart.BackgroundColor;
+pwResultsBarChart.Legend.Font.Size = 20;
+
+Define Procedure GetVerticalAnnotationAdjustment(Variable objectiveValue, Variable verticalAnnotationAdjustment);
+	If (objectiveValue > 10);
+		verticalAnnotationAdjustment = -8;
+	Else;
+		verticalAnnotationAdjustment = -2;
+	End;
+EndProcedure;
+
+Define Procedure UpdateResultsPlotVerticalAnnotationAdjustment(Variable index, Variable objectiveValue);
+	Variable verticalAnnotationAdjustment;
+	Call GetVerticalAnnotationAdjustment(objectiveValue, verticalAnnotationAdjustment);
+	(pwResultsBarChart.Series[index] AsType PlotScatterSeries).Data[0, 1] = objectiveValue + verticalAnnotationAdjustment;
+EndProcedure;
+
 Define Procedure UpdateResultsBarChart();
 	pwResultsBarChart.BeginBatchUpdate();
 	(pwResultsBarChart.Series[0] AsType PlotScatterSeries).Data[1, 1] = redObjectiveScore;
 	(pwResultsBarChart.Series[1] AsType PlotScatterSeries).Data[1, 1] = blueOperationsScore;
 	(pwResultsBarChart.Series[2] AsType PlotScatterSeries).Data[1, 1] = tensionScore;
+	
+	Call UpdateResultsPlotVerticalAnnotationAdjustment(3, redObjectiveScore);
+	Call UpdateResultsPlotVerticalAnnotationAdjustment(4, blueOperationsScore);
+	Call UpdateResultsPlotVerticalAnnotationAdjustment(5, tensionScore);
+	
+	(pwResultsBarChart.Series[3] AsType PlotScatterSeries).DataLabels[0] = floor(redObjectiveScore).ToString();
+	(pwResultsBarChart.Series[4] AsType PlotScatterSeries).DataLabels[0] = floor(blueOperationsScore).ToString();
+	(pwResultsBarChart.Series[5] AsType PlotScatterSeries).DataLabels[0] = floor(tensionScore).ToString();
+	
 	pwResultsBarChart.EndBatchUpdate();
 EndProcedure;
+Call UpdateResultsBarChart();
 
 
 pwRadiusLongitude.EndBatchUpdate();
@@ -1909,7 +1986,7 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 	Array dv2(3);
 	Variable interBurnTimeDays;
 	If (userChoice == choice_evasive);
-		blueOperationsScore -= 8;
+		blueOperationsScore -= 12;
 		
 		Call RequestBlueEvasiveManeuverFromServer(blue);
 		numberOfBlueEvasiveManeuvers += 1;
@@ -2960,6 +3037,8 @@ If (uplinkTime > simChoiceSpacing);
 		0, "Uplink time must be less than or equal to choice spacing time in order to avoid race conditions with the strategy server.");
 End;
 
+Global String typeface = "Gill Sans MT"; // Tahoma, Gill Sans MT
+
 Global TimeSpan simStepSize = TimeSpan.FromSeconds(simStepSizeSeconds);
 
 Global TimeSpan aheadPredictTimeNominal = TimeSpan.FromHours(18);
@@ -3024,10 +3103,12 @@ overlayRed1Future.ShapeTickWidth = 5;
 overlayRed2Future.ShapeTickWidth = 5;
 overlayRed3Future.ShapeTickWidth = 5;
 
-
+Variable viewwindowOverlayTextSize = 22;
 Global Constant Variable overlayBorderBuffer = 0.013;
 Global WindowOverlay overlayDateTime;
 overlayDateTime.Shapes[0].SetPosition(0, overlayBorderBuffer, overlayBorderBuffer);
+overlayDateTime.Shapes[0].TextOptions.Font.Typeface = typeface;
+overlayDateTime.Shapes[0].TextOptions.Font.Size = viewwindowOverlayTextSize;
 
 Global Variable screenWidth;
 Global Variable screenHeight;
@@ -3044,6 +3125,12 @@ overlaySensorLegend.Shapes[0].Type = "Rectangle";
 overlaySensorLegend.Shapes[1].Type = "Rectangle";
 overlaySensorLegend.Shapes[2].Type = "Text";
 overlaySensorLegend.Shapes[3].Type = "Text";
+
+overlaySensorLegend.Shapes[2].TextOptions.Font.Typeface = typeface;
+overlaySensorLegend.Shapes[3].TextOptions.Font.Typeface = typeface;
+
+overlaySensorLegend.Shapes[2].TextOptions.Font.Size = viewwindowOverlayTextSize;
+overlaySensorLegend.Shapes[3].TextOptions.Font.Size = viewwindowOverlayTextSize;
 
 Define Procedure InitializeSensorLegendRectangle(WindowOverlay overlay, Variable index, Variable color);
 	overlay.Shapes[index].RectangleOptions.FillColor = color;
@@ -3091,7 +3178,8 @@ overlayUploadingLog.Shapes[1].SetPosition(0, (1 - uploadingLogWidth) / 2, 1 - up
 overlayUploadingLog.Shapes[0].BringToFront();
 
 Global ViewFont vf;
-vf.Size = 14;
+vf.Typeface = typeface;
+vf.Size = 17;
 
 Define Procedure InitializeViewWindow(ViewWindow vw, String windowTitle, Formation red, Formation blue);
 	vw.AddObject(blue);
@@ -3362,6 +3450,8 @@ Define Procedure GetNextQueuedActionEpoch(TimeSpan epoch);
 	End;
 EndProcedure;
 
+
+
 Define Procedure InitializePlotPredictSeries(PlotScatterSeries series, String label, Variable color);
 	series.Label = label;
 	series.MarkersColor = color;
@@ -3393,13 +3483,36 @@ EndProcedure;
 Define Procedure InitializePlot(PlotWindow plot, String title, String xLabel, String yLabel, String windowHandle);
 	plot.SetBackgroundColorPalette("DarkGray");
 	plot.PlotTitle.Text = title;
+	plot.PlotTitle.Font.Size = 16;
+	
+	plot.XAxis.Title.Font = plot.PlotTitle.Font;
+	plot.YAxis.Title.Font = plot.PlotTitle.Font;
+	
 	plot.XAxis.Title.Text = xLabel;
 	plot.YAxis.Title.Text = yLabel;
+	
+	plot.XAxis.Title.Font.Size = 14;
+	plot.YAxis.Title.Font.Size = 14;
+	
+	plot.XAxis.Title.Font.Bold = 1;
+	plot.YAxis.Title.Font.Bold = 1;
+	
+	plot.XAxis.LabelsFont.Size = 11;
+	plot.YAxis.LabelsFont.Size = 11;
+	
+	plot.XAxis.LabelsFont.Bold = 1;
+	plot.YAxis.LabelsFont.Bold = 1;
+	
+	plot.Legend.Font.Size = 11;
+	
 	plot.XAxis.LabelsFormat = "#,##0.####";
 	plot.YAxis.LabelsFormat = "#,##0.####";
+	
 	plot.WindowTitle = windowHandle;
 	plot.PlotSubTitle.Visible = 0;
 	plot.HighQualityRendering = 1;
+	
+	plot.SetTypeface(typeface);
 EndProcedure;
 
 Define Procedure InitializePlotAxisRanges(PlotWindow plot, Array x, Array y);
@@ -3691,7 +3804,7 @@ Call AddFloatingLabelToPlot(
 	pwRadiusLongitude.YAxis.MinimumValue + (pwRadiusLongitude.YAxis.MaximumValue - pwRadiusLongitude.YAxis.MinimumValue) * 0.15,
 	ColorTools.Green,
 	ColorTools.LightGray,
-	"Candara",
+	"Verdana",
 	16,
 	"To Earth");
 Call AddSinglePointToPlot(
@@ -3707,7 +3820,6 @@ Call AddSinglePointToPlot(
 // set up results bar chart
 Global PlotWindow pwResultsBarChart;
 pwResultsBarChart.PointsToUpdate = 1;
-pwResultsBarChart.WindowTitle = "Game Score";
 Global Variable redObjectiveScore = 100;
 Global Variable blueOperationsScore = 100;
 Global Variable tensionScore = 100;
@@ -3724,13 +3836,55 @@ pwResultsBarChart.Legend.Location = 1;
 (pwResultsBarChart.Series[2] AsType PlotScatterSeries).LineColor = ColorTools.Purple;
 
 
+Variable resultsAnnotationSize = 14;
+Call AddFloatingLabelToPlot(
+	pwResultsBarChart, 1, 0,
+	ColorTools.White, -999,
+	"Verdana", resultsAnnotationSize, "");
+Call AddFloatingLabelToPlot(
+	pwResultsBarChart, 2, 0,
+	ColorTools.White, -999,
+	"Verdana", resultsAnnotationSize, "");
+Call AddFloatingLabelToPlot(
+	pwResultsBarChart, 3, 0,
+	ColorTools.White, -999,
+	"Verdana", resultsAnnotationSize, "");
+	
+Call InitializePlot(pwResultsBarChart, "Results", "", "Score (%)", "Game Score");
+pwResultsBarChart.XAxis.LabelsColor = pwResultsBarChart.BackgroundColor;
+pwResultsBarChart.Legend.Font.Size = 20;
+
+Define Procedure GetVerticalAnnotationAdjustment(Variable objectiveValue, Variable verticalAnnotationAdjustment);
+	If (objectiveValue > 10);
+		verticalAnnotationAdjustment = -8;
+	Else;
+		verticalAnnotationAdjustment = -2;
+	End;
+EndProcedure;
+
+Define Procedure UpdateResultsPlotVerticalAnnotationAdjustment(Variable index, Variable objectiveValue);
+	Variable verticalAnnotationAdjustment;
+	Call GetVerticalAnnotationAdjustment(objectiveValue, verticalAnnotationAdjustment);
+	(pwResultsBarChart.Series[index] AsType PlotScatterSeries).Data[0, 1] = objectiveValue + verticalAnnotationAdjustment;
+EndProcedure;
+
 Define Procedure UpdateResultsBarChart();
 	pwResultsBarChart.BeginBatchUpdate();
 	(pwResultsBarChart.Series[0] AsType PlotScatterSeries).Data[1, 1] = redObjectiveScore;
 	(pwResultsBarChart.Series[1] AsType PlotScatterSeries).Data[1, 1] = blueOperationsScore;
 	(pwResultsBarChart.Series[2] AsType PlotScatterSeries).Data[1, 1] = tensionScore;
+	
+	Call UpdateResultsPlotVerticalAnnotationAdjustment(3, redObjectiveScore);
+	Call UpdateResultsPlotVerticalAnnotationAdjustment(4, blueOperationsScore);
+	Call UpdateResultsPlotVerticalAnnotationAdjustment(5, tensionScore);
+	
+	(pwResultsBarChart.Series[3] AsType PlotScatterSeries).DataLabels[0] = floor(redObjectiveScore).ToString();
+	(pwResultsBarChart.Series[4] AsType PlotScatterSeries).DataLabels[0] = floor(blueOperationsScore).ToString();
+	(pwResultsBarChart.Series[5] AsType PlotScatterSeries).DataLabels[0] = floor(tensionScore).ToString();
+	
 	pwResultsBarChart.EndBatchUpdate();
 EndProcedure;
+Call UpdateResultsBarChart();
 
 
 pwRadiusLongitude.EndBatchUpdate();
@@ -4551,7 +4705,7 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 	Array dv2(3);
 	Variable interBurnTimeDays;
 	If (userChoice == choice_evasive);
-		blueOperationsScore -= 8;
+		blueOperationsScore -= 12;
 		
 		Call RequestBlueEvasiveManeuverFromServer(blue);
 		numberOfBlueEvasiveManeuvers += 1;

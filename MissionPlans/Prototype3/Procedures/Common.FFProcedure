@@ -159,7 +159,7 @@ Define Procedure ComputeStationKeepingManeuver(Spacecraft sc, Variable longitude
 		opt.RestoreObjectsInProcess();
 		burn.BurnDirection = opt.GetStateVariableValues();
 		
-		sc.Maneuver(burn);
+		Maneuver sc using burn;
 		
 		initialEpoch = sc.Epoch;
 		While (abs(sc.Longitude - longitude) < 0.02);
@@ -272,7 +272,7 @@ Define Procedure TargetNewOrbit(
 	Array extraDv;
 	If (addLongitudeConstraint);
 		burn.BurnDirection = dv1;
-		sc.Maneuver(burn);
+		Maneuver sc using burn;
 		
 		futureEpoch = sc.Epoch + interBurnTime;
 		WhileStepping sc to (sc.Epoch == futureEpoch);

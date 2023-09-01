@@ -248,6 +248,9 @@ While (1);
 		End;
 	End;
 	
+	Report Diagnostics.GetLastErrorMessages() to Console;
+	Diagnostics.ClearErrorMessages();
+	
 	Close connection;
 	Report "" to Console;
 	Report "Disconnected" to Console;
@@ -386,6 +389,9 @@ While (1);
 			End;
 		End;
 	End;
+	
+	Report Diagnostics.GetLastErrorMessages() to Console;
+	Diagnostics.ClearErrorMessages();
 	
 	Close connection;
 	Report "" to Console;
