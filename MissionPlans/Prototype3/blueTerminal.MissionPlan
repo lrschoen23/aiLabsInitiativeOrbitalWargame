@@ -299,7 +299,7 @@
 
 Global Constant Variable gameMode = userChoice;
 //Global Constant Variable gameMode = gameMode_disableScript;
-simStepSizeSeconds = 1000;
+//simStepSizeSeconds = 1000;
 
 Global Constant Variable autoChooseNominalOperation = 0;
 Global TimeSpan simChoiceSpacing = TimeSpan.FromHours(8);
@@ -313,7 +313,7 @@ If (uplinkTime > simChoiceSpacing);
 		0, "Uplink time must be less than or equal to choice spacing time in order to avoid race conditions with the strategy server.");
 End;
 
-Global String typeface = "Gill Sans MT"; // Tahoma, Gill Sans MT]]></FreeFormScript>
+Global String typeface = "Gill Sans MT";]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
         <Label>Initialize</Label>
@@ -1273,8 +1273,6 @@ Define Procedure SetWindowBottomLeft(Variable ID);
 	OutputLayout.SetWindowSize(ID, 1, screenSpaceRatio, 1, 0.5);
 EndProcedure;
 
-// TODO: uncomment
-//OutputLayout.SetWorkspaceFullScreenMode(1);
 
 OutputLayout.SetWindowFrameVisibility({pwResultsBarChart.ID, viewMain3D.ID, pwRadiusLongitude.ID, pwAngleRange.ID, pwRange.ID, pwAngleFromPayload.ID, viewUplink.ID, viewPayload.ID}, 0);
 
@@ -2135,12 +2133,6 @@ EndProcedure;
         <Bookmarks />
         <Breakpoints />
         <FreeFormScript><![CDATA[
-Define Procedure AdvanceSimUntilBlueIsNominal(Formation red, Formation blue);
-	While (blueIsOffNominal);
-		Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(5));
-		Call ShowOperatorActionsMenu(red, blue);
-	End;
-EndProcedure;
 
 Define Procedure DisplayModeScript(Formation red, Formation blue);
 	Optimizer opt;
@@ -2213,7 +2205,7 @@ Define Procedure DisplayModeScript(Formation red, Formation blue);
 	
 EndProcedure;]]></FreeFormScript>
       </FreeForm>
-      <FreeForm enabled="false">
+      <FreeForm enabled="true">
         <Label>Driver Loop</Label>
         <Bookmarks />
         <Breakpoints />
@@ -2370,11 +2362,6 @@ Else;
 End;
 
 
-// TODO temp
-redObjectiveScore = 100;
-blueOperationsScore = 80;
-tensionScore = 70;
-
 currentScore.denyRed = floor(redObjectiveScore);
 currentScore.blueOps = floor(blueOperationsScore);
 currentScore.tension = floor(tensionScore);
@@ -2476,7 +2463,7 @@ Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromDays(1));]]
 
 Global Constant Variable gameMode = userChoice;
 //Global Constant Variable gameMode = gameMode_disableScript;
-simStepSizeSeconds = 1000;
+//simStepSizeSeconds = 1000;
 
 Global Constant Variable autoChooseNominalOperation = 0;
 Global TimeSpan simChoiceSpacing = TimeSpan.FromHours(8);
@@ -2490,7 +2477,7 @@ If (uplinkTime > simChoiceSpacing);
 		0, "Uplink time must be less than or equal to choice spacing time in order to avoid race conditions with the strategy server.");
 End;
 
-Global String typeface = "Gill Sans MT"; // Tahoma, Gill Sans MT
+Global String typeface = "Gill Sans MT";
 
 Global TimeSpan simStepSize = TimeSpan.FromSeconds(simStepSizeSeconds);
 
@@ -3430,8 +3417,6 @@ Define Procedure SetWindowBottomLeft(Variable ID);
 	OutputLayout.SetWindowSize(ID, 1, screenSpaceRatio, 1, 0.5);
 EndProcedure;
 
-// TODO: uncomment
-//OutputLayout.SetWorkspaceFullScreenMode(1);
 
 OutputLayout.SetWindowFrameVisibility({pwResultsBarChart.ID, viewMain3D.ID, pwRadiusLongitude.ID, pwAngleRange.ID, pwRange.ID, pwAngleFromPayload.ID, viewUplink.ID, viewPayload.ID}, 0);
 
@@ -4272,12 +4257,6 @@ EndProcedure;
 
 
 
-Define Procedure AdvanceSimUntilBlueIsNominal(Formation red, Formation blue);
-	While (blueIsOffNominal);
-		Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromHours(5));
-		Call ShowOperatorActionsMenu(red, blue);
-	End;
-EndProcedure;
 
 Define Procedure DisplayModeScript(Formation red, Formation blue);
 	Optimizer opt;
@@ -4349,65 +4328,65 @@ Define Procedure DisplayModeScript(Formation red, Formation blue);
 	End;
 	
 EndProcedure;
-// 
-// 
-// If (gameMode == gameMode_displayMode);
-// 	Call DisplayModeScript(red, blue);
-// End;
-// 
-// QueuedAction nextQueuedAction;
-// TimeSpan nextQueuedActionEpoch;
-// Variable nextQueuedActionIsBeforeNextChoiceEpoch;
-// Variable redStrategyUpdateIsCurrentlyBeingComputed;
-// 
-// While (blueIsOffNominal or redIsEngaged);
-// 	nextChoiceEpoch = blue[0].Epoch + simChoiceSpacing;
-// 	
-// 	Call GetNextQueuedActionEpoch(nextQueuedActionEpoch);
-// 	While (nextQueuedActionEpoch < nextChoiceEpoch);
-// 		If (nextQueuedActionEpoch < simEpoch);
-// 			If ((nextQueuedActionEpoch - simEpoch).Abs().ToSeconds() < 10);
-// 				// Allow the discrepancy
-// 			Else;
-// 				Diagnostics.ReportErrorMessage(0, "Encountered action epoch prior to simulation epoch." + (simEpoch - nextQueuedActionEpoch).ToHours().ToString());
-// 			End;
-// 		End;
-// 		Call PopNextQueuedAction(nextQueuedAction);
-// 		Call AdvanceSimToFutureEpoch(red, blue, nextQueuedAction.epoch);
-// 
-// 		Call ExecuteQueuedAction(nextQueuedAction, red, blue);
-// 		
-// 		Call GetNextQueuedActionEpoch(nextQueuedActionEpoch);
-// 	End;
-// 	
-// 	
-// 	Call AdvanceSimToFutureEpoch(red, blue, nextChoiceEpoch);
-// 	If (numberOfUserChoicesToSkip == 0);
-// 		Call ShowOperatorActionsMenu(red, blue);
-// 	Else;
-// 		numberOfUserChoicesToSkip -= 1;
-// 	End;
-// 	
-// 	If (blueJammerState != activatableAsset_on);
-// 		redStrategyUpdateIsCurrentlyBeingComputed = 0;
-// 		For i = 0 to redActionQueue.Count - 1;
-// 			If (redActionQueue[i].additionalAction == additionalAction_retrieveRedStrategy);
-// 				redStrategyUpdateIsCurrentlyBeingComputed = 1;
-// 				Break;
-// 			End;
-// 		End;
-// 		
-// 		If (!redStrategyUpdateIsCurrentlyBeingComputed);
-// 			Call RequestRedStrategyUpdateFromServer(red, blue);
-// 		End;
-// 	End;
-// End;
-// 
-// Call SetBlueJammerState(activatableAsset_off);
-// Call SetBlueBackupCommsState(activatableAsset_off);
-// 
-// 
-// 
+
+
+If (gameMode == gameMode_displayMode);
+	Call DisplayModeScript(red, blue);
+End;
+
+QueuedAction nextQueuedAction;
+TimeSpan nextQueuedActionEpoch;
+Variable nextQueuedActionIsBeforeNextChoiceEpoch;
+Variable redStrategyUpdateIsCurrentlyBeingComputed;
+
+While (blueIsOffNominal or redIsEngaged);
+	nextChoiceEpoch = blue[0].Epoch + simChoiceSpacing;
+	
+	Call GetNextQueuedActionEpoch(nextQueuedActionEpoch);
+	While (nextQueuedActionEpoch < nextChoiceEpoch);
+		If (nextQueuedActionEpoch < simEpoch);
+			If ((nextQueuedActionEpoch - simEpoch).Abs().ToSeconds() < 10);
+				// Allow the discrepancy
+			Else;
+				Diagnostics.ReportErrorMessage(0, "Encountered action epoch prior to simulation epoch." + (simEpoch - nextQueuedActionEpoch).ToHours().ToString());
+			End;
+		End;
+		Call PopNextQueuedAction(nextQueuedAction);
+		Call AdvanceSimToFutureEpoch(red, blue, nextQueuedAction.epoch);
+
+		Call ExecuteQueuedAction(nextQueuedAction, red, blue);
+		
+		Call GetNextQueuedActionEpoch(nextQueuedActionEpoch);
+	End;
+	
+	
+	Call AdvanceSimToFutureEpoch(red, blue, nextChoiceEpoch);
+	If (numberOfUserChoicesToSkip == 0);
+		Call ShowOperatorActionsMenu(red, blue);
+	Else;
+		numberOfUserChoicesToSkip -= 1;
+	End;
+	
+	If (blueJammerState != activatableAsset_on);
+		redStrategyUpdateIsCurrentlyBeingComputed = 0;
+		For i = 0 to redActionQueue.Count - 1;
+			If (redActionQueue[i].additionalAction == additionalAction_retrieveRedStrategy);
+				redStrategyUpdateIsCurrentlyBeingComputed = 1;
+				Break;
+			End;
+		End;
+		
+		If (!redStrategyUpdateIsCurrentlyBeingComputed);
+			Call RequestRedStrategyUpdateFromServer(red, blue);
+		End;
+	End;
+End;
+
+Call SetBlueJammerState(activatableAsset_off);
+Call SetBlueBackupCommsState(activatableAsset_off);
+
+
+
 
 Struct LeaderboardEntry;
 	String username;
@@ -4496,11 +4475,6 @@ Else;
 	currentScore.username = username.SubString(0, maxUsernameLength);
 End;
 
-
-// TODO temp
-redObjectiveScore = 100;
-blueOperationsScore = 80;
-tensionScore = 70;
 
 currentScore.denyRed = floor(redObjectiveScore);
 currentScore.blueOps = floor(blueOperationsScore);
