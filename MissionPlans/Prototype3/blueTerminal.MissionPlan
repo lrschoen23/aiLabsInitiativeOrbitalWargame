@@ -1612,11 +1612,11 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue, TimeSpan 
 	Call ComputeRangeAndAngleFromPayload(blue[0], red[0], range, angle);
 	Call IsInsidePayloadKeepOutZone(range, angle, isInsidePayloadKeepOutZone);
 	If (isInsidePayloadKeepOutZone);
-		redObjectiveScore -= 5 * stepJustTaken.ToHours();
+		redObjectiveScore -= 2 * stepJustTaken.ToHours();
 	End;
 	
 	If (range < rangeKeepOutValue);
-		redObjectiveScore -= 15 * stepJustTaken.ToHours();
+		redObjectiveScore -= 6 * stepJustTaken.ToHours();
 	End;
 	
 	Variable slewRateDegPerSecond;
@@ -2084,6 +2084,7 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 		If (numberOfBlueEvasiveManeuvers > 0);
 			Call RequestBlueReturnToNominalFromServer(blue);
 			numberOfBlueEvasiveManeuvers = 0;
+			blueOperationsScore -= 6;
 		End;
 		
 		initialBluePayloadOrientationAngle = blue[0].EulerAngles[0];
@@ -4433,11 +4434,11 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue, TimeSpan 
 	Call ComputeRangeAndAngleFromPayload(blue[0], red[0], range, angle);
 	Call IsInsidePayloadKeepOutZone(range, angle, isInsidePayloadKeepOutZone);
 	If (isInsidePayloadKeepOutZone);
-		redObjectiveScore -= 5 * stepJustTaken.ToHours();
+		redObjectiveScore -= 2 * stepJustTaken.ToHours();
 	End;
 	
 	If (range < rangeKeepOutValue);
-		redObjectiveScore -= 15 * stepJustTaken.ToHours();
+		redObjectiveScore -= 6 * stepJustTaken.ToHours();
 	End;
 	
 	Variable slewRateDegPerSecond;
@@ -4895,6 +4896,7 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 		If (numberOfBlueEvasiveManeuvers > 0);
 			Call RequestBlueReturnToNominalFromServer(blue);
 			numberOfBlueEvasiveManeuvers = 0;
+			blueOperationsScore -= 6;
 		End;
 		
 		initialBluePayloadOrientationAngle = blue[0].EulerAngles[0];

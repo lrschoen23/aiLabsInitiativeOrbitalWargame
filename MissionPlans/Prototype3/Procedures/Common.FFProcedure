@@ -301,8 +301,8 @@ Define Procedure TargetNewRelativeOrbit(
 	Optimizer opt;
 	
 	opt.Reset(1);
-	opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
-	opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
+	opt.AddStateVariableBlock(3, "dv1", 0.001, -0.02, 0.02);
+	opt.AddStateVariableBlock(3, "dv2", 0.001, -0.02, 0.02);
 	opt.AddStateVariable("days", timeBoundsDays.Mean, timeBoundsDays[0], timeBoundsDays[1]);
 	opt.AddConstraint("A",    kepState[0], kepState[0], 100);
 	opt.AddConstraint("E",    kepState[1], kepState[1]);
