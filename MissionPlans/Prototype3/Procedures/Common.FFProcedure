@@ -260,7 +260,8 @@ Define Procedure TargetNewOrbit(
 	Report opt.ReturnString to ConsoleSolver;
 	opt.RestoreObjectsInProcess();
 		
-	
+	dv1.Dimension = 3;
+	dv2.Dimension = 3;
 	dv1[0] = opt.GetBestStateVariableValue("dv11");
 	dv1[1] = opt.GetBestStateVariableValue("dv12");
 	dv1[2] = opt.GetBestStateVariableValue("dv13");
@@ -348,12 +349,12 @@ Define Procedure TargetNewRelativeOrbit(
 								 
 		opt.Minimize(totalDV);
 		
-//		If (opt.OptimizationPhase == 1);
-//			Report opt.NominalEvaluationCount, "   ",
-//			opt.ObjectiveFunctionValue, "   ",
-//			opt.MaximumInfeasibility, "   ",
-//			opt.MaximumInfeasibilitySource to ConsoleSolver;
-//		End;
+		If (opt.OptimizationPhase == 1);
+			Report opt.NominalEvaluationCount, "   ",
+			opt.ObjectiveFunctionValue, "   ",
+			opt.MaximumInfeasibility, "   ",
+			opt.MaximumInfeasibilitySource to ConsoleSolver;
+		End;
 		
 	End;
 	

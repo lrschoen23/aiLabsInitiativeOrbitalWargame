@@ -268,7 +268,7 @@
         <FreeFormScript><![CDATA[//Show MainMenu;
 
 //Global Constant Variable gameMode = userChoice;
-Global Constant Variable gameMode = gameMode_benignScript;
+Global Constant Variable gameMode = gameMode_disableScript;
 simStepSizeSeconds = 1000;
 
 Global Constant Variable autoChooseNominalOperation = 0;
@@ -1596,11 +1596,11 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue, TimeSpan 
 	Call ComputeRangeAndAngleFromPayload(blue[0], red[0], range, angle);
 	Call IsInsidePayloadKeepOutZone(range, angle, isInsidePayloadKeepOutZone);
 	If (isInsidePayloadKeepOutZone);
-		redObjectiveScore -= 1 * blue[0].Propagator.StepSize.ToHours();
+		redObjectiveScore -= 5 * blue[0].Propagator.StepSize.ToHours();
 	End;
 	
 	If (range < rangeKeepOutValue);
-		redObjectiveScore -= 5 * blue[0].Propagator.StepSize.ToHours();
+		redObjectiveScore -= 15 * blue[0].Propagator.StepSize.ToHours();
 	End;
 	
 	Variable slewRateDegPerSecond;
@@ -1817,6 +1817,7 @@ Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, F
 				blueOperationsScore = 0;
 				redObjectiveScore = 0;
 				killOperationIsComplete = 1;
+				blueIsOffNominal = 0;
 			End;
 		ElseIf (queuedAction.additionalAction == additionalAction_redDisengage);
 			redIsEngaged = 0;
@@ -1948,6 +1949,8 @@ Define Procedure BuildOperatorActionsMenu();
 	Variable multiChoiceID = OperatorActions.AddMultiChoice("userChoice", "Select an action:", "choice_nominal", 1);
 	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_nominal",   "Continue nominal operations");
 	
+	Variable blueHasGoodCommsLink = redJammerState == activatableAsset_off or blueBackupCommsState == activatableAsset_on;
+	
 	
 	If (blueJammerState == activatableAsset_off);
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Prepare ground-based jamming unit");
@@ -1966,15 +1969,15 @@ Define Procedure BuildOperatorActionsMenu();
 			OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Revert to primary comms path");
 		End;
 		
-		If (redJammerState == activatableAsset_off);
+		If (blueHasGoodCommsLink);
 			OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_slew", "Slew payload away from closest red spacecraft");
 		End;
 		
-		If (redJammerState == activatableAsset_off);
+		If (blueHasGoodCommsLink);
 			OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_evasive",   "Perform evasive maneuver");
 		End;
 		
-		If (blueIsOffNominal and redJammerState == activatableAsset_off);
+		If (blueIsOffNominal and blueHasGoodCommsLink);
 			OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_returnToNominal",   "Return BlueSat to nominal attitude/location");
 		End;
 	End;
@@ -3074,7 +3077,7 @@ Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromDays(3));]]
   <ProjectScript><![CDATA[//Show MainMenu;
 
 //Global Constant Variable gameMode = userChoice;
-Global Constant Variable gameMode = gameMode_benignScript;
+Global Constant Variable gameMode = gameMode_disableScript;
 simStepSizeSeconds = 1000;
 
 Global Constant Variable autoChooseNominalOperation = 0;
@@ -4377,11 +4380,11 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue, TimeSpan 
 	Call ComputeRangeAndAngleFromPayload(blue[0], red[0], range, angle);
 	Call IsInsidePayloadKeepOutZone(range, angle, isInsidePayloadKeepOutZone);
 	If (isInsidePayloadKeepOutZone);
-		redObjectiveScore -= 1 * blue[0].Propagator.StepSize.ToHours();
+		redObjectiveScore -= 5 * blue[0].Propagator.StepSize.ToHours();
 	End;
 	
 	If (range < rangeKeepOutValue);
-		redObjectiveScore -= 5 * blue[0].Propagator.StepSize.ToHours();
+		redObjectiveScore -= 15 * blue[0].Propagator.StepSize.ToHours();
 	End;
 	
 	Variable slewRateDegPerSecond;
@@ -4593,6 +4596,7 @@ Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, F
 				blueOperationsScore = 0;
 				redObjectiveScore = 0;
 				killOperationIsComplete = 1;
+				blueIsOffNominal = 0;
 			End;
 		ElseIf (queuedAction.additionalAction == additionalAction_redDisengage);
 			redIsEngaged = 0;
@@ -4719,6 +4723,8 @@ Define Procedure BuildOperatorActionsMenu();
 	Variable multiChoiceID = OperatorActions.AddMultiChoice("userChoice", "Select an action:", "choice_nominal", 1);
 	OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_nominal",   "Continue nominal operations");
 	
+	Variable blueHasGoodCommsLink = redJammerState == activatableAsset_off or blueBackupCommsState == activatableAsset_on;
+	
 	
 	If (blueJammerState == activatableAsset_off);
 		OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_jam",  "Prepare ground-based jamming unit");
@@ -4737,15 +4743,15 @@ Define Procedure BuildOperatorActionsMenu();
 			OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_secondaryComms",  "Revert to primary comms path");
 		End;
 		
-		If (redJammerState == activatableAsset_off);
+		If (blueHasGoodCommsLink);
 			OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_slew", "Slew payload away from closest red spacecraft");
 		End;
 		
-		If (redJammerState == activatableAsset_off);
+		If (blueHasGoodCommsLink);
 			OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_evasive",   "Perform evasive maneuver");
 		End;
 		
-		If (blueIsOffNominal and redJammerState == activatableAsset_off);
+		If (blueIsOffNominal and blueHasGoodCommsLink);
 			OperatorActions.AddMultiChoiceItem(multiChoiceID, "choice_returnToNominal",   "Return BlueSat to nominal attitude/location");
 		End;
 	End;

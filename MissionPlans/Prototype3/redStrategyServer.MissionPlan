@@ -146,6 +146,7 @@ Global Variable lastBlueRadius;
 Global Variable lastBlueLongitude;
 
 Global Variable numberOfComputedStrategyUpdates;
+Global Variable strategyIsFinal;
 
 Global Socket connection;
 connection.SocketType = "server";
@@ -355,6 +356,13 @@ Define Procedure WillUpdateOccur(Spacecraft blue, Variable updateWillOccur);
 	updateWillOccur = 1;
 	Variable blueHasManeuvered;
 	Call HasBlueManeuvered(blue, blueHasManeuvered);
+	
+	If (strategyIsFinal);
+		updateWillOccur = 0;
+		Report "Final strategy update has already been computed" to Console;
+		ExitProcedure;
+	End;
+	
 	If (!blueHasManeuvered);
 		updateWillOccur = 0;
 		Report "Blue has not maneuvered since last update" to Console;
@@ -1011,7 +1019,7 @@ Define Procedure ReturnToNominal(Formation red);
 	desiredKepState[1] = 0;
 	
 	Call TargetNewOrbit(
-		red[2],
+		red[0],
 		desiredKepState,
 		-999,
 		{0.4, 0.9},
@@ -1023,6 +1031,8 @@ Define Procedure ReturnToNominal(Formation red);
 	Call AddBurnToActions(dv2, red[0].Epoch + interBurnTime, 0);
 	
 	Call AddAdditionalActionToActions(red[0].Epoch + interBurnTime + TimeSpan.FromHours(1), additionalAction_redDisengage);
+
+	strategyIsFinal = 1;
 EndProcedure;
 
 
@@ -1030,7 +1040,9 @@ Define Procedure ComputeBenignScriptStrategy(Formation red, Formation blue, Vari
 	actions.Clear();
 	updateHasBeenComputed = 0;
 	
-	If (numberOfComputedStrategyUpdates != 0);
+	Variable updateWillOccur = 0;
+	Call WillUpdateOccur(blue[0], updateWillOccur);
+	If (!updateWillOccur);
 		Send "updateWillOccur", 0 to connection; // signal no update
 		Report "No update will occur" to Console;
 		ExitProcedure;
@@ -1067,8 +1079,8 @@ Define Procedure ComputeBenignScriptStrategy(Formation red, Formation blue, Vari
 	
 	Call AddAdditionalActionToActions(incursionEpoch + TimeSpan.FromDays(0.5), additionalAction_redDisengage);
 	
-	numberOfComputedStrategyUpdates += 1;
 	updateHasBeenComputed = 1;
+	strategyIsFinal = 1;
 EndProcedure;
 
 
@@ -1083,14 +1095,20 @@ Define Procedure ComputeObservationScriptStrategy(Formation red, Formation blue,
 		Report "No update will occur" to Console;
 		ExitProcedure;
 	End;
-
+	
 	Send "updateWillOccur", 1 to connection;
+	
+	If (numberOfComputedStrategyUpdates != 0);
+		Call ReturnToNominal(red);
+		updateHasBeenComputed = 1;
+		ExitProcedure;
+	End;
+
 	
 	TimeSpan incursionEpoch = simStartEpoch + TimeSpan.FromHours(24*4 + 0);
 	TimeSpan driftTime = incursionEpoch - blue[0].Epoch - red2and3TransitOrbitTime.Scaled(3);
 	Call ComputeObservationScriptRed1TransitManeuversAndAddToActions(red[0], blue[0], incursionEpoch, driftTime);
 	
-	numberOfComputedStrategyUpdates += 1;
 	updateHasBeenComputed = 1;
 EndProcedure;
 
@@ -1104,6 +1122,12 @@ Define Procedure ComputeDisableScriptStrategy(Formation red, Formation blue, Var
 	If (!updateWillOccur);
 		Send "updateWillOccur", 0 to connection; // signal no update
 		Report "No update will occur" to Console;
+		ExitProcedure;
+	End;
+	
+	If (numberOfComputedStrategyUpdates > 2);
+		Call ReturnToNominal(red);
+		updateHasBeenComputed = 1;
 		ExitProcedure;
 	End;
 	
@@ -1130,22 +1154,23 @@ Define Procedure ComputeDisableScriptStrategy(Formation red, Formation blue, Var
 	Call AddAdditionalActionToActions(incursionEpoch, additionalAction_redToggleJamming);
 	Call AddAdditionalActionToActions(incursionEpoch + TimeSpan.FromDays(1), additionalAction_redToggleJamming);
 	
-	numberOfComputedStrategyUpdates += 1;
 	updateHasBeenComputed = 1;
 EndProcedure;
 
 
-Define Procedure SortActionsByEpoch(TimeSpan simEpoch);
+Define Procedure SortActionsByEpoch(TimeSpan simEpoch, Variable foundInvalidAction);
 	List<QueuedAction> sortedActions(actions.Count);
 	Variable i;
 	Variable j;
 	
+	foundInvalidAction = 0;
 	For i = 0 to actions.Count - 1;
 		If (actions[i].epoch < simEpoch);
 			If ((actions[i].epoch - simEpoch).ToSeconds() > -20);
 				actions[i].epoch = simEpoch;
 			Else;
-				Diagnostics.ReportErrorMessage(1, "Encountered action epoch that is significantly behind simulation epoch.");
+				foundInvalidAction = 1;
+				ExitProcedure;
 			End;
 		End;
 	End;
@@ -1191,6 +1216,8 @@ Variable simChoiceSpacingDays;
 Variable epochWholeSeconds;
 Variable epochFractionalSeconds;
 
+Variable foundInvalidAction;
+
 While (1);	
 	Report "Listening on port ", connection.PortNumber.ToString(), "..." to Console;
 	Open connection;
@@ -1217,6 +1244,7 @@ While (1);
 	lastBlueRadius = 0;
 	lastBlueLongitude = -999;
 	numberOfComputedStrategyUpdates = 0;
+	strategyIsFinal = 0;
 	
 	Try;
 		While (1);
@@ -1262,7 +1290,13 @@ While (1);
 				End;
 				
 				If (updateHasBeenComputed);
-					Call SortActionsByEpoch(TimeSpan.FromDays(epochDays));
+					numberOfComputedStrategyUpdates += 1;
+					Call SortActionsByEpoch(epochToStepTo, foundInvalidAction);
+					If (foundInvalidAction);
+						Report "Invalid action detected, returning to nominal..." to Console;
+						Call ReturnToNominal(red);
+					End;
+					
 					Report "Sending data..." to Console;
 					Send "numRedActions", actions.Count to connection;
 					For i = 0 to actions.Count - 1;
@@ -1329,6 +1363,7 @@ Global Variable lastBlueRadius;
 Global Variable lastBlueLongitude;
 
 Global Variable numberOfComputedStrategyUpdates;
+Global Variable strategyIsFinal;
 
 Global Socket connection;
 connection.SocketType = "server";
@@ -1533,6 +1568,13 @@ Define Procedure WillUpdateOccur(Spacecraft blue, Variable updateWillOccur);
 	updateWillOccur = 1;
 	Variable blueHasManeuvered;
 	Call HasBlueManeuvered(blue, blueHasManeuvered);
+	
+	If (strategyIsFinal);
+		updateWillOccur = 0;
+		Report "Final strategy update has already been computed" to Console;
+		ExitProcedure;
+	End;
+	
 	If (!blueHasManeuvered);
 		updateWillOccur = 0;
 		Report "Blue has not maneuvered since last update" to Console;
@@ -2189,7 +2231,7 @@ Define Procedure ReturnToNominal(Formation red);
 	desiredKepState[1] = 0;
 	
 	Call TargetNewOrbit(
-		red[2],
+		red[0],
 		desiredKepState,
 		-999,
 		{0.4, 0.9},
@@ -2201,6 +2243,8 @@ Define Procedure ReturnToNominal(Formation red);
 	Call AddBurnToActions(dv2, red[0].Epoch + interBurnTime, 0);
 	
 	Call AddAdditionalActionToActions(red[0].Epoch + interBurnTime + TimeSpan.FromHours(1), additionalAction_redDisengage);
+
+	strategyIsFinal = 1;
 EndProcedure;
 
 
@@ -2208,7 +2252,9 @@ Define Procedure ComputeBenignScriptStrategy(Formation red, Formation blue, Vari
 	actions.Clear();
 	updateHasBeenComputed = 0;
 	
-	If (numberOfComputedStrategyUpdates != 0);
+	Variable updateWillOccur = 0;
+	Call WillUpdateOccur(blue[0], updateWillOccur);
+	If (!updateWillOccur);
 		Send "updateWillOccur", 0 to connection; // signal no update
 		Report "No update will occur" to Console;
 		ExitProcedure;
@@ -2245,8 +2291,8 @@ Define Procedure ComputeBenignScriptStrategy(Formation red, Formation blue, Vari
 	
 	Call AddAdditionalActionToActions(incursionEpoch + TimeSpan.FromDays(0.5), additionalAction_redDisengage);
 	
-	numberOfComputedStrategyUpdates += 1;
 	updateHasBeenComputed = 1;
+	strategyIsFinal = 1;
 EndProcedure;
 
 
@@ -2261,14 +2307,20 @@ Define Procedure ComputeObservationScriptStrategy(Formation red, Formation blue,
 		Report "No update will occur" to Console;
 		ExitProcedure;
 	End;
-
+	
 	Send "updateWillOccur", 1 to connection;
+	
+	If (numberOfComputedStrategyUpdates != 0);
+		Call ReturnToNominal(red);
+		updateHasBeenComputed = 1;
+		ExitProcedure;
+	End;
+
 	
 	TimeSpan incursionEpoch = simStartEpoch + TimeSpan.FromHours(24*4 + 0);
 	TimeSpan driftTime = incursionEpoch - blue[0].Epoch - red2and3TransitOrbitTime.Scaled(3);
 	Call ComputeObservationScriptRed1TransitManeuversAndAddToActions(red[0], blue[0], incursionEpoch, driftTime);
 	
-	numberOfComputedStrategyUpdates += 1;
 	updateHasBeenComputed = 1;
 EndProcedure;
 
@@ -2282,6 +2334,12 @@ Define Procedure ComputeDisableScriptStrategy(Formation red, Formation blue, Var
 	If (!updateWillOccur);
 		Send "updateWillOccur", 0 to connection; // signal no update
 		Report "No update will occur" to Console;
+		ExitProcedure;
+	End;
+	
+	If (numberOfComputedStrategyUpdates > 2);
+		Call ReturnToNominal(red);
+		updateHasBeenComputed = 1;
 		ExitProcedure;
 	End;
 	
@@ -2308,22 +2366,23 @@ Define Procedure ComputeDisableScriptStrategy(Formation red, Formation blue, Var
 	Call AddAdditionalActionToActions(incursionEpoch, additionalAction_redToggleJamming);
 	Call AddAdditionalActionToActions(incursionEpoch + TimeSpan.FromDays(1), additionalAction_redToggleJamming);
 	
-	numberOfComputedStrategyUpdates += 1;
 	updateHasBeenComputed = 1;
 EndProcedure;
 
 
-Define Procedure SortActionsByEpoch(TimeSpan simEpoch);
+Define Procedure SortActionsByEpoch(TimeSpan simEpoch, Variable foundInvalidAction);
 	List<QueuedAction> sortedActions(actions.Count);
 	Variable i;
 	Variable j;
 	
+	foundInvalidAction = 0;
 	For i = 0 to actions.Count - 1;
 		If (actions[i].epoch < simEpoch);
 			If ((actions[i].epoch - simEpoch).ToSeconds() > -20);
 				actions[i].epoch = simEpoch;
 			Else;
-				Diagnostics.ReportErrorMessage(1, "Encountered action epoch that is significantly behind simulation epoch.");
+				foundInvalidAction = 1;
+				ExitProcedure;
 			End;
 		End;
 	End;
@@ -2364,6 +2423,8 @@ Variable simChoiceSpacingDays;
 Variable epochWholeSeconds;
 Variable epochFractionalSeconds;
 
+Variable foundInvalidAction;
+
 While (1);	
 	Report "Listening on port ", connection.PortNumber.ToString(), "..." to Console;
 	Open connection;
@@ -2390,6 +2451,7 @@ While (1);
 	lastBlueRadius = 0;
 	lastBlueLongitude = -999;
 	numberOfComputedStrategyUpdates = 0;
+	strategyIsFinal = 0;
 	
 	Try;
 		While (1);
@@ -2435,7 +2497,13 @@ While (1);
 				End;
 				
 				If (updateHasBeenComputed);
-					Call SortActionsByEpoch(TimeSpan.FromDays(epochDays));
+					numberOfComputedStrategyUpdates += 1;
+					Call SortActionsByEpoch(epochToStepTo, foundInvalidAction);
+					If (foundInvalidAction);
+						Report "Invalid action detected, returning to nominal..." to Console;
+						Call ReturnToNominal(red);
+					End;
+					
 					Report "Sending data..." to Console;
 					Send "numRedActions", actions.Count to connection;
 					For i = 0 to actions.Count - 1;

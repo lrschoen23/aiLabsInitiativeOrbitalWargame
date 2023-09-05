@@ -2,8 +2,8 @@ Mission Plan Notes;
 
 
 - slim down plot procedures library
-- add predict duration overlay
 - fix for laptop screen (make sure sales checks on monitor)
+- make high score mechanic
 
 
 EM/RF people: Billy Gonzolez, scott donel
