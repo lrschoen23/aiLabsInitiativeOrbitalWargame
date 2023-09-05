@@ -1291,6 +1291,7 @@ Call SetWindowRight(viewUplink.ID);
 Call SetWindowRight(viewPayload.ID);
 OutputLayout.BringWindowToFront(viewMain3D.ID);
 
+OutputLayout.ShowNewWindowBehavior = 3;
 OutputLayout.ApplyUpdates();]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
@@ -2212,7 +2213,7 @@ Define Procedure DisplayModeScript(Formation red, Formation blue);
 	
 EndProcedure;]]></FreeFormScript>
       </FreeForm>
-      <FreeForm enabled="true">
+      <FreeForm enabled="false">
         <Label>Driver Loop</Label>
         <Bookmarks />
         <Breakpoints />
@@ -2302,9 +2303,9 @@ End;
 
 Define Procedure WriteLeaderboardEntryToFile(LeaderboardEntry entry, Variable index);
 	FileInterface file;
-	file.Filename = gameModeString + "_" + index.ToString() + ".txt";
+	file.Filename = "Leaderboard/" + gameModeString + "_" + index.ToString() + ".txt";
 	file.WriteMode = 1;
-	file.ReadMode = 1;
+	file.ReadMode = 0;
 	file.Open();
 	
 	file.PutLine(entry.username);
@@ -2319,7 +2320,7 @@ EndProcedure;
 
 Define Procedure ReadLeaderboardEntryFromFile(Variable index, LeaderboardEntry entry);
 	FileInterface file;
-	file.Filename = gameModeString + "_" + index.ToString() + ".txt";
+	file.Filename = "Leaderboard/" + gameModeString + "_" + index.ToString() + ".txt";
 	
 	If (!FileSystem.Exists(file.Filename));
 		entry.username = "_ _ _";
@@ -2330,7 +2331,7 @@ Define Procedure ReadLeaderboardEntryFromFile(Variable index, LeaderboardEntry e
 		ExitProcedure;
 	End;
 	
-	file.WriteMode = 1;
+	file.WriteMode = 0;
 	file.ReadMode = 1;
 	file.Open();
 	
@@ -2344,15 +2345,17 @@ Define Procedure ReadLeaderboardEntryFromFile(Variable index, LeaderboardEntry e
 EndProcedure;
 
 
-Define Procedure InsertLeaderboardEntry(LeaderboardEntry entry, List<LeaderboardEntry> leaderboard);
+Define Procedure InsertLeaderboardEntry(LeaderboardEntry entry, List<LeaderboardEntry> leaderboard, Variable insertLocation);
 	Variable i;
 	Variable j;
+	insertLocation = -1;
 	For i = 0 to leaderboard.Count - 1;
 		If (entry.total > leaderboard[i].total);
 			For j = leaderboard.Count - 1 to i + 1 step -1;
 				leaderboard[j] = leaderboard[j - 1];
 			End;
 			leaderboard[i] = entry;
+			insertLocation = i;
 			ExitProcedure;
 		End;
 	End;
@@ -2365,6 +2368,13 @@ If (username.Length <= maxUsernameLength);
 Else;
 	currentScore.username = username.SubString(0, maxUsernameLength);
 End;
+
+
+// TODO temp
+redObjectiveScore = 100;
+blueOperationsScore = 80;
+tensionScore = 70;
+
 currentScore.denyRed = floor(redObjectiveScore);
 currentScore.blueOps = floor(blueOperationsScore);
 currentScore.tension = floor(tensionScore);
@@ -2378,37 +2388,82 @@ For i = 0 to leaderboardLength - 1;
 	Call ReadLeaderboardEntryFromFile(i, leaderboard[i]);
 End;
 
-Call InsertLeaderboardEntry(currentScore, leaderboard);
-
-GridWindow grid;
-grid.WindowTitle = "Leaderboard";
-OutputLayout.SendWindowToBack(grid.ID);
-OutputLayout.ApplyUpdates();
-
-grid.BeginBatchUpdate();
-grid.BackgroundColor = pwAngleFromPayload.BackgroundColor;
-grid.NumberOfRows = leaderboardLength;
-grid.NumberOfColumns = 2;
-
-grid.GetAllCells().Font.Typeface = typeface;
-
-For i = 0 to leaderboardLength - 1;
-	grid.GetCell(i, 0).SetValue(leaderboard[i].username);
-	grid.GetCell(i, 1).SetValue(leaderboard[i].total);
-End;
-
-
-grid.EndBatchUpdate();
-
-Call SetWindowBottomLeft(grid.ID);
-OutputLayout.BringWindowToFront(grid.ID);
-OutputLayout.ApplyUpdates();
+Variable currentScoreLocation;
+Call InsertLeaderboardEntry(currentScore, leaderboard, currentScoreLocation);
 
 For i = 0 to leaderboardLength - 1;
 	Call WriteLeaderboardEntryToFile(leaderboard[i], i);
 End;
 
+GridWindow gwLeaderboard;
+gwLeaderboard.WindowTitle = "Leaderboard";
+OutputLayout.SendWindowToBack(gwLeaderboard.ID);
+OutputLayout.ApplyUpdates();
 
+gwLeaderboard.BeginBatchUpdate();
+gwLeaderboard.BackgroundColor = pwAngleFromPayload.BackgroundColor;
+gwLeaderboard.NumberOfRows = leaderboardLength + 1;
+gwLeaderboard.NumberOfColumns = 6;
+
+gwLeaderboard.GetCell(0, 0).ColumnSpan = 2;
+gwLeaderboard.GetCell(0, 2).ColumnSpan = 3;
+
+gwLeaderboard.GetCell(0, 2).SetValue("Subscores");
+gwLeaderboard.GetCell(0, 5).SetValue("Total");
+
+gwLeaderboard.GetCell(0, 0).Font.Bold = 1;
+gwLeaderboard.GetCell(0, 0).AlignmentHorizontal = "Center";
+gwLeaderboard.GetCell(0, 0).SetValue("Leaderboard");
+For i = 0 to leaderboardLength - 1;
+	gwLeaderboard.GetCell(i + 1, 0).SetValue((i + 1).ToString());
+	gwLeaderboard.GetCell(i + 1, 1).SetValue(leaderboard[i].username);
+	gwLeaderboard.GetCell(i + 1, 2).SetValue(leaderboard[i].denyRed.ToString());
+	gwLeaderboard.GetCell(i + 1, 3).SetValue(leaderboard[i].blueOps.ToString());
+	gwLeaderboard.GetCell(i + 1, 4).SetValue(leaderboard[i].tension.ToString());
+	gwLeaderboard.GetCell(i + 1, 5).SetValue(leaderboard[i].total.ToString());
+End;
+
+gwLeaderboard.GetAllCells().Font.Size = 16;
+
+gwLeaderboard.SetColumnWidth(0, 4, 0);
+gwLeaderboard.SetColumnWidth(1, maxUsernameLength*1.5, 0);
+gwLeaderboard.SetColumnWidth(2, 5, 0);
+gwLeaderboard.SetColumnWidth(3, 5, 0);
+gwLeaderboard.SetColumnWidth(4, 5, 0);
+gwLeaderboard.SetColumnWidth(5, 7, 0);
+
+For i = 0 to gwLeaderboard.NumberOfRows - 1;
+	gwLeaderboard.SetRowHeight(i, 35, 1);
+End;
+
+gwLeaderboard.GetAllCells().AlignmentHorizontal = "Center";
+gwLeaderboard.GetColumn(1).AlignmentHorizontal = "Left";
+gwLeaderboard.GetCell(0, 0).AlignmentHorizontal = "Center";
+gwLeaderboard.GetAllCells().AlignmentVertical = "Middle";
+gwLeaderboard.GetAllCells().Font.Typeface = typeface;
+gwLeaderboard.GetAllCells().TextColor = pwRange.PlotTitle.Color;
+gwLeaderboard.GetAllCells().BackgroundColor = pwAngleFromPayload.BackgroundColor;
+
+
+
+gwLeaderboard.Show();
+gwLeaderboard.EndBatchUpdate();
+gwLeaderboard.GetCell(0, 0).TextColor = ColorTools.LimeGreen;
+gwLeaderboard.GetColumn(2).TextColor = pwResultsBarChart.Series[0].LineColor;
+gwLeaderboard.GetColumn(3).TextColor = pwResultsBarChart.Series[1].LineColor;
+gwLeaderboard.GetColumn(4).TextColor = pwResultsBarChart.Series[2].LineColor;
+
+gwLeaderboard.GetCell(0, 2).TextColor = gwLeaderboard.GetCell(0, 5).TextColor;
+
+If (currentScoreLocation > -1);
+	gwLeaderboard.GetCell(currentScoreLocation + 1, 1).TextColor = ColorTools.LimeGreen;
+End;
+
+
+OutputLayout.SetWindowFrameVisibility(gwLeaderboard.ID, 0);
+Call SetWindowBottomLeft(gwLeaderboard.ID);
+OutputLayout.BringWindowToFront(gwLeaderboard.ID);
+OutputLayout.ApplyUpdates();
 
 OutputLayout.BringWindowToFront(pwResultsBarChart.ID);
 OutputLayout.ApplyUpdates();
@@ -3393,6 +3448,7 @@ Call SetWindowRight(viewUplink.ID);
 Call SetWindowRight(viewPayload.ID);
 OutputLayout.BringWindowToFront(viewMain3D.ID);
 
+OutputLayout.ShowNewWindowBehavior = 3;
 OutputLayout.ApplyUpdates();
 
 
@@ -4293,65 +4349,65 @@ Define Procedure DisplayModeScript(Formation red, Formation blue);
 	End;
 	
 EndProcedure;
-
-
-If (gameMode == gameMode_displayMode);
-	Call DisplayModeScript(red, blue);
-End;
-
-QueuedAction nextQueuedAction;
-TimeSpan nextQueuedActionEpoch;
-Variable nextQueuedActionIsBeforeNextChoiceEpoch;
-Variable redStrategyUpdateIsCurrentlyBeingComputed;
-
-While (blueIsOffNominal or redIsEngaged);
-	nextChoiceEpoch = blue[0].Epoch + simChoiceSpacing;
-	
-	Call GetNextQueuedActionEpoch(nextQueuedActionEpoch);
-	While (nextQueuedActionEpoch < nextChoiceEpoch);
-		If (nextQueuedActionEpoch < simEpoch);
-			If ((nextQueuedActionEpoch - simEpoch).Abs().ToSeconds() < 10);
-				// Allow the discrepancy
-			Else;
-				Diagnostics.ReportErrorMessage(0, "Encountered action epoch prior to simulation epoch." + (simEpoch - nextQueuedActionEpoch).ToHours().ToString());
-			End;
-		End;
-		Call PopNextQueuedAction(nextQueuedAction);
-		Call AdvanceSimToFutureEpoch(red, blue, nextQueuedAction.epoch);
-
-		Call ExecuteQueuedAction(nextQueuedAction, red, blue);
-		
-		Call GetNextQueuedActionEpoch(nextQueuedActionEpoch);
-	End;
-	
-	
-	Call AdvanceSimToFutureEpoch(red, blue, nextChoiceEpoch);
-	If (numberOfUserChoicesToSkip == 0);
-		Call ShowOperatorActionsMenu(red, blue);
-	Else;
-		numberOfUserChoicesToSkip -= 1;
-	End;
-	
-	If (blueJammerState != activatableAsset_on);
-		redStrategyUpdateIsCurrentlyBeingComputed = 0;
-		For i = 0 to redActionQueue.Count - 1;
-			If (redActionQueue[i].additionalAction == additionalAction_retrieveRedStrategy);
-				redStrategyUpdateIsCurrentlyBeingComputed = 1;
-				Break;
-			End;
-		End;
-		
-		If (!redStrategyUpdateIsCurrentlyBeingComputed);
-			Call RequestRedStrategyUpdateFromServer(red, blue);
-		End;
-	End;
-End;
-
-Call SetBlueJammerState(activatableAsset_off);
-Call SetBlueBackupCommsState(activatableAsset_off);
-
-
-
+// 
+// 
+// If (gameMode == gameMode_displayMode);
+// 	Call DisplayModeScript(red, blue);
+// End;
+// 
+// QueuedAction nextQueuedAction;
+// TimeSpan nextQueuedActionEpoch;
+// Variable nextQueuedActionIsBeforeNextChoiceEpoch;
+// Variable redStrategyUpdateIsCurrentlyBeingComputed;
+// 
+// While (blueIsOffNominal or redIsEngaged);
+// 	nextChoiceEpoch = blue[0].Epoch + simChoiceSpacing;
+// 	
+// 	Call GetNextQueuedActionEpoch(nextQueuedActionEpoch);
+// 	While (nextQueuedActionEpoch < nextChoiceEpoch);
+// 		If (nextQueuedActionEpoch < simEpoch);
+// 			If ((nextQueuedActionEpoch - simEpoch).Abs().ToSeconds() < 10);
+// 				// Allow the discrepancy
+// 			Else;
+// 				Diagnostics.ReportErrorMessage(0, "Encountered action epoch prior to simulation epoch." + (simEpoch - nextQueuedActionEpoch).ToHours().ToString());
+// 			End;
+// 		End;
+// 		Call PopNextQueuedAction(nextQueuedAction);
+// 		Call AdvanceSimToFutureEpoch(red, blue, nextQueuedAction.epoch);
+// 
+// 		Call ExecuteQueuedAction(nextQueuedAction, red, blue);
+// 		
+// 		Call GetNextQueuedActionEpoch(nextQueuedActionEpoch);
+// 	End;
+// 	
+// 	
+// 	Call AdvanceSimToFutureEpoch(red, blue, nextChoiceEpoch);
+// 	If (numberOfUserChoicesToSkip == 0);
+// 		Call ShowOperatorActionsMenu(red, blue);
+// 	Else;
+// 		numberOfUserChoicesToSkip -= 1;
+// 	End;
+// 	
+// 	If (blueJammerState != activatableAsset_on);
+// 		redStrategyUpdateIsCurrentlyBeingComputed = 0;
+// 		For i = 0 to redActionQueue.Count - 1;
+// 			If (redActionQueue[i].additionalAction == additionalAction_retrieveRedStrategy);
+// 				redStrategyUpdateIsCurrentlyBeingComputed = 1;
+// 				Break;
+// 			End;
+// 		End;
+// 		
+// 		If (!redStrategyUpdateIsCurrentlyBeingComputed);
+// 			Call RequestRedStrategyUpdateFromServer(red, blue);
+// 		End;
+// 	End;
+// End;
+// 
+// Call SetBlueJammerState(activatableAsset_off);
+// Call SetBlueBackupCommsState(activatableAsset_off);
+// 
+// 
+// 
 
 Struct LeaderboardEntry;
 	String username;
@@ -4374,9 +4430,9 @@ End;
 
 Define Procedure WriteLeaderboardEntryToFile(LeaderboardEntry entry, Variable index);
 	FileInterface file;
-	file.Filename = gameModeString + "_" + index.ToString() + ".txt";
+	file.Filename = "Leaderboard/" + gameModeString + "_" + index.ToString() + ".txt";
 	file.WriteMode = 1;
-	file.ReadMode = 1;
+	file.ReadMode = 0;
 	file.Open();
 	
 	file.PutLine(entry.username);
@@ -4391,7 +4447,7 @@ EndProcedure;
 
 Define Procedure ReadLeaderboardEntryFromFile(Variable index, LeaderboardEntry entry);
 	FileInterface file;
-	file.Filename = gameModeString + "_" + index.ToString() + ".txt";
+	file.Filename = "Leaderboard/" + gameModeString + "_" + index.ToString() + ".txt";
 	
 	If (!FileSystem.Exists(file.Filename));
 		entry.username = "_ _ _";
@@ -4402,7 +4458,7 @@ Define Procedure ReadLeaderboardEntryFromFile(Variable index, LeaderboardEntry e
 		ExitProcedure;
 	End;
 	
-	file.WriteMode = 1;
+	file.WriteMode = 0;
 	file.ReadMode = 1;
 	file.Open();
 	
@@ -4416,15 +4472,17 @@ Define Procedure ReadLeaderboardEntryFromFile(Variable index, LeaderboardEntry e
 EndProcedure;
 
 
-Define Procedure InsertLeaderboardEntry(LeaderboardEntry entry, List<LeaderboardEntry> leaderboard);
+Define Procedure InsertLeaderboardEntry(LeaderboardEntry entry, List<LeaderboardEntry> leaderboard, Variable insertLocation);
 	Variable i;
 	Variable j;
+	insertLocation = -1;
 	For i = 0 to leaderboard.Count - 1;
 		If (entry.total > leaderboard[i].total);
 			For j = leaderboard.Count - 1 to i + 1 step -1;
 				leaderboard[j] = leaderboard[j - 1];
 			End;
 			leaderboard[i] = entry;
+			insertLocation = i;
 			ExitProcedure;
 		End;
 	End;
@@ -4437,6 +4495,13 @@ If (username.Length <= maxUsernameLength);
 Else;
 	currentScore.username = username.SubString(0, maxUsernameLength);
 End;
+
+
+// TODO temp
+redObjectiveScore = 100;
+blueOperationsScore = 80;
+tensionScore = 70;
+
 currentScore.denyRed = floor(redObjectiveScore);
 currentScore.blueOps = floor(blueOperationsScore);
 currentScore.tension = floor(tensionScore);
@@ -4450,37 +4515,82 @@ For i = 0 to leaderboardLength - 1;
 	Call ReadLeaderboardEntryFromFile(i, leaderboard[i]);
 End;
 
-Call InsertLeaderboardEntry(currentScore, leaderboard);
-
-GridWindow grid;
-grid.WindowTitle = "Leaderboard";
-OutputLayout.SendWindowToBack(grid.ID);
-OutputLayout.ApplyUpdates();
-
-grid.BeginBatchUpdate();
-grid.BackgroundColor = pwAngleFromPayload.BackgroundColor;
-grid.NumberOfRows = leaderboardLength;
-grid.NumberOfColumns = 2;
-
-grid.GetAllCells().Font.Typeface = typeface;
-
-For i = 0 to leaderboardLength - 1;
-	grid.GetCell(i, 0).SetValue(leaderboard[i].username);
-	grid.GetCell(i, 1).SetValue(leaderboard[i].total);
-End;
-
-
-grid.EndBatchUpdate();
-
-Call SetWindowBottomLeft(grid.ID);
-OutputLayout.BringWindowToFront(grid.ID);
-OutputLayout.ApplyUpdates();
+Variable currentScoreLocation;
+Call InsertLeaderboardEntry(currentScore, leaderboard, currentScoreLocation);
 
 For i = 0 to leaderboardLength - 1;
 	Call WriteLeaderboardEntryToFile(leaderboard[i], i);
 End;
 
+GridWindow gwLeaderboard;
+gwLeaderboard.WindowTitle = "Leaderboard";
+OutputLayout.SendWindowToBack(gwLeaderboard.ID);
+OutputLayout.ApplyUpdates();
 
+gwLeaderboard.BeginBatchUpdate();
+gwLeaderboard.BackgroundColor = pwAngleFromPayload.BackgroundColor;
+gwLeaderboard.NumberOfRows = leaderboardLength + 1;
+gwLeaderboard.NumberOfColumns = 6;
+
+gwLeaderboard.GetCell(0, 0).ColumnSpan = 2;
+gwLeaderboard.GetCell(0, 2).ColumnSpan = 3;
+
+gwLeaderboard.GetCell(0, 2).SetValue("Subscores");
+gwLeaderboard.GetCell(0, 5).SetValue("Total");
+
+gwLeaderboard.GetCell(0, 0).Font.Bold = 1;
+gwLeaderboard.GetCell(0, 0).AlignmentHorizontal = "Center";
+gwLeaderboard.GetCell(0, 0).SetValue("Leaderboard");
+For i = 0 to leaderboardLength - 1;
+	gwLeaderboard.GetCell(i + 1, 0).SetValue((i + 1).ToString());
+	gwLeaderboard.GetCell(i + 1, 1).SetValue(leaderboard[i].username);
+	gwLeaderboard.GetCell(i + 1, 2).SetValue(leaderboard[i].denyRed.ToString());
+	gwLeaderboard.GetCell(i + 1, 3).SetValue(leaderboard[i].blueOps.ToString());
+	gwLeaderboard.GetCell(i + 1, 4).SetValue(leaderboard[i].tension.ToString());
+	gwLeaderboard.GetCell(i + 1, 5).SetValue(leaderboard[i].total.ToString());
+End;
+
+gwLeaderboard.GetAllCells().Font.Size = 16;
+
+gwLeaderboard.SetColumnWidth(0, 4, 0);
+gwLeaderboard.SetColumnWidth(1, maxUsernameLength*1.5, 0);
+gwLeaderboard.SetColumnWidth(2, 5, 0);
+gwLeaderboard.SetColumnWidth(3, 5, 0);
+gwLeaderboard.SetColumnWidth(4, 5, 0);
+gwLeaderboard.SetColumnWidth(5, 7, 0);
+
+For i = 0 to gwLeaderboard.NumberOfRows - 1;
+	gwLeaderboard.SetRowHeight(i, 35, 1);
+End;
+
+gwLeaderboard.GetAllCells().AlignmentHorizontal = "Center";
+gwLeaderboard.GetColumn(1).AlignmentHorizontal = "Left";
+gwLeaderboard.GetCell(0, 0).AlignmentHorizontal = "Center";
+gwLeaderboard.GetAllCells().AlignmentVertical = "Middle";
+gwLeaderboard.GetAllCells().Font.Typeface = typeface;
+gwLeaderboard.GetAllCells().TextColor = pwRange.PlotTitle.Color;
+gwLeaderboard.GetAllCells().BackgroundColor = pwAngleFromPayload.BackgroundColor;
+
+
+
+gwLeaderboard.Show();
+gwLeaderboard.EndBatchUpdate();
+gwLeaderboard.GetCell(0, 0).TextColor = ColorTools.LimeGreen;
+gwLeaderboard.GetColumn(2).TextColor = pwResultsBarChart.Series[0].LineColor;
+gwLeaderboard.GetColumn(3).TextColor = pwResultsBarChart.Series[1].LineColor;
+gwLeaderboard.GetColumn(4).TextColor = pwResultsBarChart.Series[2].LineColor;
+
+gwLeaderboard.GetCell(0, 2).TextColor = gwLeaderboard.GetCell(0, 5).TextColor;
+
+If (currentScoreLocation > -1);
+	gwLeaderboard.GetCell(currentScoreLocation + 1, 1).TextColor = ColorTools.LimeGreen;
+End;
+
+
+OutputLayout.SetWindowFrameVisibility(gwLeaderboard.ID, 0);
+Call SetWindowBottomLeft(gwLeaderboard.ID);
+OutputLayout.BringWindowToFront(gwLeaderboard.ID);
+OutputLayout.ApplyUpdates();
 
 OutputLayout.BringWindowToFront(pwResultsBarChart.ID);
 OutputLayout.ApplyUpdates();
