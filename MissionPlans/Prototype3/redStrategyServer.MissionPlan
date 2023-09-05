@@ -155,7 +155,11 @@ connection.SocketTimeout = -1;
 
 
 Global TimeSpan red2and3TransitOrbitTime = TimeSpan.FromDays(0.2);
-Global TimeSpan simChoiceSpacing;]]></FreeFormScript>
+Global TimeSpan simChoiceSpacing;
+
+
+Global TimeSpan inspectorDeployEpoch;
+Global TimeSpan inspectorReturnEpoch;]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
         <Label>FreeForm</Label>
@@ -164,7 +168,7 @@ Global TimeSpan simChoiceSpacing;]]></FreeFormScript>
         <FreeFormScript><![CDATA[
 Define Procedure HasBlueManeuvered(Spacecraft blue, Variable blueHasManeuvered);
 	blueHasManeuvered = 0;
-	If (abs(blue.Radius - lastBlueRadius) > 3
+	If (blue.Periapsis < 42164 - 5
 			or abs(blue.Longitude - lastBlueLongitude) > 0.05);
 		blueHasManeuvered = 1;
 		lastBlueLongitude = blue.Longitude;
@@ -354,18 +358,10 @@ EndProcedure;
 
 Define Procedure WillUpdateOccur(Spacecraft blue, Variable updateWillOccur);
 	updateWillOccur = 1;
-	Variable blueHasManeuvered;
-	Call HasBlueManeuvered(blue, blueHasManeuvered);
 	
 	If (strategyIsFinal);
 		updateWillOccur = 0;
 		Report "Final strategy update has already been computed" to Console;
-		ExitProcedure;
-	End;
-	
-	If (!blueHasManeuvered);
-		updateWillOccur = 0;
-		Report "Blue has not maneuvered since last update" to Console;
 		ExitProcedure;
 	End;
 	
@@ -377,7 +373,13 @@ Define Procedure WillUpdateOccur(Spacecraft blue, Variable updateWillOccur);
 		ExitProcedure;
 	End;
 	
-	
+	Variable blueHasManeuvered;
+	Call HasBlueManeuvered(blue, blueHasManeuvered);
+	If (!blueHasManeuvered);
+		updateWillOccur = 0;
+		Report "Blue has not maneuvered since last update" to Console;
+		ExitProcedure;
+	End;
 EndProcedure;
 
 Define Procedure AddBurnToActions(Array dv, TimeSpan epoch, Variable formationIndex);
@@ -858,6 +860,7 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 	TimeSpan inspectorDeployDelay = TimeSpan.FromHours(1);
 	red.StepToEpoch(red.Epoch + inspectorDeployDelay);
 	
+	inspectorDeployEpoch = red.Epoch;
 	Call AddAdditionalActionToActions(red.Epoch, additionalAction_redDeployInspector);
 	
 	TimeSpan inspectorDepartDelay = TimeSpan.FromHours(1);
@@ -875,6 +878,7 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 	Call ComputeInspectorBurns(redInspector, red, blue, rendezvousCoastDuration, killOperationDuration);
 	red.StepToEpoch(red.Epoch + inspectorDepartDelay);
 	
+	inspectorReturnEpoch = red.Epoch;
 	Call AddAdditionalActionToActions(red.Epoch, additionalAction_redUndeployInspector);
 	
 	red.StepToEpoch(red.Epoch + inspectorDeployDelay);
@@ -1011,8 +1015,7 @@ Define Procedure ReturnToNominal(Formation red);
 		interBurnTime);
 	
 	Call AddBurnToActions(dv1, red[2].Epoch, 2);
-	Call AddBurnToActions(dv2, red[2].Epoch + interBurnTime, 2);
-	
+	Call AddBurnToActions(dv2, red[2].Epoch + interBurnTime, 2);	
 	
 	desiredKepState = red[0].GetKeplerianState();
 	desiredKepState[0] = 42120;
@@ -1117,6 +1120,9 @@ Define Procedure ComputeDisableScriptStrategy(Formation red, Formation blue, Var
 	actions.Clear();
 	updateHasBeenComputed = 0;
 	
+	TimeSpan incursionEpoch = simStartEpoch + TimeSpan.FromHours(24*4 + 0);
+	TimeSpan driftTime = incursionEpoch - blue[0].Epoch - red2and3TransitOrbitTime.Scaled(3);
+	
 	Variable updateWillOccur = 0;
 	Call WillUpdateOccur(blue[0], updateWillOccur);
 	If (!updateWillOccur);
@@ -1131,8 +1137,13 @@ Define Procedure ComputeDisableScriptStrategy(Formation red, Formation blue, Var
 		ExitProcedure;
 	End;
 	
-	TimeSpan incursionEpoch = simStartEpoch + TimeSpan.FromHours(24*4 + 0);
-	TimeSpan driftTime = incursionEpoch - blue[0].Epoch - red2and3TransitOrbitTime.Scaled(3);
+	
+	If (blue[0].Epoch > incursionEpoch);
+		strategyIsFinal = 1;
+		Send "updateWillOccur", 0 to connection; // signal no update
+		Report "No update will occur" to Console;
+		ExitProcedure;
+	End;
 	
 	If (driftTime < red2and3TransitOrbitTime);
 		// return to nominal
@@ -1245,6 +1256,9 @@ While (1);
 	lastBlueLongitude = -999;
 	numberOfComputedStrategyUpdates = 0;
 	strategyIsFinal = 0;
+	
+	inspectorDeployEpoch = TimeSpan.Zero();
+	inspectorReturnEpoch = TimeSpan.Zero();
 	
 	Try;
 		While (1);
@@ -1374,9 +1388,13 @@ connection.SocketTimeout = -1;
 Global TimeSpan red2and3TransitOrbitTime = TimeSpan.FromDays(0.2);
 Global TimeSpan simChoiceSpacing;
 
+
+Global TimeSpan inspectorDeployEpoch;
+Global TimeSpan inspectorReturnEpoch;
+
 Define Procedure HasBlueManeuvered(Spacecraft blue, Variable blueHasManeuvered);
 	blueHasManeuvered = 0;
-	If (abs(blue.Radius - lastBlueRadius) > 3
+	If (blue.Periapsis < 42164 - 5
 			or abs(blue.Longitude - lastBlueLongitude) > 0.05);
 		blueHasManeuvered = 1;
 		lastBlueLongitude = blue.Longitude;
@@ -1566,18 +1584,10 @@ EndProcedure;
 
 Define Procedure WillUpdateOccur(Spacecraft blue, Variable updateWillOccur);
 	updateWillOccur = 1;
-	Variable blueHasManeuvered;
-	Call HasBlueManeuvered(blue, blueHasManeuvered);
 	
 	If (strategyIsFinal);
 		updateWillOccur = 0;
 		Report "Final strategy update has already been computed" to Console;
-		ExitProcedure;
-	End;
-	
-	If (!blueHasManeuvered);
-		updateWillOccur = 0;
-		Report "Blue has not maneuvered since last update" to Console;
 		ExitProcedure;
 	End;
 	
@@ -1589,7 +1599,13 @@ Define Procedure WillUpdateOccur(Spacecraft blue, Variable updateWillOccur);
 		ExitProcedure;
 	End;
 	
-	
+	Variable blueHasManeuvered;
+	Call HasBlueManeuvered(blue, blueHasManeuvered);
+	If (!blueHasManeuvered);
+		updateWillOccur = 0;
+		Report "Blue has not maneuvered since last update" to Console;
+		ExitProcedure;
+	End;
 EndProcedure;
 
 Define Procedure AddBurnToActions(Array dv, TimeSpan epoch, Variable formationIndex);
@@ -2070,6 +2086,7 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 	TimeSpan inspectorDeployDelay = TimeSpan.FromHours(1);
 	red.StepToEpoch(red.Epoch + inspectorDeployDelay);
 	
+	inspectorDeployEpoch = red.Epoch;
 	Call AddAdditionalActionToActions(red.Epoch, additionalAction_redDeployInspector);
 	
 	TimeSpan inspectorDepartDelay = TimeSpan.FromHours(1);
@@ -2087,6 +2104,7 @@ Define Procedure ComputeDisableScriptRed1TransitManeuversAndAddToActions(
 	Call ComputeInspectorBurns(redInspector, red, blue, rendezvousCoastDuration, killOperationDuration);
 	red.StepToEpoch(red.Epoch + inspectorDepartDelay);
 	
+	inspectorReturnEpoch = red.Epoch;
 	Call AddAdditionalActionToActions(red.Epoch, additionalAction_redUndeployInspector);
 	
 	red.StepToEpoch(red.Epoch + inspectorDeployDelay);
@@ -2223,8 +2241,7 @@ Define Procedure ReturnToNominal(Formation red);
 		interBurnTime);
 	
 	Call AddBurnToActions(dv1, red[2].Epoch, 2);
-	Call AddBurnToActions(dv2, red[2].Epoch + interBurnTime, 2);
-	
+	Call AddBurnToActions(dv2, red[2].Epoch + interBurnTime, 2);	
 	
 	desiredKepState = red[0].GetKeplerianState();
 	desiredKepState[0] = 42120;
@@ -2329,6 +2346,9 @@ Define Procedure ComputeDisableScriptStrategy(Formation red, Formation blue, Var
 	actions.Clear();
 	updateHasBeenComputed = 0;
 	
+	TimeSpan incursionEpoch = simStartEpoch + TimeSpan.FromHours(24*4 + 0);
+	TimeSpan driftTime = incursionEpoch - blue[0].Epoch - red2and3TransitOrbitTime.Scaled(3);
+	
 	Variable updateWillOccur = 0;
 	Call WillUpdateOccur(blue[0], updateWillOccur);
 	If (!updateWillOccur);
@@ -2343,8 +2363,13 @@ Define Procedure ComputeDisableScriptStrategy(Formation red, Formation blue, Var
 		ExitProcedure;
 	End;
 	
-	TimeSpan incursionEpoch = simStartEpoch + TimeSpan.FromHours(24*4 + 0);
-	TimeSpan driftTime = incursionEpoch - blue[0].Epoch - red2and3TransitOrbitTime.Scaled(3);
+	
+	If (blue[0].Epoch > incursionEpoch);
+		strategyIsFinal = 1;
+		Send "updateWillOccur", 0 to connection; // signal no update
+		Report "No update will occur" to Console;
+		ExitProcedure;
+	End;
 	
 	If (driftTime < red2and3TransitOrbitTime);
 		// return to nominal
@@ -2452,6 +2477,9 @@ While (1);
 	lastBlueLongitude = -999;
 	numberOfComputedStrategyUpdates = 0;
 	strategyIsFinal = 0;
+	
+	inspectorDeployEpoch = TimeSpan.Zero();
+	inspectorReturnEpoch = TimeSpan.Zero();
 	
 	Try;
 		While (1);

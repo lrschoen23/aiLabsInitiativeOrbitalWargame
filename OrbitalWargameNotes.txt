@@ -3,7 +3,7 @@ Mission Plan Notes;
 
 - slim down plot procedures library
 - fix for laptop screen (make sure sales checks on monitor)
-- make high score mechanic
+- make high score mechanic (input user name)
 
 
 EM/RF people: Billy Gonzolez, scott donel

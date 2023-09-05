@@ -554,6 +554,18 @@ Define Procedure SetBlueJammerState(Variable jammerState);
 	End;
 EndProcedure;
 
+Define Procedure SetBlueBackupCommsState(Variable commsState);
+	blueBackupCommsState = commsState;
+	If (blueBackupCommsState == activatableAsset_off);
+		aheadPredictTime = aheadPredictTimeNominal;
+	ElseIf (blueBackupCommsState == activatableAsset_ready);
+		aheadPredictTime = aheadPredictTimeNominal;
+	ElseIf (blueBackupCommsState == activatableAsset_on);
+		aheadPredictTime = aheadPredictTimeSecondaryCommPath;
+	End;
+EndProcedure;
+
+
 Define Procedure SetRedJammerState(Variable jammerState, Formation red);
 	redJammerState = jammerState;
 	If (redJammerState == activatableAsset_off);
@@ -1582,25 +1594,29 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue, TimeSpan 
 	cameraSc.SetCartesianState(blue[0].GetCartesianState());
 	
 	If (blueIsOffNominal);
-		blueOperationsScore -= 0.1 * blue[0].Propagator.StepSize.ToHours();
+		blueOperationsScore -= 0.1 * stepJustTaken.ToHours();
 	End;
 	
-	If (blueJammerState == 2);
-		tensionScore -= 0.1 * blue[0].Propagator.StepSize.ToHours();
+	If (blueJammerState == activatableAsset_on);
+		tensionScore -= 0.2 * stepJustTaken.ToHours();
 	End;
 	
-	If (blueBackupCommsState == 2);
-		blueOperationsScore -= 0.05 * blue[0].Propagator.StepSize.ToHours();
+	If (blueBackupCommsState == activatableAsset_on);
+		blueOperationsScore -= 0.1 * stepJustTaken.ToHours();
+	End;
+	
+	If (redJammerState == activatableAsset_on and blueBackupCommsState != activatableAsset_on);
+		blueOperationsScore -= 0.5 * stepJustTaken.ToHours();
 	End;
 	
 	Call ComputeRangeAndAngleFromPayload(blue[0], red[0], range, angle);
 	Call IsInsidePayloadKeepOutZone(range, angle, isInsidePayloadKeepOutZone);
 	If (isInsidePayloadKeepOutZone);
-		redObjectiveScore -= 5 * blue[0].Propagator.StepSize.ToHours();
+		redObjectiveScore -= 5 * stepJustTaken.ToHours();
 	End;
 	
 	If (range < rangeKeepOutValue);
-		redObjectiveScore -= 15 * blue[0].Propagator.StepSize.ToHours();
+		redObjectiveScore -= 15 * stepJustTaken.ToHours();
 	End;
 	
 	Variable slewRateDegPerSecond;
@@ -1757,9 +1773,19 @@ EndProcedure;
 
 
 Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, Formation blue);
+	Variable i;
 	If (queuedAction.isBlue);
-		burn.BurnDirection = queuedAction.burnRIC;
-		Maneuver blue[queuedAction.formationIndex] using burn;
+		If (!killOperationIsComplete);
+			burn.BurnDirection = queuedAction.burnRIC;
+			Maneuver blue[queuedAction.formationIndex] using burn;
+		End;
+		
+		If (blueIsOffNominal and burn.BurnDirection.Norm != 0);
+			If (blue[queuedAction.formationIndex].Periapsis > 42164 - 3
+					and abs(blue[queuedAction.formationIndex].Longitude - initialLongitudeBlue1) < 0.01);
+				blueIsOffNominal = 0;
+			End;
+		End;
 		
 		If (queuedAction.additionalAction == additionalAction_retrieveOrbitChange);
 			Call RetrieveBlueOrbitChangeFromServerAndAddToQueue();
@@ -1789,35 +1815,43 @@ Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, F
 			If (red.Count != 3);
 				Diagnostics.ReportErrorMessage(0, "Incorrect number of red spacecraft encountered.");
 			End;
-			red.Count += 1;
-			Call InitializePropagator(red[3]);
-			red[3].BodyScale = 200;
-			red[3].DisplayName = "Red" + red.Count.ToString();
-			red[3].Color = colorRed4;
-			red[3].TailLength = tailPoints;
-			viewMain3D.SetShowName(red[3].ObjectId, 1);
-			viewMain3D.SetObjectLabelFont(red[3].ObjectId, vf);
-			viewPayload.SetShowName(red[3].ObjectId, 1);
-			viewPayload.SetObjectLabelFont(red[3].ObjectId, vf);
-			viewUplink.SetShowName(red[3].ObjectId, 1);
-			viewUplink.SetObjectLabelFont(red[3].ObjectId, vf);
 			
-			red[3].Epoch = red[0].Epoch;
-			red[3].SetCartesianState(red[0].GetCartesianState());
+			// If blue is jamming, red won't deploy the inspector
+			If (blueJammerState != activatableAsset_on);
+				red.Count += 1;
+				Call InitializePropagator(red[3]);
+				red[3].BodyScale = 200;
+				red[3].DisplayName = "Red" + red.Count.ToString();
+				red[3].Color = colorRed4;
+				red[3].TailLength = tailPoints;
+				viewMain3D.SetShowName(red[3].ObjectId, 1);
+				viewMain3D.SetObjectLabelFont(red[3].ObjectId, vf);
+				viewPayload.SetShowName(red[3].ObjectId, 1);
+				viewPayload.SetObjectLabelFont(red[3].ObjectId, vf);
+				viewUplink.SetShowName(red[3].ObjectId, 1);
+				viewUplink.SetObjectLabelFont(red[3].ObjectId, vf);
+				
+				red[3].Epoch = red[0].Epoch;
+				red[3].SetCartesianState(red[0].GetCartesianState());
+			Else;
+				For i = redActionQueue.Count - 1 to 0 step -1;
+					If (redActionQueue[i].formationIndex == 3);
+						redActionQueue.RemoveAt(i);
+					End;
+				End;
+			End;
 		ElseIf (queuedAction.additionalAction == additionalAction_redUndeployInspector);
-			If (red.Count != 4);
-				Diagnostics.ReportErrorMessage(0, "Incorrect number of red spacecraft encountered.");
+			If (red.Count == 4);
+				red.Count -= 1;
 			End;
-			red.Count -= 1;
 		ElseIf (queuedAction.additionalAction == additionalAction_redKillOperation);
-			If (red.Count != 4);
-				Diagnostics.ReportErrorMessage(0, "Incorrect number of red spacecraft encountered.");
-			End;
-			If ((red[3].Position - blue[0].Position).Norm < 1);
-				blueOperationsScore = 0;
-				redObjectiveScore = 0;
-				killOperationIsComplete = 1;
-				blueIsOffNominal = 0;
+			If (red.Count == 4);
+				If ((red[3].Position - blue[0].Position).Norm < 1);
+					blueOperationsScore = 0;
+					redObjectiveScore = 0;
+					killOperationIsComplete = 1;
+					blueIsOffNominal = 0;
+				End;
 			End;
 		ElseIf (queuedAction.additionalAction == additionalAction_redDisengage);
 			redIsEngaged = 0;
@@ -2013,14 +2047,13 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 	
 	If (userChoice == choice_secondaryComms);
 		If (blueBackupCommsState == activatableAsset_off); // inactive
-			blueBackupCommsState = activatableAsset_ready;
-			aheadPredictTime = aheadPredictTimeNominal;
+			Call SetBlueBackupCommsState(activatableAsset_ready);
+			blueOperationsScore -= 3;
 		ElseIf (blueBackupCommsState == activatableAsset_ready); // ready
-			blueBackupCommsState = activatableAsset_on;
+			Call SetBlueBackupCommsState(activatableAsset_on);
 			aheadPredictTime = aheadPredictTimeSecondaryCommPath;
 		ElseIf (blueBackupCommsState == activatableAsset_on); // active
-			blueBackupCommsState = activatableAsset_ready;
-			aheadPredictTime = aheadPredictTimeNominal;
+			Call SetBlueBackupCommsState(activatableAsset_ready);
 		End;
 		Call updateStatusIndicatorsOverlay();
 	End;
@@ -3067,6 +3100,10 @@ While (blueIsOffNominal or redIsEngaged);
 	End;
 End;
 
+Call SetBlueJammerState(activatableAsset_off);
+Call SetBlueBackupCommsState(activatableAsset_off);
+
+
 OutputLayout.BringWindowToFront(pwResultsBarChart.ID);
 OutputLayout.ApplyUpdates();
 
@@ -3357,6 +3394,18 @@ Define Procedure SetBlueJammerState(Variable jammerState);
 		viewPayload.SetObjectIcon(blueJammer.ObjectId, "Icons/jammerActiveIcon.png");
 	End;
 EndProcedure;
+
+Define Procedure SetBlueBackupCommsState(Variable commsState);
+	blueBackupCommsState = commsState;
+	If (blueBackupCommsState == activatableAsset_off);
+		aheadPredictTime = aheadPredictTimeNominal;
+	ElseIf (blueBackupCommsState == activatableAsset_ready);
+		aheadPredictTime = aheadPredictTimeNominal;
+	ElseIf (blueBackupCommsState == activatableAsset_on);
+		aheadPredictTime = aheadPredictTimeSecondaryCommPath;
+	End;
+EndProcedure;
+
 
 Define Procedure SetRedJammerState(Variable jammerState, Formation red);
 	redJammerState = jammerState;
@@ -4366,25 +4415,29 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue, TimeSpan 
 	cameraSc.SetCartesianState(blue[0].GetCartesianState());
 	
 	If (blueIsOffNominal);
-		blueOperationsScore -= 0.1 * blue[0].Propagator.StepSize.ToHours();
+		blueOperationsScore -= 0.1 * stepJustTaken.ToHours();
 	End;
 	
-	If (blueJammerState == 2);
-		tensionScore -= 0.1 * blue[0].Propagator.StepSize.ToHours();
+	If (blueJammerState == activatableAsset_on);
+		tensionScore -= 0.2 * stepJustTaken.ToHours();
 	End;
 	
-	If (blueBackupCommsState == 2);
-		blueOperationsScore -= 0.05 * blue[0].Propagator.StepSize.ToHours();
+	If (blueBackupCommsState == activatableAsset_on);
+		blueOperationsScore -= 0.1 * stepJustTaken.ToHours();
+	End;
+	
+	If (redJammerState == activatableAsset_on and blueBackupCommsState != activatableAsset_on);
+		blueOperationsScore -= 0.5 * stepJustTaken.ToHours();
 	End;
 	
 	Call ComputeRangeAndAngleFromPayload(blue[0], red[0], range, angle);
 	Call IsInsidePayloadKeepOutZone(range, angle, isInsidePayloadKeepOutZone);
 	If (isInsidePayloadKeepOutZone);
-		redObjectiveScore -= 5 * blue[0].Propagator.StepSize.ToHours();
+		redObjectiveScore -= 5 * stepJustTaken.ToHours();
 	End;
 	
 	If (range < rangeKeepOutValue);
-		redObjectiveScore -= 15 * blue[0].Propagator.StepSize.ToHours();
+		redObjectiveScore -= 15 * stepJustTaken.ToHours();
 	End;
 	
 	Variable slewRateDegPerSecond;
@@ -4536,9 +4589,19 @@ EndProcedure;
 
 
 Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, Formation blue);
+	Variable i;
 	If (queuedAction.isBlue);
-		burn.BurnDirection = queuedAction.burnRIC;
-		Maneuver blue[queuedAction.formationIndex] using burn;
+		If (!killOperationIsComplete);
+			burn.BurnDirection = queuedAction.burnRIC;
+			Maneuver blue[queuedAction.formationIndex] using burn;
+		End;
+		
+		If (blueIsOffNominal and burn.BurnDirection.Norm != 0);
+			If (blue[queuedAction.formationIndex].Periapsis > 42164 - 3
+					and abs(blue[queuedAction.formationIndex].Longitude - initialLongitudeBlue1) < 0.01);
+				blueIsOffNominal = 0;
+			End;
+		End;
 		
 		If (queuedAction.additionalAction == additionalAction_retrieveOrbitChange);
 			Call RetrieveBlueOrbitChangeFromServerAndAddToQueue();
@@ -4568,35 +4631,43 @@ Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, F
 			If (red.Count != 3);
 				Diagnostics.ReportErrorMessage(0, "Incorrect number of red spacecraft encountered.");
 			End;
-			red.Count += 1;
-			Call InitializePropagator(red[3]);
-			red[3].BodyScale = 200;
-			red[3].DisplayName = "Red" + red.Count.ToString();
-			red[3].Color = colorRed4;
-			red[3].TailLength = tailPoints;
-			viewMain3D.SetShowName(red[3].ObjectId, 1);
-			viewMain3D.SetObjectLabelFont(red[3].ObjectId, vf);
-			viewPayload.SetShowName(red[3].ObjectId, 1);
-			viewPayload.SetObjectLabelFont(red[3].ObjectId, vf);
-			viewUplink.SetShowName(red[3].ObjectId, 1);
-			viewUplink.SetObjectLabelFont(red[3].ObjectId, vf);
 			
-			red[3].Epoch = red[0].Epoch;
-			red[3].SetCartesianState(red[0].GetCartesianState());
+			// If blue is jamming, red won't deploy the inspector
+			If (blueJammerState != activatableAsset_on);
+				red.Count += 1;
+				Call InitializePropagator(red[3]);
+				red[3].BodyScale = 200;
+				red[3].DisplayName = "Red" + red.Count.ToString();
+				red[3].Color = colorRed4;
+				red[3].TailLength = tailPoints;
+				viewMain3D.SetShowName(red[3].ObjectId, 1);
+				viewMain3D.SetObjectLabelFont(red[3].ObjectId, vf);
+				viewPayload.SetShowName(red[3].ObjectId, 1);
+				viewPayload.SetObjectLabelFont(red[3].ObjectId, vf);
+				viewUplink.SetShowName(red[3].ObjectId, 1);
+				viewUplink.SetObjectLabelFont(red[3].ObjectId, vf);
+				
+				red[3].Epoch = red[0].Epoch;
+				red[3].SetCartesianState(red[0].GetCartesianState());
+			Else;
+				For i = redActionQueue.Count - 1 to 0 step -1;
+					If (redActionQueue[i].formationIndex == 3);
+						redActionQueue.RemoveAt(i);
+					End;
+				End;
+			End;
 		ElseIf (queuedAction.additionalAction == additionalAction_redUndeployInspector);
-			If (red.Count != 4);
-				Diagnostics.ReportErrorMessage(0, "Incorrect number of red spacecraft encountered.");
+			If (red.Count == 4);
+				red.Count -= 1;
 			End;
-			red.Count -= 1;
 		ElseIf (queuedAction.additionalAction == additionalAction_redKillOperation);
-			If (red.Count != 4);
-				Diagnostics.ReportErrorMessage(0, "Incorrect number of red spacecraft encountered.");
-			End;
-			If ((red[3].Position - blue[0].Position).Norm < 1);
-				blueOperationsScore = 0;
-				redObjectiveScore = 0;
-				killOperationIsComplete = 1;
-				blueIsOffNominal = 0;
+			If (red.Count == 4);
+				If ((red[3].Position - blue[0].Position).Norm < 1);
+					blueOperationsScore = 0;
+					redObjectiveScore = 0;
+					killOperationIsComplete = 1;
+					blueIsOffNominal = 0;
+				End;
 			End;
 		ElseIf (queuedAction.additionalAction == additionalAction_redDisengage);
 			redIsEngaged = 0;
@@ -4787,14 +4858,13 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 	
 	If (userChoice == choice_secondaryComms);
 		If (blueBackupCommsState == activatableAsset_off); // inactive
-			blueBackupCommsState = activatableAsset_ready;
-			aheadPredictTime = aheadPredictTimeNominal;
+			Call SetBlueBackupCommsState(activatableAsset_ready);
+			blueOperationsScore -= 3;
 		ElseIf (blueBackupCommsState == activatableAsset_ready); // ready
-			blueBackupCommsState = activatableAsset_on;
+			Call SetBlueBackupCommsState(activatableAsset_on);
 			aheadPredictTime = aheadPredictTimeSecondaryCommPath;
 		ElseIf (blueBackupCommsState == activatableAsset_on); // active
-			blueBackupCommsState = activatableAsset_ready;
-			aheadPredictTime = aheadPredictTimeNominal;
+			Call SetBlueBackupCommsState(activatableAsset_ready);
 		End;
 		Call updateStatusIndicatorsOverlay();
 	End;
@@ -5820,6 +5890,10 @@ While (blueIsOffNominal or redIsEngaged);
 		End;
 	End;
 End;
+
+Call SetBlueJammerState(activatableAsset_off);
+Call SetBlueBackupCommsState(activatableAsset_off);
+
 
 OutputLayout.BringWindowToFront(pwResultsBarChart.ID);
 OutputLayout.ApplyUpdates();
