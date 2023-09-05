@@ -3170,10 +3170,10 @@ Define Procedure WriteLeaderboardEntryToFile(LeaderboardEntry entry, Variable in
 	file.Open();
 	
 	file.PutLine(entry.username);
-	file.PutLine(entry.denyRed);
-	file.PutLine(entry.blueOps);
-	file.PutLine(entry.tension);
-	file.PutLine(entry.total);
+	file.PutLine(entry.denyRed.ToString());
+	file.PutLine(entry.blueOps.ToString());
+	file.PutLine(entry.tension.ToString());
+	file.PutLine(entry.total.ToString());
 	
 	file.Close();
 EndProcedure;
@@ -3232,10 +3232,10 @@ Constant Variable leaderboardLength = 10;
 List<LeaderboardEntry> leaderboard(10);
 
 For i = 0 to leaderboardLength - 1;
-	Call ReadLeaderboardEntryFromFile(leaderboard[i], i);
+	Call ReadLeaderboardEntryFromFile(i, leaderboard[i]);
 End;
 
-
+Call InsertLeaderboardEntry(currentScore, leaderboard);
 
 For i = 0 to leaderboardLength - 1;
 	Call WriteLeaderboardEntryToFile(leaderboard[i], i);
@@ -6058,10 +6058,10 @@ Define Procedure WriteLeaderboardEntryToFile(LeaderboardEntry entry, Variable in
 	file.Open();
 	
 	file.PutLine(entry.username);
-	file.PutLine(entry.denyRed);
-	file.PutLine(entry.blueOps);
-	file.PutLine(entry.tension);
-	file.PutLine(entry.total);
+	file.PutLine(entry.denyRed.ToString());
+	file.PutLine(entry.blueOps.ToString());
+	file.PutLine(entry.tension.ToString());
+	file.PutLine(entry.total.ToString());
 	
 	file.Close();
 EndProcedure;
@@ -6120,10 +6120,10 @@ Constant Variable leaderboardLength = 10;
 List<LeaderboardEntry> leaderboard(10);
 
 For i = 0 to leaderboardLength - 1;
-	Call ReadLeaderboardEntryFromFile(leaderboard[i], i);
+	Call ReadLeaderboardEntryFromFile(i, leaderboard[i]);
 End;
 
-
+Call InsertLeaderboardEntry(currentScore, leaderboard);
 
 For i = 0 to leaderboardLength - 1;
 	Call WriteLeaderboardEntryToFile(leaderboard[i], i);
