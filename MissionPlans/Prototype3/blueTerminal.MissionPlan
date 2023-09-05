@@ -97,6 +97,28 @@
       </Variable>
     </Object>
     <Object>
+      <ConsoleWindow name="ConsoleSolver" isConstant="false" isGlobal="true">
+        <Name>ConsoleSolver</Name>
+        <WindowTitle>Console</WindowTitle>
+        <WordWrap>false</WordWrap>
+        <CurrentTextColor>0</CurrentTextColor>
+        <BackColor>16777215</BackColor>
+        <Dimension units="" displayed_units="">10</Dimension>
+        <DockMode>1</DockMode>
+        <CurrentFontType>0</CurrentFontType>
+        <UseStdOut>false</UseStdOut>
+        <ShowOnRun>false</ShowOnRun>
+        <metadata dim="0" />
+      </ConsoleWindow>
+    </Object>
+    <Object>
+      <String name="username" isConstant="false" isGlobal="true">
+        <Name>username</Name>
+        <Value></Value>
+        <metadata dim="0" />
+      </String>
+    </Object>
+    <Object>
       <UserInterface name="MainMenu" isConstant="false" isGlobal="false">
         <Name>MainMenu</Name>
         <General>
@@ -105,7 +127,7 @@
           <LabelColumnWidth units="pixel" displayed_units="pixel">200</LabelColumnWidth>
           <DataColumnWidth units="pixel" displayed_units="pixel">400</DataColumnWidth>
           <NavigationType>Random Access</NavigationType>
-          <Elements dim="4">
+          <Elements dim="6">
             <value>
               <UIPage name="MainMenu_Page1" isConstant="false" isGlobal="false">
                 <Name>MainMenu_Page1</Name>
@@ -188,6 +210,43 @@
               </UIMultiChoice>
             </value>
             <value>
+              <UISeperator name="MainMenu_FormattingElement1" isConstant="false" isGlobal="false">
+                <Name>MainMenu_FormattingElement1</Name>
+                <ShowLine>true</ShowLine>
+                <Label></Label>
+                <metadata dim="0" />
+              </UISeperator>
+            </value>
+            <value>
+              <UIStringTextEntry name="MainMenu_DataElement3" isConstant="false" isGlobal="false">
+                <Name>MainMenu_DataElement3</Name>
+                <ValueDestination>
+                  <ObjectParameter name="MainMenu_DataElement3_:ValueDestination" isConstant="false" isGlobal="false">
+                    <Name>MainMenu_DataElement3_:ValueDestination</Name>
+                    <BaseObject>username</BaseObject>
+                    <Parameter>Value</Parameter>
+                    <IndexType>NoIndices</IndexType>
+                    <IndexOptions>
+                      <NoIndices />
+                    </IndexOptions>
+                    <metadata dim="0" />
+                  </ObjectParameter>
+                </ValueDestination>
+                <Label>Enter username for leaderboard:</Label>
+                <DefaultValue>
+                  <StringConstant name="MainMenu_DataElement3_:DefaultValue" isConstant="false" isGlobal="false">
+                    <Name>MainMenu_DataElement3_:DefaultValue</Name>
+                    <value>Anonymous</value>
+                    <metadata dim="0" />
+                  </StringConstant>
+                </DefaultValue>
+                <DoPerformRegexValidation>false</DoPerformRegexValidation>
+                <ValidatingRegex></ValidatingRegex>
+                <PasswordChar></PasswordChar>
+                <metadata dim="0" />
+              </UIStringTextEntry>
+            </value>
+            <value>
               <UIPage name="MainMenu_Page2" isConstant="false" isGlobal="false">
                 <Name>MainMenu_Page2</Name>
                 <PageTitle>Options</PageTitle>
@@ -225,35 +284,6 @@
         <metadata dim="0" />
       </UserInterface>
     </Object>
-    <Object>
-      <UserInterface name="UserInterface1" isConstant="false" isGlobal="false">
-        <Name>UserInterface1</Name>
-        <General>
-          <Title></Title>
-          <ContinueButtonLabel>&amp;Continue</ContinueButtonLabel>
-          <LabelColumnWidth units="pixel" displayed_units="pixel">200</LabelColumnWidth>
-          <DataColumnWidth units="pixel" displayed_units="pixel">400</DataColumnWidth>
-          <NavigationType>Ordered Access</NavigationType>
-          <Elements dim="0" />
-        </General>
-        <metadata dim="0" />
-      </UserInterface>
-    </Object>
-    <Object>
-      <ConsoleWindow name="ConsoleSolver" isConstant="false" isGlobal="true">
-        <Name>ConsoleSolver</Name>
-        <WindowTitle>Console</WindowTitle>
-        <WordWrap>false</WordWrap>
-        <CurrentTextColor>0</CurrentTextColor>
-        <BackColor>16777215</BackColor>
-        <Dimension units="" displayed_units="">10</Dimension>
-        <DockMode>1</DockMode>
-        <CurrentFontType>0</CurrentFontType>
-        <UseStdOut>false</UseStdOut>
-        <ShowOnRun>false</ShowOnRun>
-        <metadata dim="0" />
-      </ConsoleWindow>
-    </Object>
   </ProjectObjects>
   <ProjectMissionSequence>
     <ProjectExternals>
@@ -265,10 +295,10 @@
         <Label>Get User Input</Label>
         <Bookmarks />
         <Breakpoints />
-        <FreeFormScript><![CDATA[//Show MainMenu;
+        <FreeFormScript><![CDATA[Show MainMenu;
 
-//Global Constant Variable gameMode = userChoice;
-Global Constant Variable gameMode = gameMode_disableScript;
+Global Constant Variable gameMode = userChoice;
+//Global Constant Variable gameMode = gameMode_disableScript;
 simStepSizeSeconds = 1000;
 
 Global Constant Variable autoChooseNominalOperation = 0;
@@ -1595,6 +1625,13 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue, TimeSpan 
 	
 	If (blueIsOffNominal);
 		blueOperationsScore -= 0.1 * stepJustTaken.ToHours();
+		
+		If (blue[0].Periapsis > 42164 - 3
+				and blue[0].Apoapsis < 42164 + 3
+				and abs(blue[0].Longitude - initialLongitudeBlue1) < 0.01
+				and abs(blue[0].EulerAngles[0] - nominalBluePayloadOrientationAngle) < 0.1);
+			blueIsOffNominal = 0;
+		End;
 	End;
 	
 	If (blueJammerState == activatableAsset_on);
@@ -1778,13 +1815,6 @@ Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, F
 		If (!killOperationIsComplete);
 			burn.BurnDirection = queuedAction.burnRIC;
 			Maneuver blue[queuedAction.formationIndex] using burn;
-		End;
-		
-		If (blueIsOffNominal and burn.BurnDirection.Norm != 0);
-			If (blue[queuedAction.formationIndex].Periapsis > 42164 - 3
-					and abs(blue[queuedAction.formationIndex].Longitude - initialLongitudeBlue1) < 0.01);
-				blueIsOffNominal = 0;
-			End;
 		End;
 		
 		If (queuedAction.additionalAction == additionalAction_retrieveOrbitChange);
@@ -2091,8 +2121,6 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 		desiredBluePayloadOrientationAngle = nominalBluePayloadOrientationAngle;
 		blueSlewStartEpoch = simEpoch;
 		blueSlewCompletionEpoch = simEpoch + slewTime;
-		
-		blueIsOffNominal = 0;
 	End;
 EndProcedure;
 
@@ -3044,7 +3072,7 @@ ElseIf (userChoice == 3);
 End;]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
-        <Label>FreeForm</Label>
+        <Label>Driver Loop</Label>
         <Bookmarks />
         <Breakpoints />
         <FreeFormScript><![CDATA[
@@ -3110,12 +3138,115 @@ OutputLayout.ApplyUpdates();
 
 Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromDays(3));]]></FreeFormScript>
       </FreeForm>
+      <FreeForm enabled="true">
+        <Label>Leaderboard</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[
+Struct LeaderboardEntry;
+	String username;
+	Variable denyRed;
+	Variable blueOps;
+	Variable tension;
+	Variable total;
+End;
+
+Global String gameModeString;
+If (gameMode == gameMode_benignScript);
+	gameModeString = "benign";
+ElseIf (gameMode == gameMode_observationScript);
+	gameModeString = "observation";
+ElseIf (gameMode == gameMode_disableScript);
+	gameModeString = "disable";
+ElseIf (gameMode == gameMode_displayMode);
+	Stop;
+End;
+
+Define Procedure WriteLeaderboardEntryToFile(LeaderboardEntry entry, Variable index);
+	FileInterface file;
+	file.Filename = gameModeString + "_" + index.ToString() + ".txt";
+	file.WriteMode = 1;
+	file.ReadMode = 1;
+	file.Open();
+	
+	file.PutLine(entry.username);
+	file.PutLine(entry.denyRed);
+	file.PutLine(entry.blueOps);
+	file.PutLine(entry.tension);
+	file.PutLine(entry.total);
+	
+	file.Close();
+EndProcedure;
+
+
+Define Procedure ReadLeaderboardEntryFromFile(Variable index, LeaderboardEntry entry);
+	FileInterface file;
+	file.Filename = gameModeString + "_" + index.ToString() + ".txt";
+	
+	If (!FileSystem.Exists(file.Filename));
+		entry.username = "_ _ _";
+		entry.denyRed = 0;
+		entry.blueOps = 0;
+		entry.tension = 0;
+		entry.total = 0;
+		ExitProcedure;
+	End;
+	
+	file.WriteMode = 1;
+	file.ReadMode = 1;
+	file.Open();
+	
+	entry.username = file.GetLine();
+	entry.denyRed = file.GetLine().ToVariable();
+	entry.blueOps = file.GetLine().ToVariable();
+	entry.tension = file.GetLine().ToVariable();
+	entry.total = file.GetLine().ToVariable();
+	
+	file.Close();
+EndProcedure;
+
+
+Define Procedure InsertLeaderboardEntry(LeaderboardEntry entry, List<LeaderboardEntry> leaderboard);
+	Variable i;
+	Variable j;
+	For i = 0 to leaderboard.Count - 1;
+		If (entry.total > leaderboard[i].total);
+			For j = leaderboard.Count - 2 to i step -1;
+				leaderboard[j] = leaderboard[j - 1];
+			End;
+			leaderboard[i] = entry;
+			ExitProcedure;
+		End;
+	End;
+EndProcedure;
+
+LeaderboardEntry currentScore;
+currentScore.username = username;
+currentScore.denyRed = floor(redObjectiveScore);
+currentScore.blueOps = floor(blueOperationsScore);
+currentScore.tension = floor(tensionScore);
+currentScore.total = currentScore.denyRed + currentScore.blueOps + currentScore.tension;
+
+
+Constant Variable leaderboardLength = 10;
+List<LeaderboardEntry> leaderboard(10);
+
+For i = 0 to leaderboardLength - 1;
+	Call ReadLeaderboardEntryFromFile(leaderboard[i], i);
+End;
+
+
+
+For i = 0 to leaderboardLength - 1;
+	Call WriteLeaderboardEntryToFile(leaderboard[i], i);
+End;]]></FreeFormScript>
+      </FreeForm>
     </ProjectCommands>
   </ProjectMissionSequence>
-  <ProjectScript><![CDATA[//Show MainMenu;
+  <ProjectScript><![CDATA[Show MainMenu;
 
-//Global Constant Variable gameMode = userChoice;
-Global Constant Variable gameMode = gameMode_disableScript;
+Global Constant Variable gameMode = userChoice;
+//Global Constant Variable gameMode = gameMode_disableScript;
 simStepSizeSeconds = 1000;
 
 Global Constant Variable autoChooseNominalOperation = 0;
@@ -4417,6 +4548,13 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue, TimeSpan 
 	
 	If (blueIsOffNominal);
 		blueOperationsScore -= 0.1 * stepJustTaken.ToHours();
+		
+		If (blue[0].Periapsis > 42164 - 3
+				and blue[0].Apoapsis < 42164 + 3
+				and abs(blue[0].Longitude - initialLongitudeBlue1) < 0.01
+				and abs(blue[0].EulerAngles[0] - nominalBluePayloadOrientationAngle) < 0.1);
+			blueIsOffNominal = 0;
+		End;
 	End;
 	
 	If (blueJammerState == activatableAsset_on);
@@ -4595,13 +4733,6 @@ Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, F
 		If (!killOperationIsComplete);
 			burn.BurnDirection = queuedAction.burnRIC;
 			Maneuver blue[queuedAction.formationIndex] using burn;
-		End;
-		
-		If (blueIsOffNominal and burn.BurnDirection.Norm != 0);
-			If (blue[queuedAction.formationIndex].Periapsis > 42164 - 3
-					and abs(blue[queuedAction.formationIndex].Longitude - initialLongitudeBlue1) < 0.01);
-				blueIsOffNominal = 0;
-			End;
 		End;
 		
 		If (queuedAction.additionalAction == additionalAction_retrieveOrbitChange);
@@ -4903,8 +5034,6 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 		desiredBluePayloadOrientationAngle = nominalBluePayloadOrientationAngle;
 		blueSlewStartEpoch = simEpoch;
 		blueSlewCompletionEpoch = simEpoch + slewTime;
-		
-		blueIsOffNominal = 0;
 	End;
 EndProcedure;
 
@@ -5900,6 +6029,104 @@ Call SetBlueBackupCommsState(activatableAsset_off);
 OutputLayout.BringWindowToFront(pwResultsBarChart.ID);
 OutputLayout.ApplyUpdates();
 
-Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromDays(3));]]></ProjectScript>
+Call AdvanceSimToFutureEpoch(red, blue, blue[0].Epoch + TimeSpan.FromDays(3));
+
+Struct LeaderboardEntry;
+	String username;
+	Variable denyRed;
+	Variable blueOps;
+	Variable tension;
+	Variable total;
+End;
+
+Global String gameModeString;
+If (gameMode == gameMode_benignScript);
+	gameModeString = "benign";
+ElseIf (gameMode == gameMode_observationScript);
+	gameModeString = "observation";
+ElseIf (gameMode == gameMode_disableScript);
+	gameModeString = "disable";
+ElseIf (gameMode == gameMode_displayMode);
+	Stop;
+End;
+
+Define Procedure WriteLeaderboardEntryToFile(LeaderboardEntry entry, Variable index);
+	FileInterface file;
+	file.Filename = gameModeString + "_" + index.ToString() + ".txt";
+	file.WriteMode = 1;
+	file.ReadMode = 1;
+	file.Open();
+	
+	file.PutLine(entry.username);
+	file.PutLine(entry.denyRed);
+	file.PutLine(entry.blueOps);
+	file.PutLine(entry.tension);
+	file.PutLine(entry.total);
+	
+	file.Close();
+EndProcedure;
+
+
+Define Procedure ReadLeaderboardEntryFromFile(Variable index, LeaderboardEntry entry);
+	FileInterface file;
+	file.Filename = gameModeString + "_" + index.ToString() + ".txt";
+	
+	If (!FileSystem.Exists(file.Filename));
+		entry.username = "_ _ _";
+		entry.denyRed = 0;
+		entry.blueOps = 0;
+		entry.tension = 0;
+		entry.total = 0;
+		ExitProcedure;
+	End;
+	
+	file.WriteMode = 1;
+	file.ReadMode = 1;
+	file.Open();
+	
+	entry.username = file.GetLine();
+	entry.denyRed = file.GetLine().ToVariable();
+	entry.blueOps = file.GetLine().ToVariable();
+	entry.tension = file.GetLine().ToVariable();
+	entry.total = file.GetLine().ToVariable();
+	
+	file.Close();
+EndProcedure;
+
+
+Define Procedure InsertLeaderboardEntry(LeaderboardEntry entry, List<LeaderboardEntry> leaderboard);
+	Variable i;
+	Variable j;
+	For i = 0 to leaderboard.Count - 1;
+		If (entry.total > leaderboard[i].total);
+			For j = leaderboard.Count - 2 to i step -1;
+				leaderboard[j] = leaderboard[j - 1];
+			End;
+			leaderboard[i] = entry;
+			ExitProcedure;
+		End;
+	End;
+EndProcedure;
+
+LeaderboardEntry currentScore;
+currentScore.username = username;
+currentScore.denyRed = floor(redObjectiveScore);
+currentScore.blueOps = floor(blueOperationsScore);
+currentScore.tension = floor(tensionScore);
+currentScore.total = currentScore.denyRed + currentScore.blueOps + currentScore.tension;
+
+
+Constant Variable leaderboardLength = 10;
+List<LeaderboardEntry> leaderboard(10);
+
+For i = 0 to leaderboardLength - 1;
+	Call ReadLeaderboardEntryFromFile(leaderboard[i], i);
+End;
+
+
+
+For i = 0 to leaderboardLength - 1;
+	Call WriteLeaderboardEntryToFile(leaderboard[i], i);
+End;]]></ProjectScript>
   <ProjectNotes></ProjectNotes>
 </FreeFlyerProjectFile>

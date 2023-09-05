@@ -168,7 +168,8 @@ Global TimeSpan inspectorReturnEpoch;]]></FreeFormScript>
         <FreeFormScript><![CDATA[
 Define Procedure HasBlueManeuvered(Spacecraft blue, Variable blueHasManeuvered);
 	blueHasManeuvered = 0;
-	If (blue.Periapsis < 42164 - 5
+	If (blue.Periapsis < 42164 - 4
+			or blue.Apoapsis > 42164 + 4
 			or abs(blue.Longitude - lastBlueLongitude) > 0.05);
 		blueHasManeuvered = 1;
 		lastBlueLongitude = blue.Longitude;
@@ -1394,7 +1395,8 @@ Global TimeSpan inspectorReturnEpoch;
 
 Define Procedure HasBlueManeuvered(Spacecraft blue, Variable blueHasManeuvered);
 	blueHasManeuvered = 0;
-	If (blue.Periapsis < 42164 - 5
+	If (blue.Periapsis < 42164 - 4
+			or blue.Apoapsis > 42164 + 4
 			or abs(blue.Longitude - lastBlueLongitude) > 0.05);
 		blueHasManeuvered = 1;
 		lastBlueLongitude = blue.Longitude;
