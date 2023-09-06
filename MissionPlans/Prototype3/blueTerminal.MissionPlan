@@ -485,10 +485,14 @@ Call ConfigureTextBoxOverlayShape(
 Define Procedure updateStatusIndicatorsOverlay();
 	overlayStatusIndicators.Shapes[1].TextOptions.Text = "Predict: " + aheadPredictTime.ToHours().ToString() + " hours";
 	
-	If ((redJammerState == activatableAsset_on and blueBackupCommsState != activatableAsset_on) or killOperationIsComplete);
+	If (killOperationIsComplete);
 		overlayStatusIndicators.Shapes[2].RectangleOptions.BorderColor = ColorTools.Red;
 		overlayStatusIndicators.Shapes[2].RectangleOptions.FillColor = ColorTools.Red;
 		overlayStatusIndicators.Shapes[3].TextOptions.Text = "TT&C Link: Disconnected";
+	ElseIf (redJammerState == activatableAsset_on and blueBackupCommsState != activatableAsset_on);
+		overlayStatusIndicators.Shapes[2].RectangleOptions.BorderColor = ColorTools.Yellow;
+		overlayStatusIndicators.Shapes[2].RectangleOptions.FillColor = ColorTools.Yellow;
+		overlayStatusIndicators.Shapes[3].TextOptions.Text = "TT&C Link: Jammed";
 	Else;
 		overlayStatusIndicators.Shapes[2].RectangleOptions.BorderColor = ColorTools.Green;
 		overlayStatusIndicators.Shapes[2].RectangleOptions.FillColor = ColorTools.Green;
@@ -2648,10 +2652,14 @@ Call ConfigureTextBoxOverlayShape(
 Define Procedure updateStatusIndicatorsOverlay();
 	overlayStatusIndicators.Shapes[1].TextOptions.Text = "Predict: " + aheadPredictTime.ToHours().ToString() + " hours";
 	
-	If ((redJammerState == activatableAsset_on and blueBackupCommsState != activatableAsset_on) or killOperationIsComplete);
+	If (killOperationIsComplete);
 		overlayStatusIndicators.Shapes[2].RectangleOptions.BorderColor = ColorTools.Red;
 		overlayStatusIndicators.Shapes[2].RectangleOptions.FillColor = ColorTools.Red;
 		overlayStatusIndicators.Shapes[3].TextOptions.Text = "TT&C Link: Disconnected";
+	ElseIf (redJammerState == activatableAsset_on and blueBackupCommsState != activatableAsset_on);
+		overlayStatusIndicators.Shapes[2].RectangleOptions.BorderColor = ColorTools.Yellow;
+		overlayStatusIndicators.Shapes[2].RectangleOptions.FillColor = ColorTools.Yellow;
+		overlayStatusIndicators.Shapes[3].TextOptions.Text = "TT&C Link: Jammed";
 	Else;
 		overlayStatusIndicators.Shapes[2].RectangleOptions.BorderColor = ColorTools.Green;
 		overlayStatusIndicators.Shapes[2].RectangleOptions.FillColor = ColorTools.Green;
