@@ -2164,7 +2164,7 @@ Define Procedure DisplayModeScript(Formation red, Formation blue);
 	Call RequestBlueStationKeepFromServer(blue, dv);
 	burn.BurnDirection = dv;
 	
-	blue[0].Maneuver(burn);
+	Maneuver blue[0] using burn;
 	
 	red[0].SetKeplerianState(blue[0].GetKeplerianState());
 	red[0].E += 0.0022;
@@ -4292,7 +4292,7 @@ Define Procedure DisplayModeScript(Formation red, Formation blue);
 	Call RequestBlueStationKeepFromServer(blue, dv);
 	burn.BurnDirection = dv;
 	
-	blue[0].Maneuver(burn);
+	Maneuver blue[0] using burn;
 	
 	red[0].SetKeplerianState(blue[0].GetKeplerianState());
 	red[0].E += 0.0022;
