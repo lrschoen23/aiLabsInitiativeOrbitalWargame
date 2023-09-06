@@ -327,6 +327,13 @@ Global TimeSpan aheadPredictTimeSecondaryCommPath = TimeSpan.FromHours(6);
 Global TimeSpan aheadPredictTime = aheadPredictTimeNominal;
 Global Constant Variable aheadPredictRangeUpdateLimit = 500;
 
+Global Variable blueBackupCommsState = activatableAsset_off;
+Global Variable blueJammerState = activatableAsset_off;
+Global Variable redJammerState = activatableAsset_off;
+
+Global Variable blueIsOffNominal = 0;
+
+Global Variable killOperationIsComplete = 0;
 
 Global Variable colorRed1 = ColorTools.InterpolateColorHSV({ColorTools.White, ColorTools.Red, ColorTools.Black}, 0.5);
 Global Variable colorRed2 = ColorTools.InterpolateColorHSV({ColorTools.White, ColorTools.Red, ColorTools.Black}, 0.75);
@@ -392,20 +399,20 @@ OutputLayout.GetScreenSize(screenWidth, screenHeight);
 Global Constant Variable overlayBorderBuffer = 0.013;
 Global Constant Variable sensorLegendBoxWidth = 0.21*1 + 0.26*0;
 Global Constant Variable sensorLegendBoxHeight = 0.022 + overlayBorderBuffer*2;
-Define Procedure InitializeSensorLegendRectangle(WindowOverlay overlay, Variable index, Variable opacity, Variable color);
+Define Procedure InitializeSensorLegendRectangle(WindowOverlay overlay, Variable index, Variable opacity, Variable color, Variable width);
 	overlay.Shapes[index].RectangleOptions.FillColor = color;
 	overlay.Shapes[index].RectangleOptions.FillOpacity = opacity;
 	overlay.Shapes[index].RectangleOptions.BorderColor = color;
 	overlay.Shapes[index].RectangleOptions.BorderWidth = 3;
 	overlay.Shapes[index].RectangleOptions.BorderOpacity = 1;
-	overlay.Shapes[index].SetSize(0, sensorLegendBoxWidth, sensorLegendBoxHeight);
+	overlay.Shapes[index].SetSize(0, width, sensorLegendBoxHeight);
 EndProcedure;
 
-Define Procedure InitializeSensorLegendText(WindowOverlay overlay, Variable index, String label);
+Define Procedure InitializeSensorLegendText(WindowOverlay overlay, Variable index, String label, Variable width);
 	overlay.Shapes[index].TextOptions.Text = label;
 	overlay.Shapes[index].TextOptions.AlignmentVertical = 1;
 	overlay.Shapes[index].TextOptions.AlignmentHorizontal = 0;
-	overlay.Shapes[index].SetSize(0, sensorLegendBoxWidth, sensorLegendBoxHeight);
+	overlay.Shapes[index].SetSize(0, width, sensorLegendBoxHeight);
 	overlay.Shapes[index].BringToFront();
 EndProcedure;
 
@@ -416,6 +423,7 @@ Define Procedure ConfigureTextBoxOverlayShape(
 		Variable textIndex,
 		Variable x,
 		Variable y,
+		Variable width,
 		Variable color,
 		String text);
 	overlay.Shapes[boxIndex].Type = "Rectangle";
@@ -424,8 +432,8 @@ Define Procedure ConfigureTextBoxOverlayShape(
 	overlay.Shapes[textIndex].TextOptions.Font.Typeface = typeface;
 	overlay.Shapes[textIndex].TextOptions.Font.Size = viewwindowOverlayTextSize;
 	
-	Call InitializeSensorLegendRectangle(overlay, boxIndex, 0.3, color);
-	Call InitializeSensorLegendText(overlay, textIndex, text);
+	Call InitializeSensorLegendRectangle(overlay, boxIndex, 0.3, color, width);
+	Call InitializeSensorLegendText(overlay, textIndex, text, width);
 	
 	overlay.Shapes[boxIndex].SetPosition(0, x, y);
 	overlay.Shapes[textIndex].SetPosition(0, x + overlayBorderBuffer, y);
@@ -446,11 +454,13 @@ Call ConfigureTextBoxOverlayShape(
 	overlaySensorLegend,
 	0, 1,
 	1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer,
+	sensorLegendBoxWidth,
 	ColorTools.Purple, "Uplink");
 Call ConfigureTextBoxOverlayShape(
 	overlaySensorLegend,
 	2, 3,
 	1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer*2 + sensorLegendBoxHeight,
+	sensorLegendBoxWidth,
 	ColorTools.Lime, "Payload Orientation");
 	
 Global WindowOverlay overlayStatusIndicators;
@@ -459,33 +469,32 @@ Call ConfigureTextBoxOverlayShape(
 	overlayStatusIndicators,
 	0, 1,
 	overlayBorderBuffer, 1 - sensorLegendBoxHeight - overlayBorderBuffer,
+	sensorLegendBoxWidth,
 	ColorTools.Gray, "Predict: " + aheadPredictTime.ToHours().ToString() + " hours");
+	
+
+overlayStatusIndicators.AddShape();
+overlayStatusIndicators.AddShape();
+Call ConfigureTextBoxOverlayShape(
+	overlayStatusIndicators,
+	2, 3,
+	overlayBorderBuffer*2 + sensorLegendBoxWidth, 1 - sensorLegendBoxHeight - overlayBorderBuffer,
+	sensorLegendBoxWidth * 1.3,
+	ColorTools.Green, "TT&C Link: Connected");
 	
 Define Procedure updateStatusIndicatorsOverlay();
 	overlayStatusIndicators.Shapes[1].TextOptions.Text = "Predict: " + aheadPredictTime.ToHours().ToString() + " hours";
+	
+	If ((redJammerState == activatableAsset_on and blueBackupCommsState != activatableAsset_on) or killOperationIsComplete);
+		overlayStatusIndicators.Shapes[2].RectangleOptions.BorderColor = ColorTools.Red;
+		overlayStatusIndicators.Shapes[2].RectangleOptions.FillColor = ColorTools.Red;
+		overlayStatusIndicators.Shapes[3].TextOptions.Text = "TT&C Link: Disconnected";
+	Else;
+		overlayStatusIndicators.Shapes[2].RectangleOptions.BorderColor = ColorTools.Green;
+		overlayStatusIndicators.Shapes[2].RectangleOptions.FillColor = ColorTools.Green;
+		overlayStatusIndicators.Shapes[3].TextOptions.Text = "TT&C Link: Connected";
+	End;
 EndProcedure;
-
-//overlaySensorLegend.Shapes[0].Type = "Rectangle";
-//overlaySensorLegend.Shapes[1].Type = "Rectangle";
-//overlaySensorLegend.Shapes[2].Type = "Text";
-//overlaySensorLegend.Shapes[3].Type = "Text";
-//
-//overlaySensorLegend.Shapes[2].TextOptions.Font.Typeface = typeface;
-//overlaySensorLegend.Shapes[3].TextOptions.Font.Typeface = typeface;
-//
-//overlaySensorLegend.Shapes[2].TextOptions.Font.Size = viewwindowOverlayTextSize;
-//overlaySensorLegend.Shapes[3].TextOptions.Font.Size = viewwindowOverlayTextSize;
-//
-//Call InitializeSensorLegendRectangle(overlaySensorLegend, 0, 0.3, ColorTools.Purple);
-//Call InitializeSensorLegendRectangle(overlaySensorLegend, 1, 0.3, ColorTools.Lime);
-//
-//Call InitializeSensorLegendText(overlaySensorLegend, 2, "Uplink");
-//Call InitializeSensorLegendText(overlaySensorLegend, 3, "Payload Orientation");
-//
-//overlaySensorLegend.Shapes[0].SetPosition(0, 1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer);
-//overlaySensorLegend.Shapes[1].SetPosition(0, 1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer*2 + sensorLegendBoxHeight);
-//overlaySensorLegend.Shapes[2].SetPosition(0, 1 - sensorLegendBoxWidth, overlayBorderBuffer);
-//overlaySensorLegend.Shapes[3].SetPosition(0, 1 - sensorLegendBoxWidth, overlayBorderBuffer*2 + sensorLegendBoxHeight);
 
 
 Global WindowOverlay overlayUploadingLog;
@@ -498,7 +507,7 @@ overlayUploadingLog.Shapes[0].TextOptions.Text = "UPLINKING DATA...";
 
 overlayUploadingLog.AddShape();
 overlayUploadingLog.Shapes[1].Type = "Rectangle";
-Call InitializeSensorLegendRectangle(overlayUploadingLog, 1, 0.3, ColorTools.LightGray);
+Call InitializeSensorLegendRectangle(overlayUploadingLog, 1, 0.3, ColorTools.LightGray, sensorLegendBoxWidth);
 overlayUploadingLog.Shapes[1].SetSize(0, uploadingLogWidth, uploadingLogHeight);
 overlayUploadingLog.Shapes[1].SetPosition(0, (1 - uploadingLogWidth) / 2, 1 - uploadingLogHeight - overlayBorderBuffer);
 
@@ -557,11 +566,6 @@ viewPayload.CurrentViewpoint.ViewpointType = "sensorview";
 viewPayload.CurrentViewpoint.SensorView.FilterAllSiblings = 0;
 viewPayload.CurrentViewpoint.SensorView.Source = blue[0].Sensors[sensorIndexPayload].ObjectId;
 
-Global Variable blueBackupCommsState = activatableAsset_off;
-Global Variable blueJammerState = activatableAsset_off;
-Global Variable redJammerState = activatableAsset_off;
-
-Global Variable blueIsOffNominal = 0;
 
 
 Define Procedure SetBlueJammerState(Variable jammerState);
@@ -717,7 +721,6 @@ Global Constant Variable nominalBluePayloadOrientationAngle = blue[0].EulerAngle
 // Start with this value as true so we get an initial strategy for red
 Global Variable blueHasManeuveredSinceLastRedStrategyUpdate = 1;
 
-Global Variable killOperationIsComplete = 0;
 
 
 Global Socket blueStrategyServer;
@@ -740,7 +743,7 @@ Send "simChoiceSpacing", simChoiceSpacing.ToDays() to redStrategyServer;
 ]]></FreeFormScript>
       </FreeForm>
       <FreeForm enabled="true">
-        <Label>New stuff</Label>
+        <Label>Action Queue Utilities</Label>
         <Bookmarks />
         <Breakpoints />
         <FreeFormScript><![CDATA[
@@ -1389,7 +1392,7 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue, TimeSpan step
 	
 	// Give a chance for data to come through sporadically when jamming is active
 	RandomNumberGenerator rng;
-	If (dataReadoutIsJammed == 1);
+	If (dataReadoutIsJammed);
 		If (rng.IntegerUniformDistribution(0, 5) == 1);
 			dataReadoutIsJammed = 0;
 		End;
@@ -1622,6 +1625,8 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue, TimeSpan 
 	cameraSc.Epoch = blue[0].Epoch;
 	cameraSc.SetCartesianState(blue[0].GetCartesianState());
 	
+	Call updateStatusIndicatorsOverlay();
+	
 	If (blue[0].Periapsis > 42164 - 3
 			and blue[0].Apoapsis < 42164 + 3
 			and abs(blue[0].Longitude - initialLongitudeBlue1) < 0.03
@@ -1644,7 +1649,7 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue, TimeSpan 
 	End;
 	
 	If (redJammerState == activatableAsset_on and blueBackupCommsState != activatableAsset_on);
-		blueOperationsScore -= 0.5 * stepJustTaken.ToHours();
+		blueOperationsScore -= 0.8 * stepJustTaken.ToHours();
 	End;
 	
 	Call ComputeRangeAndAngleFromPayload(blue[0], red[0], range, angle);
@@ -2086,7 +2091,6 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 		ElseIf (blueBackupCommsState == activatableAsset_on); // active
 			Call SetBlueBackupCommsState(activatableAsset_ready);
 		End;
-		Call updateStatusIndicatorsOverlay();
 	End;
 	
 	If (userChoice == choice_jam);
@@ -2362,9 +2366,9 @@ Else;
 End;
 
 
-currentScore.denyRed = floor(redObjectiveScore);
-currentScore.blueOps = floor(blueOperationsScore);
-currentScore.tension = floor(tensionScore);
+currentScore.denyRed = max(0, floor(redObjectiveScore));
+currentScore.blueOps = max(0, floor(blueOperationsScore));
+currentScore.tension = max(0, floor(tensionScore));
 currentScore.total = currentScore.denyRed + currentScore.blueOps + currentScore.tension;
 
 
@@ -2486,6 +2490,13 @@ Global TimeSpan aheadPredictTimeSecondaryCommPath = TimeSpan.FromHours(6);
 Global TimeSpan aheadPredictTime = aheadPredictTimeNominal;
 Global Constant Variable aheadPredictRangeUpdateLimit = 500;
 
+Global Variable blueBackupCommsState = activatableAsset_off;
+Global Variable blueJammerState = activatableAsset_off;
+Global Variable redJammerState = activatableAsset_off;
+
+Global Variable blueIsOffNominal = 0;
+
+Global Variable killOperationIsComplete = 0;
 
 Global Variable colorRed1 = ColorTools.InterpolateColorHSV({ColorTools.White, ColorTools.Red, ColorTools.Black}, 0.5);
 Global Variable colorRed2 = ColorTools.InterpolateColorHSV({ColorTools.White, ColorTools.Red, ColorTools.Black}, 0.75);
@@ -2551,20 +2562,20 @@ OutputLayout.GetScreenSize(screenWidth, screenHeight);
 Global Constant Variable overlayBorderBuffer = 0.013;
 Global Constant Variable sensorLegendBoxWidth = 0.21*1 + 0.26*0;
 Global Constant Variable sensorLegendBoxHeight = 0.022 + overlayBorderBuffer*2;
-Define Procedure InitializeSensorLegendRectangle(WindowOverlay overlay, Variable index, Variable opacity, Variable color);
+Define Procedure InitializeSensorLegendRectangle(WindowOverlay overlay, Variable index, Variable opacity, Variable color, Variable width);
 	overlay.Shapes[index].RectangleOptions.FillColor = color;
 	overlay.Shapes[index].RectangleOptions.FillOpacity = opacity;
 	overlay.Shapes[index].RectangleOptions.BorderColor = color;
 	overlay.Shapes[index].RectangleOptions.BorderWidth = 3;
 	overlay.Shapes[index].RectangleOptions.BorderOpacity = 1;
-	overlay.Shapes[index].SetSize(0, sensorLegendBoxWidth, sensorLegendBoxHeight);
+	overlay.Shapes[index].SetSize(0, width, sensorLegendBoxHeight);
 EndProcedure;
 
-Define Procedure InitializeSensorLegendText(WindowOverlay overlay, Variable index, String label);
+Define Procedure InitializeSensorLegendText(WindowOverlay overlay, Variable index, String label, Variable width);
 	overlay.Shapes[index].TextOptions.Text = label;
 	overlay.Shapes[index].TextOptions.AlignmentVertical = 1;
 	overlay.Shapes[index].TextOptions.AlignmentHorizontal = 0;
-	overlay.Shapes[index].SetSize(0, sensorLegendBoxWidth, sensorLegendBoxHeight);
+	overlay.Shapes[index].SetSize(0, width, sensorLegendBoxHeight);
 	overlay.Shapes[index].BringToFront();
 EndProcedure;
 
@@ -2575,6 +2586,7 @@ Define Procedure ConfigureTextBoxOverlayShape(
 		Variable textIndex,
 		Variable x,
 		Variable y,
+		Variable width,
 		Variable color,
 		String text);
 	overlay.Shapes[boxIndex].Type = "Rectangle";
@@ -2583,8 +2595,8 @@ Define Procedure ConfigureTextBoxOverlayShape(
 	overlay.Shapes[textIndex].TextOptions.Font.Typeface = typeface;
 	overlay.Shapes[textIndex].TextOptions.Font.Size = viewwindowOverlayTextSize;
 	
-	Call InitializeSensorLegendRectangle(overlay, boxIndex, 0.3, color);
-	Call InitializeSensorLegendText(overlay, textIndex, text);
+	Call InitializeSensorLegendRectangle(overlay, boxIndex, 0.3, color, width);
+	Call InitializeSensorLegendText(overlay, textIndex, text, width);
 	
 	overlay.Shapes[boxIndex].SetPosition(0, x, y);
 	overlay.Shapes[textIndex].SetPosition(0, x + overlayBorderBuffer, y);
@@ -2605,11 +2617,13 @@ Call ConfigureTextBoxOverlayShape(
 	overlaySensorLegend,
 	0, 1,
 	1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer,
+	sensorLegendBoxWidth,
 	ColorTools.Purple, "Uplink");
 Call ConfigureTextBoxOverlayShape(
 	overlaySensorLegend,
 	2, 3,
 	1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer*2 + sensorLegendBoxHeight,
+	sensorLegendBoxWidth,
 	ColorTools.Lime, "Payload Orientation");
 	
 Global WindowOverlay overlayStatusIndicators;
@@ -2618,33 +2632,32 @@ Call ConfigureTextBoxOverlayShape(
 	overlayStatusIndicators,
 	0, 1,
 	overlayBorderBuffer, 1 - sensorLegendBoxHeight - overlayBorderBuffer,
+	sensorLegendBoxWidth,
 	ColorTools.Gray, "Predict: " + aheadPredictTime.ToHours().ToString() + " hours");
+	
+
+overlayStatusIndicators.AddShape();
+overlayStatusIndicators.AddShape();
+Call ConfigureTextBoxOverlayShape(
+	overlayStatusIndicators,
+	2, 3,
+	overlayBorderBuffer*2 + sensorLegendBoxWidth, 1 - sensorLegendBoxHeight - overlayBorderBuffer,
+	sensorLegendBoxWidth * 1.3,
+	ColorTools.Green, "TT&C Link: Connected");
 	
 Define Procedure updateStatusIndicatorsOverlay();
 	overlayStatusIndicators.Shapes[1].TextOptions.Text = "Predict: " + aheadPredictTime.ToHours().ToString() + " hours";
+	
+	If ((redJammerState == activatableAsset_on and blueBackupCommsState != activatableAsset_on) or killOperationIsComplete);
+		overlayStatusIndicators.Shapes[2].RectangleOptions.BorderColor = ColorTools.Red;
+		overlayStatusIndicators.Shapes[2].RectangleOptions.FillColor = ColorTools.Red;
+		overlayStatusIndicators.Shapes[3].TextOptions.Text = "TT&C Link: Disconnected";
+	Else;
+		overlayStatusIndicators.Shapes[2].RectangleOptions.BorderColor = ColorTools.Green;
+		overlayStatusIndicators.Shapes[2].RectangleOptions.FillColor = ColorTools.Green;
+		overlayStatusIndicators.Shapes[3].TextOptions.Text = "TT&C Link: Connected";
+	End;
 EndProcedure;
-
-//overlaySensorLegend.Shapes[0].Type = "Rectangle";
-//overlaySensorLegend.Shapes[1].Type = "Rectangle";
-//overlaySensorLegend.Shapes[2].Type = "Text";
-//overlaySensorLegend.Shapes[3].Type = "Text";
-//
-//overlaySensorLegend.Shapes[2].TextOptions.Font.Typeface = typeface;
-//overlaySensorLegend.Shapes[3].TextOptions.Font.Typeface = typeface;
-//
-//overlaySensorLegend.Shapes[2].TextOptions.Font.Size = viewwindowOverlayTextSize;
-//overlaySensorLegend.Shapes[3].TextOptions.Font.Size = viewwindowOverlayTextSize;
-//
-//Call InitializeSensorLegendRectangle(overlaySensorLegend, 0, 0.3, ColorTools.Purple);
-//Call InitializeSensorLegendRectangle(overlaySensorLegend, 1, 0.3, ColorTools.Lime);
-//
-//Call InitializeSensorLegendText(overlaySensorLegend, 2, "Uplink");
-//Call InitializeSensorLegendText(overlaySensorLegend, 3, "Payload Orientation");
-//
-//overlaySensorLegend.Shapes[0].SetPosition(0, 1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer);
-//overlaySensorLegend.Shapes[1].SetPosition(0, 1 - sensorLegendBoxWidth - overlayBorderBuffer, overlayBorderBuffer*2 + sensorLegendBoxHeight);
-//overlaySensorLegend.Shapes[2].SetPosition(0, 1 - sensorLegendBoxWidth, overlayBorderBuffer);
-//overlaySensorLegend.Shapes[3].SetPosition(0, 1 - sensorLegendBoxWidth, overlayBorderBuffer*2 + sensorLegendBoxHeight);
 
 
 Global WindowOverlay overlayUploadingLog;
@@ -2657,7 +2670,7 @@ overlayUploadingLog.Shapes[0].TextOptions.Text = "UPLINKING DATA...";
 
 overlayUploadingLog.AddShape();
 overlayUploadingLog.Shapes[1].Type = "Rectangle";
-Call InitializeSensorLegendRectangle(overlayUploadingLog, 1, 0.3, ColorTools.LightGray);
+Call InitializeSensorLegendRectangle(overlayUploadingLog, 1, 0.3, ColorTools.LightGray, sensorLegendBoxWidth);
 overlayUploadingLog.Shapes[1].SetSize(0, uploadingLogWidth, uploadingLogHeight);
 overlayUploadingLog.Shapes[1].SetPosition(0, (1 - uploadingLogWidth) / 2, 1 - uploadingLogHeight - overlayBorderBuffer);
 
@@ -2716,11 +2729,6 @@ viewPayload.CurrentViewpoint.ViewpointType = "sensorview";
 viewPayload.CurrentViewpoint.SensorView.FilterAllSiblings = 0;
 viewPayload.CurrentViewpoint.SensorView.Source = blue[0].Sensors[sensorIndexPayload].ObjectId;
 
-Global Variable blueBackupCommsState = activatableAsset_off;
-Global Variable blueJammerState = activatableAsset_off;
-Global Variable redJammerState = activatableAsset_off;
-
-Global Variable blueIsOffNominal = 0;
 
 
 Define Procedure SetBlueJammerState(Variable jammerState);
@@ -2876,7 +2884,6 @@ Global Constant Variable nominalBluePayloadOrientationAngle = blue[0].EulerAngle
 // Start with this value as true so we get an initial strategy for red
 Global Variable blueHasManeuveredSinceLastRedStrategyUpdate = 1;
 
-Global Variable killOperationIsComplete = 0;
 
 
 Global Socket blueStrategyServer;
@@ -3528,7 +3535,7 @@ Define Procedure UpdateDataReadouts(Formation red, Formation blue, TimeSpan step
 	
 	// Give a chance for data to come through sporadically when jamming is active
 	RandomNumberGenerator rng;
-	If (dataReadoutIsJammed == 1);
+	If (dataReadoutIsJammed);
 		If (rng.IntegerUniformDistribution(0, 5) == 1);
 			dataReadoutIsJammed = 0;
 		End;
@@ -3761,6 +3768,8 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue, TimeSpan 
 	cameraSc.Epoch = blue[0].Epoch;
 	cameraSc.SetCartesianState(blue[0].GetCartesianState());
 	
+	Call updateStatusIndicatorsOverlay();
+	
 	If (blue[0].Periapsis > 42164 - 3
 			and blue[0].Apoapsis < 42164 + 3
 			and abs(blue[0].Longitude - initialLongitudeBlue1) < 0.03
@@ -3783,7 +3792,7 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue, TimeSpan 
 	End;
 	
 	If (redJammerState == activatableAsset_on and blueBackupCommsState != activatableAsset_on);
-		blueOperationsScore -= 0.5 * stepJustTaken.ToHours();
+		blueOperationsScore -= 0.8 * stepJustTaken.ToHours();
 	End;
 	
 	Call ComputeRangeAndAngleFromPayload(blue[0], red[0], range, angle);
@@ -4215,7 +4224,6 @@ Define Procedure ShowOperatorActionsMenu(Formation red, Formation blue);
 		ElseIf (blueBackupCommsState == activatableAsset_on); // active
 			Call SetBlueBackupCommsState(activatableAsset_ready);
 		End;
-		Call updateStatusIndicatorsOverlay();
 	End;
 	
 	If (userChoice == choice_jam);
@@ -4476,9 +4484,9 @@ Else;
 End;
 
 
-currentScore.denyRed = floor(redObjectiveScore);
-currentScore.blueOps = floor(blueOperationsScore);
-currentScore.tension = floor(tensionScore);
+currentScore.denyRed = max(0, floor(redObjectiveScore));
+currentScore.blueOps = max(0, floor(blueOperationsScore));
+currentScore.tension = max(0, floor(tensionScore));
 currentScore.total = currentScore.denyRed + currentScore.blueOps + currentScore.tension;
 
 
