@@ -392,9 +392,9 @@ overlayRed2Future.ShapeTickWidth = 5;
 overlayRed3Future.ShapeTickWidth = 5;
 
 
-Global Variable screenWidth;
-Global Variable screenHeight;
-OutputLayout.GetScreenSize(screenWidth, screenHeight);
+Global Constant Variable screenWidth = OutputLayout.MainWindowWidth;
+Global Constant Variable screenHeight = OutputLayout.MainWindowHeight;
+Report screenWidth, screenHeight;
 
 Global Constant Variable overlayBorderBuffer = 0.013;
 Global Constant Variable sensorLegendBoxWidth = 0.21*1 + 0.26*0;
@@ -2561,9 +2561,9 @@ overlayRed2Future.ShapeTickWidth = 5;
 overlayRed3Future.ShapeTickWidth = 5;
 
 
-Global Variable screenWidth;
-Global Variable screenHeight;
-OutputLayout.GetScreenSize(screenWidth, screenHeight);
+Global Constant Variable screenWidth = OutputLayout.MainWindowWidth;
+Global Constant Variable screenHeight = OutputLayout.MainWindowHeight;
+Report screenWidth, screenHeight;
 
 Global Constant Variable overlayBorderBuffer = 0.013;
 Global Constant Variable sensorLegendBoxWidth = 0.21*1 + 0.26*0;

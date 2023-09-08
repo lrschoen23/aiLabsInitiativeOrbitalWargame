@@ -1,0 +1,382 @@
+
+
+
+Global TimeSpan simStartEpoch = TimeTools.ParseCalendarDate("Jun 09 2025 15:00:00.000", "UTC", "UTC", "MJD GSFC");
+simStartEpoch -= TimeSpan.FromSeconds(4*60 + 23);
+
+Global Constant Variable baseRAAN = 40;
+Global Constant Variable baseI = 0.5;
+
+Global Constant Variable sensorIndexUplink = 0;
+Global Constant Variable sensorIndexPayload = 1;
+
+Global Constant Variable blueStrategyRequest_disconnectServer = 0;
+Global Constant Variable blueStrategyRequest_orbitChange      = 1;
+Global Constant Variable blueStrategyRequest_slew             = 2;
+Global Constant Variable blueStrategyRequest_stationKeep      = 3;
+
+Global Constant Variable redStrategyRequest_disconnectServer = 0;
+Global Constant Variable redStrategyRequest_updateStrategy   = 1;
+
+Global Constant Variable gameMode_displayMode       = 0;
+Global Constant Variable gameMode_benignScript      = 1;
+Global Constant Variable gameMode_observationScript = 2;
+Global Constant Variable gameMode_disableScript     = 3;
+
+Global Constant Variable additionalAction_none                 = 0;
+Global Constant Variable additionalAction_retrieveOrbitChange  = 1;
+Global Constant Variable additionalAction_retrieveSlew         = 2;
+Global Constant Variable additionalAction_redToggleJamming     = 3;
+Global Constant Variable additionalAction_retrieveRedStrategy  = 4;
+Global Constant Variable additionalAction_redDeployInspector   = 5;
+Global Constant Variable additionalAction_redUndeployInspector = 6;
+Global Constant Variable additionalAction_redKillOperation     = 7;
+Global Constant Variable additionalAction_redDisengage         = 8;
+
+Global Constant Variable queueType_none     = 0;
+Global Constant Variable queueType_blueBurn = 1;
+Global Constant Variable queueType_redBurn  = 2;
+
+Global Constant Variable activatableAsset_off   = 0;
+Global Constant Variable activatableAsset_ready = 1;
+Global Constant Variable activatableAsset_on    = 2;
+
+Global String socketVerificationLabel;
+
+Struct QueuedAction;
+	TimeSpan epoch;
+	Array burnRIC;
+	Variable formationIndex;
+	Variable additionalAction;
+	Variable isBlue;
+End;
+
+
+Global Constant Variable blueStrategyServerPort = 5115;
+Global Constant Variable redStrategyServerPort = 5116;
+
+Global ImpulsiveBurn burn;
+burn.AttitudeSystem = 6;
+
+Global Variable red2and3RadialSeparation = 60;
+
+Define Procedure InitializePropagator(Spacecraft sc);
+	sc.SetPropagatorType("TwoBody");
+	
+//	fm.PlanetFieldDegree[2] = 0;
+//	fm.PlanetFieldOrder[2] = 0;
+//	fm.Drag = 0;
+//	fm.Sun = 0;
+//	fm.Moon = 0;
+EndProcedure;
+
+
+Define Procedure InitializeFormations(Formation red, Formation blue);	
+	red.Count = 3;
+	blue.Count = 1;
+	
+	blue[0].Epoch = simStartEpoch;
+	blue[0].SetKeplerianState({42164,
+                           1e-6,
+                           baseI,
+                           baseRAAN,
+                           1,
+                           1});
+                           
+	blue[0].EulerAngles[1] = 90;
+	Call InitializePropagator(blue[0]);
+	
+	blue[0].AddSensor("uplink");
+	blue[0].Sensors[sensorIndexUplink].ConeHalfAngle = 15;
+	blue[0].Sensors[sensorIndexUplink].ProjectionHeight = 30000;
+	blue[0].Sensors[sensorIndexUplink].Color = ColorTools.Purple;
+	blue[0].Sensors[sensorIndexUplink].Opacity = 0.1;
+	blue[0].Sensors[sensorIndexUplink].AttitudeMatrix = [
+		0, 0, 1;
+		1, 0, 0;
+		0, 1, 0
+	];
+
+	blue[0].AddSensor("payload");
+	blue[0].Sensors[sensorIndexPayload].BoresightUnitVector = {0, 0, 1};
+	blue[0].Sensors[sensorIndexPayload].ConeHalfAngle = 10;
+	blue[0].Sensors[sensorIndexPayload].ProjectionHeight = 50;
+	blue[0].Sensors[sensorIndexPayload].Color = ColorTools.Lime;
+	blue[0].Sensors[sensorIndexPayload].Opacity = 0.1;
+	
+	
+	Variable red1AngularSeparation = 2;
+	Variable red2AngularSeparation = 2.3;
+	red[0].SetKeplerianState({42164,
+	                          1e-6,
+	                          baseI * 1.2,
+	                          baseRAAN - red1AngularSeparation,
+	                          1,
+	                          1});
+	red[1].SetKeplerianState({42164 - red2and3RadialSeparation,
+	                          1e-6,
+	                          baseI * 1.01,
+	                          baseRAAN,
+	                          0,
+	                          1 - red2AngularSeparation});
+	red[2].SetKeplerianState({42164 + red2and3RadialSeparation,
+	                          1e-6,
+	                          baseI * 1.01,
+	                          baseRAAN,
+	                          1,
+	                          1 + red2AngularSeparation + 0.77});
+	
+	Variable i;
+	For i = 0 to red.Count - 1;
+		red[i].Epoch = simStartEpoch;
+		Call InitializePropagator(red[i]);
+	End;
+EndProcedure;
+
+
+Define Procedure ComputeRangeAndAngleFromPayload(Spacecraft blue, Spacecraft red, Variable range, Variable angle);
+	Array positionBCS;
+	
+	positionBCS = AttitudeConvert(0, 3, blue, red.Position - blue.Position);
+	range = positionBCS.Norm;
+	angle = deg(acos(positionBCS.Normalized.DotProduct(blue.Sensors[sensorIndexPayload].BoresightUnitVector.Normalized)));
+EndProcedure;
+
+
+Define Procedure ComputeStationKeepingManeuver(Spacecraft sc, Variable longitude, Array dv);
+	TimeSpan initialEpoch;
+	
+	Optimizer opt;
+	opt.Reset(1);
+	opt.AddStateVariableBlock(3, "dv", 0.0001, -0.001, 0.001, 1, 1e-6);
+	
+	opt.SaveObjectToProcess(sc);
+	
+	opt.MaximumNominalEvaluationCount = 100;
+	opt.LoadEngine();
+	While (opt.IsRunning() and opt.GetBestObjectiveFunctionValue() < 24*4);
+		opt.UpdateStateVariables();
+		opt.RestoreObjectsInProcess();
+		burn.BurnDirection = opt.GetStateVariableValues();
+		
+		Maneuver sc using burn;
+		
+		initialEpoch = sc.Epoch;
+		While (abs(sc.Longitude - longitude) < 0.02);
+			sc.Step(TimeSpan.FromSeconds(1000));
+		End;
+		
+		opt.Maximize((sc.Epoch - initialEpoch).ToHours());
+		
+		If (opt.OptimizationPhase == 1);
+			Report opt.NominalEvaluationCount, "   ",
+			opt.ObjectiveFunctionValue, "   ",
+			opt.MaximumInfeasibility, "   ",
+			opt.MaximumInfeasibilitySource to ConsoleSolver;
+		End;
+	End;
+	
+	Report opt.ReturnString to ConsoleSolver;
+	opt.RestoreObjectsInProcess();
+	
+	dv = opt.GetBestStateVariableValues();
+EndProcedure;
+
+
+Define Procedure TargetNewOrbit(
+		Spacecraft sc,
+		Array kepState,
+		Variable longitude,
+		Array timeBoundsDays,
+		Array dv1,
+		Array dv2,
+		TimeSpan interBurnTime);
+	Variable totalDV;
+	TimeSpan futureEpoch;
+	Variable addLongitudeConstraint;
+	Optimizer opt;
+	
+	opt.Reset(1);
+	opt.AddStateVariableBlock(3, "dv1", 0.001, -0.01, 0.01);
+	opt.AddStateVariableBlock(3, "dv2", 0.001, -0.01, 0.01);
+	opt.AddStateVariable("days", timeBoundsDays.Mean, timeBoundsDays[0], timeBoundsDays[1]);
+	opt.AddConstraint("A",    kepState[0], kepState[0], 100);
+	opt.AddConstraint("E",    kepState[1], kepState[1]);
+	opt.AddConstraint("I",    kepState[2], kepState[2], 100, 360);
+	
+	addLongitudeConstraint = longitude != -999;
+	If (addLongitudeConstraint);
+		opt.AddConstraint("lon",   longitude, longitude, 100, 360);
+	Else;
+		opt.AddConstraint("RAAN", kepState[3], kepState[3], 100, 360);
+//		opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
+	End;
+	
+	opt.SaveObjectToProcess(sc);
+	opt.MaximumNominalEvaluationCount = 500;
+	
+	IpoptOptions ipopt;
+	ipopt.Tolerance = 1e-4;
+	
+	opt.LoadEngine(ipopt);
+	While (opt.IsRunning());
+		opt.UpdateStateVariables();
+		opt.RestoreObjectsInProcess();
+		
+		burn.BurnDirection = opt.GetStateVariableValues[0:2];
+		totalDV = burn.BurnDirection.Norm;
+		Maneuver sc using burn;
+		
+		futureEpoch = sc.Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+		WhileStepping sc to (sc.Epoch == futureEpoch);
+		End;
+		
+		burn.BurnDirection = opt.GetStateVariableValues[3:5];
+		totalDV += burn.BurnDirection.Norm;
+		Maneuver sc using burn;
+		
+		opt.SetConstraintValue("A", sc.A);
+		opt.SetConstraintValue("E", sc.E);
+		opt.SetConstraintValue("I", sc.I);
+
+		If (addLongitudeConstraint);
+			opt.SetConstraintValue("lon", sc.Longitude);
+		Else;
+			opt.SetConstraintValue("RAAN", sc.RAAN);
+//			opt.SetConstraintValue("W", sc.W);
+		End;
+								 
+		opt.Minimize(totalDV);
+		
+//		If (opt.OptimizationPhase == 1);
+//			Report opt.NominalEvaluationCount, "   ",
+//			opt.ObjectiveFunctionValue, "   ",
+//			opt.MaximumInfeasibility, "   ",
+//			opt.MaximumInfeasibilitySource to ConsoleSolver;
+//		End;
+		
+	End;
+	
+	Report opt.ReturnString to ConsoleSolver;
+	opt.RestoreObjectsInProcess();
+		
+	dv1.Dimension = 3;
+	dv2.Dimension = 3;
+	dv1[0] = opt.GetBestStateVariableValue("dv11");
+	dv1[1] = opt.GetBestStateVariableValue("dv12");
+	dv1[2] = opt.GetBestStateVariableValue("dv13");
+	dv2[0] = opt.GetBestStateVariableValue("dv21");
+	dv2[1] = opt.GetBestStateVariableValue("dv22");
+	dv2[2] = opt.GetBestStateVariableValue("dv23");
+	interBurnTime = TimeSpan.FromDays(opt.GetBestStateVariableValue("days"));
+	
+	Array extraDv;
+	If (addLongitudeConstraint);
+		burn.BurnDirection = dv1;
+		Maneuver sc using burn;
+		
+		futureEpoch = sc.Epoch + interBurnTime;
+		WhileStepping sc to (sc.Epoch == futureEpoch);
+		End;
+		
+		burn.BurnDirection = dv2;
+		Maneuver sc using burn;
+		
+		Call ComputeStationKeepingManeuver(sc, longitude, extraDv);
+		dv2 += extraDv;
+	End;
+EndProcedure;
+
+
+Define Procedure TargetNewRelativeOrbit(
+		Spacecraft sc,
+		Spacecraft target,
+		Array kepState,
+		Array timeBoundsDays,
+		Array dv1,
+		Array dv2,
+		TimeSpan interBurnTime);
+	Variable totalDV;
+	TimeSpan futureEpoch;
+	Optimizer opt;
+	
+	opt.Reset(1);
+	opt.AddStateVariableBlock(3, "dv1", 0.001, -0.02, 0.02);
+	opt.AddStateVariableBlock(3, "dv2", 0.001, -0.02, 0.02);
+	opt.AddStateVariable("days", timeBoundsDays.Mean, timeBoundsDays[0], timeBoundsDays[1]);
+	opt.AddConstraint("A",    kepState[0], kepState[0], 100);
+	opt.AddConstraint("E",    kepState[1], kepState[1]);
+	opt.AddConstraint("I",    kepState[2], kepState[2], 100, 360);
+	
+	opt.AddConstraint("RAAN", kepState[3], kepState[3], 100, 360);
+	opt.AddConstraint("W",    kepState[4], kepState[4], 100, 360);
+	opt.AddConstraint("TA",   0, 0);
+	
+	opt.SaveObjectToProcess(sc);
+	opt.MaximumNominalEvaluationCount = 500;
+	
+	IpoptOptions ipopt;
+	ipopt.Tolerance = 1e-4;
+	
+	target.Save("IC");
+	
+	opt.LoadEngine(ipopt);
+	While (opt.IsRunning());
+		opt.UpdateStateVariables();
+		opt.RestoreObjectsInProcess();
+		
+		burn.BurnDirection = opt.GetStateVariableValues[0:2];
+		totalDV = burn.BurnDirection.Norm;
+		Maneuver sc using burn;
+		
+		futureEpoch = sc.Epoch + TimeSpan.FromDays(opt.GetStateVariableValue("days"));
+		WhileStepping sc to (sc.Epoch == futureEpoch);
+		End;
+		
+		target.StepToEpoch(sc.Epoch);
+		
+		burn.BurnDirection = opt.GetStateVariableValues[3:5];
+		totalDV += burn.BurnDirection.Norm;
+		Maneuver sc using burn;
+		
+		opt.SetConstraintValue("A", sc.A);
+		opt.SetConstraintValue("E", sc.E);
+		opt.SetConstraintValue("I", sc.I);
+
+		opt.SetConstraintValue("RAAN", sc.RAAN);
+		opt.SetConstraintValue("W", sc.W);
+		opt.SetConstraintValue("TA", sc.TA - target.TA - 0.09);
+								 
+		opt.Minimize(totalDV);
+		
+//		If (opt.OptimizationPhase == 1);
+//			Report opt.NominalEvaluationCount, "   ",
+//			opt.ObjectiveFunctionValue, "   ",
+//			opt.MaximumInfeasibility, "   ",
+//			opt.MaximumInfeasibilitySource to ConsoleSolver;
+//		End;
+		
+	End;
+	
+	Report opt.ReturnString to ConsoleSolver;
+	opt.RestoreObjectsInProcess();
+	target.Restore("IC");
+		
+	
+	dv1[0] = opt.GetBestStateVariableValue("dv11");
+	dv1[1] = opt.GetBestStateVariableValue("dv12");
+	dv1[2] = opt.GetBestStateVariableValue("dv13");
+	dv2[0] = opt.GetBestStateVariableValue("dv21");
+	dv2[1] = opt.GetBestStateVariableValue("dv22");
+	dv2[2] = opt.GetBestStateVariableValue("dv23");
+	interBurnTime = TimeSpan.FromDays(opt.GetBestStateVariableValue("days"));
+EndProcedure;
+
+
+Define Procedure ValidateSocketVerificationLabel(String s);
+	If (socketVerificationLabel != s);
+		Diagnostics.ReportErrorMessage(0, "Encountered socket error. Expected: " + s + ". Recieved: " + socketVerificationLabel + ".");
+	Else;
+//		Report "Good socket validation: " + socketVerificationLabel to Console;
+	End;
+EndProcedure;

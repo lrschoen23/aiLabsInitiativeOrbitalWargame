@@ -1,0 +1,402 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<FreeFlyerProjectFile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" timePrecisionMode="nanosecond" schemaVersion="7.8.0.1">
+  <ProjectInformation>
+    <Author />
+    <Source />
+    <FreeFlyerVersion>7.8.1.50021</FreeFlyerVersion>
+    <RevisionNumber />
+    <Title />
+    <Subject />
+    <Category />
+    <Keywords />
+    <Comments />
+    <Notes />
+  </ProjectInformation>
+  <ProjectPreferences>
+    <General>
+      <LockProjectFromEditing>false</LockProjectFromEditing>
+    </General>
+    <OnOpen>
+      <ShowControlSequence>true</ShowControlSequence>
+      <ShowEmptyEnvironment>false</ShowEmptyEnvironment>
+      <ShowNotes>false</ShowNotes>
+      <ShowHome>false</ShowHome>
+      <ShowOutput>false</ShowOutput>
+      <CreateBackup>false</CreateBackup>
+      <BackupLocation></BackupLocation>
+    </OnOpen>
+    <OnRun>
+      <SaveMissionPlan>false</SaveMissionPlan>
+      <HideWarningMessages>false</HideWarningMessages>
+    </OnRun>
+  </ProjectPreferences>
+  <ProjectDataFiles>
+    <EarthOrientationFile useDefault="true"></EarthOrientationFile>
+    <ElectronDensityCoefficientFile useDefault="true"></ElectronDensityCoefficientFile>
+    <GeopotentialFile useDefault="true"></GeopotentialFile>
+    <HarrisPriesterDragFile useDefault="true"></HarrisPriesterDragFile>
+    <JacchiaAtmosphereModelFile useDefault="true"></JacchiaAtmosphereModelFile>
+    <LeapSecondFile useDefault="true"></LeapSecondFile>
+    <MagneticFieldFile useDefault="true"></MagneticFieldFile>
+    <PlanetaryFile useDefault="true"></PlanetaryFile>
+    <StationGeodeticsFile useDefault="true"></StationGeodeticsFile>
+    <SolidTideFile useDefault="true"></SolidTideFile>
+    <DSTFile useDefault="true"></DSTFile>
+    <StarFieldFile useDefault="true"></StarFieldFile>
+  </ProjectDataFiles>
+  <ProjectObjects>
+    <Object>
+      <SolarSystem name="FF_SolarSystem" isConstant="false" isGlobal="true">
+        <Name>FF_SolarSystem</Name>
+        <ComputePolarMotion>true</ComputePolarMotion>
+        <ApplyUT1Correction>true</ApplyUT1Correction>
+        <COUpdateInterval units="s" displayed_units="s">0</COUpdateInterval>
+        <NPUpdateInterval units="s" displayed_units="s">1800</NPUpdateInterval>
+        <IonosphereOptions>
+          <IonosphereOptions name="FF_SolarSystem_|ionoOptions|" isConstant="false" isGlobal="true">
+            <Name>FF_SolarSystem_|ionoOptions|</Name>
+            <MaximumHeight units="km" displayed_units="km">1000</MaximumHeight>
+            <MinimumHeight units="km" displayed_units="km">80</MinimumHeight>
+            <IntegrationStepSize units="km" displayed_units="km">25</IntegrationStepSize>
+            <ScaleFactor units="" displayed_units="">1</ScaleFactor>
+            <Model>0</Model>
+            <metadata dim="0" />
+          </IonosphereOptions>
+        </IonosphereOptions>
+        <NoradKeplerEqTolerance units="" displayed_units="">1e-12</NoradKeplerEqTolerance>
+        <metadata dim="0" />
+      </SolarSystem>
+    </Object>
+    <Object>
+      <ConsoleWindow name="Console" isConstant="false" isGlobal="true">
+        <Name>Console</Name>
+        <WindowTitle>Console</WindowTitle>
+        <WordWrap>false</WordWrap>
+        <CurrentTextColor>12245189</CurrentTextColor>
+        <BackColor>2039583</BackColor>
+        <Dimension units="" displayed_units="">40</Dimension>
+        <DockMode>3</DockMode>
+        <CurrentFontType>0</CurrentFontType>
+        <UseStdOut>false</UseStdOut>
+        <ShowOnRun>true</ShowOnRun>
+        <metadata dim="0" />
+      </ConsoleWindow>
+    </Object>
+    <Object>
+      <ConsoleWindow name="ConsoleSolver" isConstant="false" isGlobal="true">
+        <Name>ConsoleSolver</Name>
+        <WindowTitle>Console</WindowTitle>
+        <WordWrap>false</WordWrap>
+        <CurrentTextColor>12245189</CurrentTextColor>
+        <BackColor>2039583</BackColor>
+        <Dimension units="" displayed_units="">90</Dimension>
+        <DockMode>4</DockMode>
+        <CurrentFontType>0</CurrentFontType>
+        <UseStdOut>false</UseStdOut>
+        <ShowOnRun>true</ShowOnRun>
+        <metadata dim="0" />
+      </ConsoleWindow>
+    </Object>
+  </ProjectObjects>
+  <ProjectMissionSequence>
+    <ProjectExternals>
+      <ProjectExternal included="true" autosave="true" contentType="FreeFlyerScript">.\Procedures\Common.FFProcedure</ProjectExternal>
+    </ProjectExternals>
+    <ProjectCommands>
+      <FreeForm enabled="true">
+        <Label>FreeForm</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[
+Variable strategyRequest;
+
+Array blueCartState(6);
+Array redCartState(6);
+Array initialCartState(6);
+Array desiredKepState(6);
+Variable desiredLongitude;
+Variable initialEpochDays;
+Variable computationDelayHours;
+Array interBurnTimeBoundsDays(2);
+Variable slewAngle;
+
+Array dv1(3);
+Array dv2(3);
+Variable interBurnTimeDays;
+
+TimeSpan interBurnTime;
+Variable epochDays;
+
+
+Formation red;
+Formation blue;
+Call InitializeFormations(red, blue);]]></FreeFormScript>
+      </FreeForm>
+      <FreeForm enabled="true">
+        <Label>FreeForm</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[
+
+
+Define Procedure ComputeDesiredSlewAngle(Spacecraft red, Spacecraft blue, Variable slewAngle);
+	Variable bestAngleFromPayload = 0;
+	
+	Variable range;
+	Variable angle;
+	Variable i;
+	Variable initialEulerAngle = blue.EulerAngles[0];
+	For i = 0 to 360 step 5;
+		blue.EulerAngles[0] = i;
+		Call ComputeRangeAndAngleFromPayload(blue, red, range, angle);
+		If (angle > bestAngleFromPayload);
+			slewAngle = i;
+			bestAngleFromPayload = angle;
+		End;
+	End;
+	blue.EulerAngles[0] = initialEulerAngle;
+EndProcedure;
+
+]]></FreeFormScript>
+      </FreeForm>
+      <FreeForm enabled="true">
+        <Label>FreeForm</Label>
+        <Bookmarks />
+        <Breakpoints />
+        <FreeFormScript><![CDATA[
+Socket connection;
+connection.SocketType = "server";
+connection.PortNumber = blueStrategyServerPort;
+connection.SocketTimeout = -1;
+
+
+Variable stepSizeSeconds;
+
+
+While (1);	
+	Report "Listening on port ", connection.PortNumber.ToString(), "..." to Console;
+	Open connection;
+	Console.Clear();
+	ConsoleSolver.Clear();
+	Report "Connected" to Console;
+	
+	Receive stepSizeSeconds from connection;
+	blue[0].Propagator.StepSize = TimeSpan.FromSeconds(800);
+	
+	Try;
+		While (1);
+			Receive strategyRequest from connection;
+			Report "" to Console;
+			Report "Recieved request: " to Console;
+			
+			If (strategyRequest == blueStrategyRequest_orbitChange);
+				Report "Orbit Change" to Console;
+				Receive initialCartState,
+						initialEpochDays,
+						desiredKepState,
+						desiredLongitude,
+						interBurnTimeBoundsDays,
+						computationDelayHours from connection;
+			
+				blue[0].Epoch = TimeSpan.FromDays(initialEpochDays);
+				blue[0].SetCartesianState(initialCartState);
+				blue[0].StepToEpoch(blue[0].Epoch + TimeSpan.FromHours(computationDelayHours));
+				Call TargetNewOrbit(
+					blue[0],
+					desiredKepState,
+					desiredLongitude,
+					interBurnTimeBoundsDays,
+					dv1,
+					dv2,
+					interBurnTime);
+				
+				Report "Sending data..." to Console;
+				Send dv1, dv2, interBurnTime.ToDays() to connection;
+				Report "Data transfer complete" to Console;
+				
+			ElseIf (strategyRequest == blueStrategyRequest_slew);
+				Report "Slew" to Console;
+				Receive redCartState,
+						blueCartState,
+						epochDays from connection;
+				
+				blue[0].Epoch = TimeSpan.FromDays(epochDays);
+				blue[0].SetCartesianState(blueCartState);
+				
+				red[0].Epoch = TimeSpan.FromDays(epochDays);
+				red[0].SetCartesianState(redCartState);
+				
+				Call ComputeDesiredSlewAngle(red[0], blue[0], slewAngle);
+				Report "Sending data..." to Console;
+				Send slewAngle to connection;
+				Report "Data transfer complete" to Console;
+				
+			ElseIf (strategyRequest == blueStrategyRequest_stationKeep);
+				Report "Station Keep" to Console;
+				Receive blueCartState,
+						epochDays,
+						desiredLongitude from connection;
+				
+				blue[0].Epoch = TimeSpan.FromDays(epochDays);
+				blue[0].SetCartesianState(blueCartState);
+				
+				Call ComputeStationKeepingManeuver(blue[0], desiredLongitude, dv1);
+				Report "Sending data..." to Console;
+				Send dv1 to connection;
+				Report "Data transfer complete" to Console;
+			End;
+		End;
+	End;
+	
+	Report Diagnostics.GetLastErrorMessages() to Console;
+	Diagnostics.ClearErrorMessages();
+	
+	Close connection;
+	Report "" to Console;
+	Report "Disconnected" to Console;
+	Report "" to Console;
+End;]]></FreeFormScript>
+      </FreeForm>
+    </ProjectCommands>
+  </ProjectMissionSequence>
+  <ProjectScript><![CDATA[
+Variable strategyRequest;
+
+Array blueCartState(6);
+Array redCartState(6);
+Array initialCartState(6);
+Array desiredKepState(6);
+Variable desiredLongitude;
+Variable initialEpochDays;
+Variable computationDelayHours;
+Array interBurnTimeBoundsDays(2);
+Variable slewAngle;
+
+Array dv1(3);
+Array dv2(3);
+Variable interBurnTimeDays;
+
+TimeSpan interBurnTime;
+Variable epochDays;
+
+
+Formation red;
+Formation blue;
+Call InitializeFormations(red, blue);
+
+
+
+Define Procedure ComputeDesiredSlewAngle(Spacecraft red, Spacecraft blue, Variable slewAngle);
+	Variable bestAngleFromPayload = 0;
+	
+	Variable range;
+	Variable angle;
+	Variable i;
+	Variable initialEulerAngle = blue.EulerAngles[0];
+	For i = 0 to 360 step 5;
+		blue.EulerAngles[0] = i;
+		Call ComputeRangeAndAngleFromPayload(blue, red, range, angle);
+		If (angle > bestAngleFromPayload);
+			slewAngle = i;
+			bestAngleFromPayload = angle;
+		End;
+	End;
+	blue.EulerAngles[0] = initialEulerAngle;
+EndProcedure;
+
+
+
+Socket connection;
+connection.SocketType = "server";
+connection.PortNumber = blueStrategyServerPort;
+connection.SocketTimeout = -1;
+
+
+Variable stepSizeSeconds;
+
+
+While (1);	
+	Report "Listening on port ", connection.PortNumber.ToString(), "..." to Console;
+	Open connection;
+	Console.Clear();
+	ConsoleSolver.Clear();
+	Report "Connected" to Console;
+	
+	Receive stepSizeSeconds from connection;
+	blue[0].Propagator.StepSize = TimeSpan.FromSeconds(800);
+	
+	Try;
+		While (1);
+			Receive strategyRequest from connection;
+			Report "" to Console;
+			Report "Recieved request: " to Console;
+			
+			If (strategyRequest == blueStrategyRequest_orbitChange);
+				Report "Orbit Change" to Console;
+				Receive initialCartState,
+						initialEpochDays,
+						desiredKepState,
+						desiredLongitude,
+						interBurnTimeBoundsDays,
+						computationDelayHours from connection;
+			
+				blue[0].Epoch = TimeSpan.FromDays(initialEpochDays);
+				blue[0].SetCartesianState(initialCartState);
+				blue[0].StepToEpoch(blue[0].Epoch + TimeSpan.FromHours(computationDelayHours));
+				Call TargetNewOrbit(
+					blue[0],
+					desiredKepState,
+					desiredLongitude,
+					interBurnTimeBoundsDays,
+					dv1,
+					dv2,
+					interBurnTime);
+				
+				Report "Sending data..." to Console;
+				Send dv1, dv2, interBurnTime.ToDays() to connection;
+				Report "Data transfer complete" to Console;
+				
+			ElseIf (strategyRequest == blueStrategyRequest_slew);
+				Report "Slew" to Console;
+				Receive redCartState,
+						blueCartState,
+						epochDays from connection;
+				
+				blue[0].Epoch = TimeSpan.FromDays(epochDays);
+				blue[0].SetCartesianState(blueCartState);
+				
+				red[0].Epoch = TimeSpan.FromDays(epochDays);
+				red[0].SetCartesianState(redCartState);
+				
+				Call ComputeDesiredSlewAngle(red[0], blue[0], slewAngle);
+				Report "Sending data..." to Console;
+				Send slewAngle to connection;
+				Report "Data transfer complete" to Console;
+				
+			ElseIf (strategyRequest == blueStrategyRequest_stationKeep);
+				Report "Station Keep" to Console;
+				Receive blueCartState,
+						epochDays,
+						desiredLongitude from connection;
+				
+				blue[0].Epoch = TimeSpan.FromDays(epochDays);
+				blue[0].SetCartesianState(blueCartState);
+				
+				Call ComputeStationKeepingManeuver(blue[0], desiredLongitude, dv1);
+				Report "Sending data..." to Console;
+				Send dv1 to connection;
+				Report "Data transfer complete" to Console;
+			End;
+		End;
+	End;
+	
+	Report Diagnostics.GetLastErrorMessages() to Console;
+	Diagnostics.ClearErrorMessages();
+	
+	Close connection;
+	Report "" to Console;
+	Report "Disconnected" to Console;
+	Report "" to Console;
+End;]]></ProjectScript>
+  <ProjectNotes></ProjectNotes>
+</FreeFlyerProjectFile>
