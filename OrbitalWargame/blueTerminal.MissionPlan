@@ -394,11 +394,27 @@ overlayRed3Future.ShapeTickWidth = 5;
 
 Global Constant Variable screenWidth = OutputLayout.MainWindowWidth;
 Global Constant Variable screenHeight = OutputLayout.MainWindowHeight;
-Report screenWidth, screenHeight;
 
-Global Constant Variable overlayBorderBuffer = 0.013;
-Global Constant Variable sensorLegendBoxWidth = 0.21*1 + 0.26*0;
-Global Constant Variable sensorLegendBoxHeight = 0.022 + overlayBorderBuffer*2;
+Global Constant Variable screenWidth1 = 1936;
+Global Constant Variable screenHeight1 = 1056;
+
+Global Constant Variable screenWidth2 = 1552;
+Global Constant Variable screenHeight2 = 840;
+
+Define Procedure InterpolateScreenWidthDependentValue(Variable y1, Variable y2, Variable y);
+	y = y1 + (screenWidth - screenWidth1) * (y2 - y1) / (screenWidth2 - screenWidth1);
+EndProcedure;
+
+Define Procedure InterpolateScreenHeightDependentValue(Variable y1, Variable y2, Variable y);
+	y = y1 + (screenHeight - screenHeight1) * (y2 - y1) / (screenHeight2 - screenHeight1);
+EndProcedure;
+
+Global Variable overlayBorderBuffer = 0.013;
+Global Variable sensorLegendBoxWidth;
+Global Variable sensorLegendBoxHeight = 0.022 + overlayBorderBuffer*2;
+
+Call InterpolateScreenWidthDependentValue(0.21, 0.26, sensorLegendBoxWidth);
+
 Define Procedure InitializeSensorLegendRectangle(WindowOverlay overlay, Variable index, Variable opacity, Variable color, Variable width);
 	overlay.Shapes[index].RectangleOptions.FillColor = color;
 	overlay.Shapes[index].RectangleOptions.FillOpacity = opacity;
@@ -469,16 +485,17 @@ Call ConfigureTextBoxOverlayShape(
 	overlayStatusIndicators,
 	0, 1,
 	overlayBorderBuffer, 1 - sensorLegendBoxHeight - overlayBorderBuffer,
-	sensorLegendBoxWidth,
+	sensorLegendBoxWidth * 0.9,
 	ColorTools.Gray, "Predict: " + aheadPredictTime.ToHours().ToString() + " hours");
 	
 
 overlayStatusIndicators.AddShape();
 overlayStatusIndicators.AddShape();
+
 Call ConfigureTextBoxOverlayShape(
 	overlayStatusIndicators,
 	2, 3,
-	overlayBorderBuffer*2 + sensorLegendBoxWidth, 1 - sensorLegendBoxHeight - overlayBorderBuffer,
+	overlayBorderBuffer*2 + sensorLegendBoxWidth * 0.9, 1 - sensorLegendBoxHeight - overlayBorderBuffer,
 	sensorLegendBoxWidth * 1.3,
 	ColorTools.Green, "TT&C Link: Connected");
 	
@@ -1216,21 +1233,26 @@ pwResultsBarChart.XAxis.LabelsColor = pwResultsBarChart.BackgroundColor;
 pwResultsBarChart.Legend.Font.Size = 20;
 
 Define Procedure GetVerticalAnnotationAdjustment(Variable objectiveValue, Variable verticalAnnotationAdjustment);
-	If (objectiveValue > 10);
-		verticalAnnotationAdjustment = -8;
+	If (objectiveValue > 11);
+		Call InterpolateScreenHeightDependentValue(-8, -11, verticalAnnotationAdjustment);
 	Else;
-		verticalAnnotationAdjustment = -2;
+		Call InterpolateScreenHeightDependentValue(-2, -3, verticalAnnotationAdjustment);
 	End;
 EndProcedure;
 
 Define Procedure UpdateResultsPlotVerticalAnnotationAdjustment(Variable index, Variable objectiveValue);
 	Variable verticalAnnotationAdjustment;
 	Call GetVerticalAnnotationAdjustment(objectiveValue, verticalAnnotationAdjustment);
-	(pwResultsBarChart.Series[index] AsType PlotScatterSeries).Data[0, 1] = objectiveValue + verticalAnnotationAdjustment;
+	(pwResultsBarChart.Series[index] AsType PlotScatterSeries).Data[0, 1] = max(0, objectiveValue + verticalAnnotationAdjustment);
 EndProcedure;
 
 Define Procedure UpdateResultsBarChart();
 	pwResultsBarChart.BeginBatchUpdate();
+	
+	redObjectiveScore = max(0, redObjectiveScore);
+	blueOperationsScore = max(0, blueOperationsScore);
+	tensionScore = max(0, tensionScore);
+	
 	(pwResultsBarChart.Series[0] AsType PlotScatterSeries).Data[1, 1] = redObjectiveScore;
 	(pwResultsBarChart.Series[1] AsType PlotScatterSeries).Data[1, 1] = blueOperationsScore;
 	(pwResultsBarChart.Series[2] AsType PlotScatterSeries).Data[1, 1] = tensionScore;
@@ -1641,7 +1663,7 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue, TimeSpan 
 	End;
 	
 	If (blueIsOffNominal);
-		blueOperationsScore -= 0.1 * stepJustTaken.ToHours();
+		blueOperationsScore -= 0.2 * stepJustTaken.ToHours();
 	End;
 	
 	If (blueJammerState == activatableAsset_on);
@@ -2429,8 +2451,11 @@ gwLeaderboard.SetColumnWidth(3, 5, 0);
 gwLeaderboard.SetColumnWidth(4, 5, 0);
 gwLeaderboard.SetColumnWidth(5, 7, 0);
 
+Variable rowHeight;
+Call InterpolateScreenHeightDependentValue(35, 29, rowHeight);
+
 For i = 0 to gwLeaderboard.NumberOfRows - 1;
-	gwLeaderboard.SetRowHeight(i, 35, 1);
+	gwLeaderboard.SetRowHeight(i, rowHeight, 1);
 End;
 
 gwLeaderboard.GetAllCells().AlignmentHorizontal = "Center";
@@ -2563,11 +2588,27 @@ overlayRed3Future.ShapeTickWidth = 5;
 
 Global Constant Variable screenWidth = OutputLayout.MainWindowWidth;
 Global Constant Variable screenHeight = OutputLayout.MainWindowHeight;
-Report screenWidth, screenHeight;
 
-Global Constant Variable overlayBorderBuffer = 0.013;
-Global Constant Variable sensorLegendBoxWidth = 0.21*1 + 0.26*0;
-Global Constant Variable sensorLegendBoxHeight = 0.022 + overlayBorderBuffer*2;
+Global Constant Variable screenWidth1 = 1936;
+Global Constant Variable screenHeight1 = 1056;
+
+Global Constant Variable screenWidth2 = 1552;
+Global Constant Variable screenHeight2 = 840;
+
+Define Procedure InterpolateScreenWidthDependentValue(Variable y1, Variable y2, Variable y);
+	y = y1 + (screenWidth - screenWidth1) * (y2 - y1) / (screenWidth2 - screenWidth1);
+EndProcedure;
+
+Define Procedure InterpolateScreenHeightDependentValue(Variable y1, Variable y2, Variable y);
+	y = y1 + (screenHeight - screenHeight1) * (y2 - y1) / (screenHeight2 - screenHeight1);
+EndProcedure;
+
+Global Variable overlayBorderBuffer = 0.013;
+Global Variable sensorLegendBoxWidth;
+Global Variable sensorLegendBoxHeight = 0.022 + overlayBorderBuffer*2;
+
+Call InterpolateScreenWidthDependentValue(0.21, 0.26, sensorLegendBoxWidth);
+
 Define Procedure InitializeSensorLegendRectangle(WindowOverlay overlay, Variable index, Variable opacity, Variable color, Variable width);
 	overlay.Shapes[index].RectangleOptions.FillColor = color;
 	overlay.Shapes[index].RectangleOptions.FillOpacity = opacity;
@@ -2638,16 +2679,17 @@ Call ConfigureTextBoxOverlayShape(
 	overlayStatusIndicators,
 	0, 1,
 	overlayBorderBuffer, 1 - sensorLegendBoxHeight - overlayBorderBuffer,
-	sensorLegendBoxWidth,
+	sensorLegendBoxWidth * 0.9,
 	ColorTools.Gray, "Predict: " + aheadPredictTime.ToHours().ToString() + " hours");
 	
 
 overlayStatusIndicators.AddShape();
 overlayStatusIndicators.AddShape();
+
 Call ConfigureTextBoxOverlayShape(
 	overlayStatusIndicators,
 	2, 3,
-	overlayBorderBuffer*2 + sensorLegendBoxWidth, 1 - sensorLegendBoxHeight - overlayBorderBuffer,
+	overlayBorderBuffer*2 + sensorLegendBoxWidth * 0.9, 1 - sensorLegendBoxHeight - overlayBorderBuffer,
 	sensorLegendBoxWidth * 1.3,
 	ColorTools.Green, "TT&C Link: Connected");
 	
@@ -3375,21 +3417,26 @@ pwResultsBarChart.XAxis.LabelsColor = pwResultsBarChart.BackgroundColor;
 pwResultsBarChart.Legend.Font.Size = 20;
 
 Define Procedure GetVerticalAnnotationAdjustment(Variable objectiveValue, Variable verticalAnnotationAdjustment);
-	If (objectiveValue > 10);
-		verticalAnnotationAdjustment = -8;
+	If (objectiveValue > 11);
+		Call InterpolateScreenHeightDependentValue(-8, -11, verticalAnnotationAdjustment);
 	Else;
-		verticalAnnotationAdjustment = -2;
+		Call InterpolateScreenHeightDependentValue(-2, -3, verticalAnnotationAdjustment);
 	End;
 EndProcedure;
 
 Define Procedure UpdateResultsPlotVerticalAnnotationAdjustment(Variable index, Variable objectiveValue);
 	Variable verticalAnnotationAdjustment;
 	Call GetVerticalAnnotationAdjustment(objectiveValue, verticalAnnotationAdjustment);
-	(pwResultsBarChart.Series[index] AsType PlotScatterSeries).Data[0, 1] = objectiveValue + verticalAnnotationAdjustment;
+	(pwResultsBarChart.Series[index] AsType PlotScatterSeries).Data[0, 1] = max(0, objectiveValue + verticalAnnotationAdjustment);
 EndProcedure;
 
 Define Procedure UpdateResultsBarChart();
 	pwResultsBarChart.BeginBatchUpdate();
+	
+	redObjectiveScore = max(0, redObjectiveScore);
+	blueOperationsScore = max(0, blueOperationsScore);
+	tensionScore = max(0, tensionScore);
+	
 	(pwResultsBarChart.Series[0] AsType PlotScatterSeries).Data[1, 1] = redObjectiveScore;
 	(pwResultsBarChart.Series[1] AsType PlotScatterSeries).Data[1, 1] = blueOperationsScore;
 	(pwResultsBarChart.Series[2] AsType PlotScatterSeries).Data[1, 1] = tensionScore;
@@ -3790,7 +3837,7 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue, TimeSpan 
 	End;
 	
 	If (blueIsOffNominal);
-		blueOperationsScore -= 0.1 * stepJustTaken.ToHours();
+		blueOperationsScore -= 0.2 * stepJustTaken.ToHours();
 	End;
 	
 	If (blueJammerState == activatableAsset_on);
@@ -4553,8 +4600,11 @@ gwLeaderboard.SetColumnWidth(3, 5, 0);
 gwLeaderboard.SetColumnWidth(4, 5, 0);
 gwLeaderboard.SetColumnWidth(5, 7, 0);
 
+Variable rowHeight;
+Call InterpolateScreenHeightDependentValue(35, 29, rowHeight);
+
 For i = 0 to gwLeaderboard.NumberOfRows - 1;
-	gwLeaderboard.SetRowHeight(i, 35, 1);
+	gwLeaderboard.SetRowHeight(i, rowHeight, 1);
 End;
 
 gwLeaderboard.GetAllCells().AlignmentHorizontal = "Center";
