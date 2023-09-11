@@ -25,7 +25,6 @@ EM/RF people: Billy Gonzolez, scott donel
 
 
 Later/maybe:
-- add font size modulation for sensor legend based on main window size
 - add markers at maneuver points
 - add station keeping box to longitude plot
 - sensor view for payload with keep out lines

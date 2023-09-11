@@ -164,7 +164,10 @@ Global TimeSpan inspectorReturnEpoch;]]></FreeFormScript>
       <FreeForm enabled="true">
         <Label>FreeForm</Label>
         <Bookmarks />
-        <Breakpoints />
+        <Breakpoints>
+          <Breakpoint line="1024" enabled="true" />
+          <Breakpoint line="1039" enabled="true" />
+        </Breakpoints>
         <FreeFormScript><![CDATA[
 Define Procedure HasBlueManeuvered(Spacecraft blue, Variable blueHasManeuvered);
 	blueHasManeuvered = 0;
@@ -1171,7 +1174,9 @@ EndProcedure;
 
 
 Define Procedure SortActionsByEpoch(TimeSpan simEpoch, Variable foundInvalidAction);
-	List<QueuedAction> sortedActions(actions.Count);
+	List<QueuedAction> sortedActions;
+	sortedActions.Count = 0;
+	sortedActions.Count = actions.Count;
 	Variable i;
 	Variable j;
 	
@@ -2398,7 +2403,9 @@ EndProcedure;
 
 
 Define Procedure SortActionsByEpoch(TimeSpan simEpoch, Variable foundInvalidAction);
-	List<QueuedAction> sortedActions(actions.Count);
+	List<QueuedAction> sortedActions;
+	sortedActions.Count = 0;
+	sortedActions.Count = actions.Count;
 	Variable i;
 	Variable j;
 	
