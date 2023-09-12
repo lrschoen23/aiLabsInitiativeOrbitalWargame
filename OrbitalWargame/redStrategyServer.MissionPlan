@@ -164,10 +164,7 @@ Global TimeSpan inspectorReturnEpoch;]]></FreeFormScript>
       <FreeForm enabled="true">
         <Label>FreeForm</Label>
         <Bookmarks />
-        <Breakpoints>
-          <Breakpoint line="1024" enabled="true" />
-          <Breakpoint line="1039" enabled="true" />
-        </Breakpoints>
+        <Breakpoints />
         <FreeFormScript><![CDATA[
 Define Procedure HasBlueManeuvered(Spacecraft blue, Variable blueHasManeuvered);
 	blueHasManeuvered = 0;
