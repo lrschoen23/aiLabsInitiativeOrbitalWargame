@@ -499,6 +499,16 @@ Call ConfigureTextBoxOverlayShape(
 	sensorLegendBoxWidth * 1.3,
 	ColorTools.Green, "TT&C Link: Connected");
 	
+overlayStatusIndicators.AddShape();
+overlayStatusIndicators.AddShape();
+
+Call ConfigureTextBoxOverlayShape(
+	overlayStatusIndicators,
+	4, 5,
+	overlayBorderBuffer*3 + sensorLegendBoxWidth * 2.2, 1 - sensorLegendBoxHeight - overlayBorderBuffer,
+	sensorLegendBoxWidth * 1.35,
+	ColorTools.Green, "Mission Status: Nominal");
+	
 Define Procedure updateStatusIndicatorsOverlay();
 	overlayStatusIndicators.Shapes[1].TextOptions.Text = "Predict: " + aheadPredictTime.ToHours().ToString() + " hours";
 	
@@ -513,7 +523,17 @@ Define Procedure updateStatusIndicatorsOverlay();
 	Else;
 		overlayStatusIndicators.Shapes[2].RectangleOptions.BorderColor = ColorTools.Green;
 		overlayStatusIndicators.Shapes[2].RectangleOptions.FillColor = ColorTools.Green;
-		overlayStatusIndicators.Shapes[3].TextOptions.Text = "TT&C Link: Connected";
+		overlayStatusIndicators.Shapes[3].TextOptions.Text = "TT&C Link:   Connected";
+	End;
+	
+	If (blueIsOffNominal);
+		overlayStatusIndicators.Shapes[4].RectangleOptions.BorderColor = ColorTools.Yellow;
+		overlayStatusIndicators.Shapes[4].RectangleOptions.FillColor = ColorTools.Yellow;
+		overlayStatusIndicators.Shapes[5].TextOptions.Text = "Mission Status: Off-Nominal";
+	Else;
+		overlayStatusIndicators.Shapes[4].RectangleOptions.BorderColor = ColorTools.Green;
+		overlayStatusIndicators.Shapes[4].RectangleOptions.FillColor = ColorTools.Green;
+		overlayStatusIndicators.Shapes[5].TextOptions.Text = "Mission Status:    Nominal";
 	End;
 EndProcedure;
 
@@ -1653,13 +1673,17 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue, TimeSpan 
 	
 	Call updateStatusIndicatorsOverlay();
 	
-	If (blue[0].Periapsis > 42164 - 3
-			and blue[0].Apoapsis < 42164 + 3
-			and abs(blue[0].Longitude - initialLongitudeBlue1) < 0.03
-			and abs(blue[0].EulerAngles[0] - nominalBluePayloadOrientationAngle) < 0.1);
-		blueIsOffNominal = 0;
-	Else;
+	If (killOperationIsComplete);
 		blueIsOffNominal = 1;
+	Else;
+		If (blue[0].Periapsis > 42164 - 3
+				and blue[0].Apoapsis < 42164 + 3
+				and abs(blue[0].Longitude - initialLongitudeBlue1) < 0.03
+				and abs(blue[0].EulerAngles[0] - nominalBluePayloadOrientationAngle) < 0.1);
+			blueIsOffNominal = 0;
+		Else;
+			blueIsOffNominal = 1;
+		End;
 	End;
 	
 	If (blueIsOffNominal);
@@ -1912,7 +1936,6 @@ Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, F
 					blueOperationsScore = 0;
 					redObjectiveScore = 0;
 					killOperationIsComplete = 1;
-					blueIsOffNominal = 0;
 				End;
 			End;
 		ElseIf (queuedAction.additionalAction == additionalAction_redDisengage);
@@ -2252,7 +2275,7 @@ Variable redStrategyUpdateIsCurrentlyBeingComputed;
 
 numberOfUserChoicesToSkip = 6;
 
-While (blueIsOffNominal or redIsEngaged);
+While (redIsEngaged or (blueIsOffNominal and !killOperationIsComplete));
 	nextChoiceEpoch = blue[0].Epoch + simChoiceSpacing;
 	
 	Call GetNextQueuedActionEpoch(nextQueuedActionEpoch);
@@ -2432,7 +2455,16 @@ gwLeaderboard.GetCell(0, 5).SetValue("Total");
 
 gwLeaderboard.GetCell(0, 0).Font.Bold = 1;
 gwLeaderboard.GetCell(0, 0).AlignmentHorizontal = "Center";
-gwLeaderboard.GetCell(0, 0).SetValue("Leaderboard");
+
+If (gameMode == gameMode_benignScript);
+	gameModeString = "Game Mode 1";
+ElseIf (gameMode == gameMode_observationScript);
+	gameModeString = "Game Mode 2";
+ElseIf (gameMode == gameMode_disableScript);
+	gameModeString = "Game Mode 3";
+End;
+
+gwLeaderboard.GetCell(0, 0).SetValue("Leaderboard (" + gameModeString + ")");
 For i = 0 to leaderboardLength - 1;
 	gwLeaderboard.GetCell(i + 1, 0).SetValue((i + 1).ToString());
 	gwLeaderboard.GetCell(i + 1, 1).SetValue(leaderboard[i].username);
@@ -2693,6 +2725,16 @@ Call ConfigureTextBoxOverlayShape(
 	sensorLegendBoxWidth * 1.3,
 	ColorTools.Green, "TT&C Link: Connected");
 	
+overlayStatusIndicators.AddShape();
+overlayStatusIndicators.AddShape();
+
+Call ConfigureTextBoxOverlayShape(
+	overlayStatusIndicators,
+	4, 5,
+	overlayBorderBuffer*3 + sensorLegendBoxWidth * 2.2, 1 - sensorLegendBoxHeight - overlayBorderBuffer,
+	sensorLegendBoxWidth * 1.35,
+	ColorTools.Green, "Mission Status: Nominal");
+	
 Define Procedure updateStatusIndicatorsOverlay();
 	overlayStatusIndicators.Shapes[1].TextOptions.Text = "Predict: " + aheadPredictTime.ToHours().ToString() + " hours";
 	
@@ -2707,7 +2749,17 @@ Define Procedure updateStatusIndicatorsOverlay();
 	Else;
 		overlayStatusIndicators.Shapes[2].RectangleOptions.BorderColor = ColorTools.Green;
 		overlayStatusIndicators.Shapes[2].RectangleOptions.FillColor = ColorTools.Green;
-		overlayStatusIndicators.Shapes[3].TextOptions.Text = "TT&C Link: Connected";
+		overlayStatusIndicators.Shapes[3].TextOptions.Text = "TT&C Link:   Connected";
+	End;
+	
+	If (blueIsOffNominal);
+		overlayStatusIndicators.Shapes[4].RectangleOptions.BorderColor = ColorTools.Yellow;
+		overlayStatusIndicators.Shapes[4].RectangleOptions.FillColor = ColorTools.Yellow;
+		overlayStatusIndicators.Shapes[5].TextOptions.Text = "Mission Status: Off-Nominal";
+	Else;
+		overlayStatusIndicators.Shapes[4].RectangleOptions.BorderColor = ColorTools.Green;
+		overlayStatusIndicators.Shapes[4].RectangleOptions.FillColor = ColorTools.Green;
+		overlayStatusIndicators.Shapes[5].TextOptions.Text = "Mission Status:    Nominal";
 	End;
 EndProcedure;
 
@@ -3827,13 +3879,17 @@ Define Procedure PostBlueStepSubroutine(Formation red, Formation blue, TimeSpan 
 	
 	Call updateStatusIndicatorsOverlay();
 	
-	If (blue[0].Periapsis > 42164 - 3
-			and blue[0].Apoapsis < 42164 + 3
-			and abs(blue[0].Longitude - initialLongitudeBlue1) < 0.03
-			and abs(blue[0].EulerAngles[0] - nominalBluePayloadOrientationAngle) < 0.1);
-		blueIsOffNominal = 0;
-	Else;
+	If (killOperationIsComplete);
 		blueIsOffNominal = 1;
+	Else;
+		If (blue[0].Periapsis > 42164 - 3
+				and blue[0].Apoapsis < 42164 + 3
+				and abs(blue[0].Longitude - initialLongitudeBlue1) < 0.03
+				and abs(blue[0].EulerAngles[0] - nominalBluePayloadOrientationAngle) < 0.1);
+			blueIsOffNominal = 0;
+		Else;
+			blueIsOffNominal = 1;
+		End;
 	End;
 	
 	If (blueIsOffNominal);
@@ -4081,7 +4137,6 @@ Define Procedure ExecuteQueuedAction(QueuedAction queuedAction, Formation red, F
 					blueOperationsScore = 0;
 					redObjectiveScore = 0;
 					killOperationIsComplete = 1;
-					blueIsOffNominal = 0;
 				End;
 			End;
 		ElseIf (queuedAction.additionalAction == additionalAction_redDisengage);
@@ -4406,7 +4461,7 @@ Variable redStrategyUpdateIsCurrentlyBeingComputed;
 
 numberOfUserChoicesToSkip = 6;
 
-While (blueIsOffNominal or redIsEngaged);
+While (redIsEngaged or (blueIsOffNominal and !killOperationIsComplete));
 	nextChoiceEpoch = blue[0].Epoch + simChoiceSpacing;
 	
 	Call GetNextQueuedActionEpoch(nextQueuedActionEpoch);
@@ -4581,7 +4636,16 @@ gwLeaderboard.GetCell(0, 5).SetValue("Total");
 
 gwLeaderboard.GetCell(0, 0).Font.Bold = 1;
 gwLeaderboard.GetCell(0, 0).AlignmentHorizontal = "Center";
-gwLeaderboard.GetCell(0, 0).SetValue("Leaderboard");
+
+If (gameMode == gameMode_benignScript);
+	gameModeString = "Game Mode 1";
+ElseIf (gameMode == gameMode_observationScript);
+	gameModeString = "Game Mode 2";
+ElseIf (gameMode == gameMode_disableScript);
+	gameModeString = "Game Mode 3";
+End;
+
+gwLeaderboard.GetCell(0, 0).SetValue("Leaderboard (" + gameModeString + ")");
 For i = 0 to leaderboardLength - 1;
 	gwLeaderboard.GetCell(i + 1, 0).SetValue((i + 1).ToString());
 	gwLeaderboard.GetCell(i + 1, 1).SetValue(leaderboard[i].username);
